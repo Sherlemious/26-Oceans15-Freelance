@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: freelance-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: freelancedb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freelancedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Phase D: uncomment and add all 5 services below
+  # user-service:
+  #   build: ./user-service
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
+  #     SPRING_DATASOURCE_USERNAME: postgres
+  #     SPRING_DATASOURCE_PASSWORD: postgres
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # job-service:
+  #   build: ./job-service
+  #   ports:
+  #     - "8082:8080"
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
+  #     SPRING_DATASOURCE_USERNAME: postgres
+  #     SPRING_DATASOURCE_PASSWORD: postgres
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # proposal-service:
+  #   build: ./proposal-service
+  #   ports:
+  #     - "8083:8080"
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
+  #     SPRING_DATASOURCE_USERNAME: postgres
+  #     SPRING_DATASOURCE_PASSWORD: postgres
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # contract-service:
+  #   build: ./contract-service
+  #   ports:
+  #     - "8084:8080"
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
+  #     SPRING_DATASOURCE_USERNAME: postgres
+  #     SPRING_DATASOURCE_PASSWORD: postgres
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # wallet-service:
+  #   build: ./wallet-service
+  #   ports:
+  #     - "8085:8080"
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
+  #     SPRING_DATASOURCE_USERNAME: postgres
+  #     SPRING_DATASOURCE_PASSWORD: postgres
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+volumes:
+  pgdata:
