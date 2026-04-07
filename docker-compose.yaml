@@ -1,4 +1,15 @@
 services:
+  wallet-service:
+    build: ./wallet-service
+    container_name: wallet_service
+    ports:
+      - "8085:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      - postgres
   postgres:
     image: postgres:16
     container_name: freelance-db
