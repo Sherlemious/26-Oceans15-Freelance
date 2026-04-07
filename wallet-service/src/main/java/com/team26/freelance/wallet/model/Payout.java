@@ -1,5 +1,6 @@
 package com.team26.freelance.wallet.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -42,6 +43,7 @@ public class Payout {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "payout", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PayoutPromo> payoutPromos = new ArrayList<>();
 

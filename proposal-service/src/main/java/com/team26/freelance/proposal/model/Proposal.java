@@ -1,5 +1,6 @@
 package com.team26.freelance.proposal.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -47,6 +48,7 @@ public class Proposal {
     @Column
     private LocalDateTime acceptedAt;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "proposal", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProposalMilestone> proposalMilestones = new ArrayList<>();
 

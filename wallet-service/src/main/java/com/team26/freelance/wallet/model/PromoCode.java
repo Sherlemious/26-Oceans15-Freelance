@@ -1,5 +1,6 @@
 package com.team26.freelance.wallet.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -44,6 +45,7 @@ public class PromoCode {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> metadata = new HashMap<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "promoCode", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PayoutPromo> payoutPromos = new ArrayList<>();
 
