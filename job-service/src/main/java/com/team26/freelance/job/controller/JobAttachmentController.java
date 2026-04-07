@@ -33,7 +33,6 @@ public class JobAttachmentController {
 
     @GetMapping("/{attachmentId}")
     public JobAttachment getAttachmentById(
-            @PathVariable Long jobId,
             @PathVariable Long attachmentId
     ) {
         return jobAttachmentService.getAttachmentById(attachmentId);
@@ -41,7 +40,6 @@ public class JobAttachmentController {
 
     @PutMapping("/{attachmentId}")
     public JobAttachment updateAttachment(
-            @PathVariable Long jobId,
             @PathVariable Long attachmentId,
             @RequestBody JobAttachment attachment
     ) {
@@ -51,7 +49,6 @@ public class JobAttachmentController {
     @DeleteMapping("/{attachmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAttachment(
-            @PathVariable Long jobId,
             @PathVariable Long attachmentId
     ) {
         jobAttachmentService.deleteAttachment(attachmentId);
