@@ -42,9 +42,7 @@ public class JobAttachmentService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found");
         }
 
-        return jobAttachmentRepository.findAll().stream()
-                .filter(attachment -> attachment.getJob().getId().equals(jobId))
-                .toList();
+        return jobAttachmentRepository.findByJobId(jobId);
     }
 
     public JobAttachment getAttachmentById(Long attachmentId) {
