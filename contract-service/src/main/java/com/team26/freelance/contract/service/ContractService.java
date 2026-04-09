@@ -21,6 +21,17 @@ public class ContractService {
     public List<Contract> searchByMetadata(String key, String operator, String value) {
         String normalizedOperator = operator == null ? "" : operator.trim().toLowerCase(Locale.ROOT);
 
+        if ("gt".equals(normalizedOperator) || "lt".equals(normalizedOperator)) {
+            try {
+                Double.parseDouble(value);
+            } catch (NumberFormatException e) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Value must be numeric for operator: " + normalizedOperator
+                );
+            }
+        }
+
         return switch (normalizedOperator) {
             case "eq" -> contractRepository.findByMetadataEquals(key, value);
             case "gt" -> contractRepository.findByMetadataGreaterThan(key, value);
