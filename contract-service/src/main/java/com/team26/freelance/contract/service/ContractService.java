@@ -1,12 +1,22 @@
 package com.team26.freelance.contract.service;
 
 import com.team26.freelance.contract.model.Contract;
+import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
+import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ContractService {
@@ -49,5 +59,49 @@ public class ContractService {
     public void delete(Long id) {
         Contract contract = findById(id);
         contractRepository.delete(contract);
+    }
+
+    @Transactional
+    public int updateStatuses(List<ContractStatusUpdateRequest> updates) {
+        Set<Long> uniqueIds = new HashSet<>();
+        for (ContractStatusUpdateRequest update : updates) {
+            if (!uniqueIds.add(update.contractId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate contractId in request: " + update.contractId());
+            }
+        }
+
+        List<Contract> contracts = contractRepository.findAllById(uniqueIds);
+        Map<Long, Contract> contractById = contracts.stream()
+                .collect(Collectors.toMap(Contract::getId, Function.identity()));
+
+        List<Long> missingIds = uniqueIds.stream()
+                .filter(id -> !contractById.containsKey(id))
+                .toList();
+        if (!missingIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contracts not found: " + missingIds);
+        }
+
+        List<Contract> toSave = new ArrayList<>(updates.size());
+        for (ContractStatusUpdateRequest update : updates) {
+            Contract contract = contractById.get(update.contractId());
+
+            boolean valid = contract.getStatus().isValidTransitionTo(update.status());
+            
+            if (!valid) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Invalid status transition for contract " + contract.getId() + ": " + contract.getStatus() + " -> " + update.status()
+                );
+            }
+
+            contract.setStatus(update.status());
+            if (update.status() == ContractStatus.COMPLETED) {
+                contract.setEndDate(LocalDateTime.now());
+            }
+            toSave.add(contract);
+        }
+
+        contractRepository.saveAll(toSave);
+        return toSave.size();
     }
 }

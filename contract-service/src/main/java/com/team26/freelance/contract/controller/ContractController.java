@@ -1,6 +1,7 @@
 package com.team26.freelance.contract.controller;
 
 import com.team26.freelance.contract.model.Contract;
+import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import com.team26.freelance.contract.service.ContractService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -42,5 +43,11 @@ public class ContractController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         contractService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/batch-status")
+    public ResponseEntity<Integer> updateStatuses(@RequestBody List<ContractStatusUpdateRequest> contractUpdates) {
+        int updatedCount = contractService.updateStatuses(contractUpdates);
+        return ResponseEntity.ok(updatedCount);
     }
 }
