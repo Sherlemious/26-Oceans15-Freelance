@@ -18,8 +18,6 @@ public class ContractPurgeService {
     @Transactional
     public long purgeOldContracts(int olderThanDays) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(olderThanDays);
-        long count = contractRepository.countPurgeable(cutoff);
-        contractRepository.deleteOldContracts(cutoff);
-        return count;
+        return contractRepository.deleteOldContracts(cutoff);
     }
 }
