@@ -42,4 +42,10 @@ public class UserController {
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    // S1-F4
+    @PutMapping("/{id}/deactivate")
+    public ResponseEntity<UserResponseDTO> deactivate(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.deactivate(id));
+    }
 }
