@@ -51,4 +51,8 @@ public class JobService {
         jobRepository.delete(job);
     }
 
+    public List<Job> filterByRequirement(String key, String value, String status) {
+        return jobRepository.findByRequirementAndStatus(key, value, status);
+    }
+
 }
