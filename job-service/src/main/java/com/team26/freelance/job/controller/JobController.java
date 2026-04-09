@@ -1,10 +1,11 @@
 package com.team26.freelance.job.controller;
-
+import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.service.JobService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/jobs")
@@ -42,5 +43,18 @@ public class JobController {
     @DeleteMapping("/{id}")
     public void deleteJob(@PathVariable Long id) {
         jobService.deleteJob(id);
+    }
+
+
+    // Feature 7 : Rate Job Client after Contract (Transactional)
+    @PostMapping("/{id}/rate")
+    @ResponseStatus(HttpStatus.OK)
+    public Job rateJobClient(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> body
+    ) {        
+        Long contractId = Long.valueOf(body.get("contractId").toString());
+        int rating = Integer.parseInt(body.get("rating").toString());
+        return jobService.rateJobClient(id,contractId, rating);
     }
 }
