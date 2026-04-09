@@ -27,7 +27,7 @@ public class UserSkillService {
 
     public UserSkill findById(Long id) {
         return userSkillRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("UserSkill not found"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "UserSkill not found"));
     }
 
     public List<UserSkill> findAll() {
