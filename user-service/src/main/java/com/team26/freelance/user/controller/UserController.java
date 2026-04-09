@@ -1,5 +1,6 @@
 package com.team26.freelance.user.controller;
 
+import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -17,22 +18,22 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<User> create(@RequestBody User user) {
+    public ResponseEntity<UserResponseDTO> create(@RequestBody User user) {
         return ResponseEntity.ok(userService.create(user));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getById(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.findById(id));
     }
 
     @GetMapping
-    public ResponseEntity<List<User>> getAll() {
+    public ResponseEntity<List<UserResponseDTO>> getAll() {
         return ResponseEntity.ok(userService.findAll());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> update(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<UserResponseDTO> update(@PathVariable Long id, @RequestBody User user) {
         return ResponseEntity.ok(userService.update(id, user));
     }
 
