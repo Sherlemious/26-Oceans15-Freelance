@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -23,4 +24,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query(value = "SELECT * FROM users WHERE preferences @> CAST(:pref AS jsonb)",
             nativeQuery = true)
     List<User> findByPreference(@Param("pref") String prefJson);
+    @Query(value = """
+            SELECT u.id, u.name,
+                   COALESCE(SUM(c.agreed_amount), 0) AS total_earnings,
+                   COUNT(c.id) AS contract_count
+            FROM users u
+            JOIN contracts c ON c.freelancer_id = u.id
+            WHERE c.status = 'COMPLETED'
+              AND c.created_at BETWEEN :startDate AND :endDate
+            GROUP BY u.id, u.name
+            ORDER BY total_earnings DESC
+            LIMIT :limitVal
+            """, nativeQuery = true)
+    List<Object[]> findTopFreelancersByEarnings(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("limitVal") int limitVal);
 }
