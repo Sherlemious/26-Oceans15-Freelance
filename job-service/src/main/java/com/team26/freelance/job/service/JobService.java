@@ -1,6 +1,7 @@
 package com.team26.freelance.job.service;
 
 import com.team26.freelance.job.model.Job;
+import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -51,8 +52,9 @@ public class JobService {
         jobRepository.delete(job);
     }
 
-    public List<Job> filterByRequirement(String key, String value, String status) {
-        return jobRepository.findByRequirementAndStatus(key, value, status);
+    public List<Job> filterByRequirement(String key, String value, JobStatus status) {
+        String statusStr = status != null ? status.name() : null;
+        return jobRepository.findByRequirementAndStatus(key, value, statusStr);
     }
 
 }

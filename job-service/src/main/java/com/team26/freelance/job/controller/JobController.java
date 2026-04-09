@@ -1,6 +1,7 @@
 package com.team26.freelance.job.controller;
 
 import com.team26.freelance.job.model.Job;
+import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.service.JobService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -49,7 +50,7 @@ public class JobController {
     public ResponseEntity<List<Job>> searchByRequirement(
             @RequestParam String key,
             @RequestParam String value,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) JobStatus status) {
         return ResponseEntity.ok(jobService.filterByRequirement(key, value, status));
     }
 }
