@@ -18,7 +18,7 @@ public class UserSkillController {
 
     @PostMapping("/user/{userId}")
     public ResponseEntity<UserSkill> create(@PathVariable Long userId, @RequestBody UserSkill skill) {
-        return ResponseEntity.ok(userSkillService.create(userId, skill));
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(userSkillService.create(userId, skill));
     }
 
     @GetMapping("/{id}")
