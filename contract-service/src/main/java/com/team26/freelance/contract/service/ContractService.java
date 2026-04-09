@@ -27,19 +27,6 @@ public class ContractService {
         this.contractRepository = contractRepository;
     }
 
-    public Contract create(Contract contract) {
-        return contractRepository.save(contract);
-    }
-
-    public Contract findById(Long id) {
-        return contractRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found with id: " + id));
-    }
-
-    public List<Contract> findAll() {
-        return contractRepository.findAll();
-    }
-
     @Transactional
     public Contract update(Long id, Contract contractDetails) {
         Contract contract = findById(id);
@@ -118,4 +105,25 @@ public class ContractService {
         contractRepository.saveAll(toSave);
         return toSave.size();
     }
+
+    public List<Contract> getAllContracts() {
+        return contractRepository.findAll();
+    }
+
+    public Contract getContractById(Long id) {
+        return contractRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Contract not found"
+                ));
+    }
+
+    @Transactional
+    public Contract createContract(Contract contract) {
+        // default status to ACTIVE if not provided
+        if (contract.getStatus() == null) {
+            contract.setStatus(ContractStatus.ACTIVE);
+        }
+        return contractRepository.save(contract);
+    }
+
 }

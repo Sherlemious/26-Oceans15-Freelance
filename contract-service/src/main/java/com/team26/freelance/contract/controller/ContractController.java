@@ -19,21 +19,6 @@ public class ContractController {
         this.contractService = contractService;
     }
 
-    @PostMapping
-    public ResponseEntity<Contract> create(@RequestBody Contract contract) {
-        return new ResponseEntity<>(contractService.create(contract), HttpStatus.CREATED);
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Contract> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(contractService.findById(id));
-    }
-
-    @GetMapping
-    public ResponseEntity<List<Contract>> findAll() {
-        return ResponseEntity.ok(contractService.findAll());
-    }
-
     @PutMapping("/{id}")
     public ResponseEntity<Contract> update(@PathVariable Long id, @RequestBody Contract contractDetails) {
         return ResponseEntity.ok(contractService.update(id, contractDetails));
@@ -49,5 +34,24 @@ public class ContractController {
     public ResponseEntity<Integer> updateStatuses(@RequestBody List<ContractStatusUpdateRequest> contractUpdates) {
         int updatedCount = contractService.updateStatuses(contractUpdates);
         return ResponseEntity.ok(updatedCount);
+    }
+
+    // GET /api/contracts
+    @GetMapping
+    public ResponseEntity<List<Contract>> getAllContracts() {
+        return ResponseEntity.ok(contractService.getAllContracts());
+    }
+
+    // GET /api/contracts/{id}  ← used by job-service via RestTemplate
+    @GetMapping("/{id}")
+    public ResponseEntity<Contract> getContractById(@PathVariable Long id) {
+        return ResponseEntity.ok(contractService.getContractById(id));
+    }
+
+    // POST /api/contracts
+    @PostMapping
+    public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(contractService.createContract(contract));
     }
 }
