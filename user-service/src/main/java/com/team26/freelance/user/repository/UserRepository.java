@@ -20,7 +20,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             nativeQuery = true)
     void withdrawSubmittedProposals(@Param("userId") Long userId);
 
-    @Query(value = "SELECT * FROM users WHERE preferences ->> :key = :value",
+    @Query(value = "SELECT * FROM users WHERE preferences @> CAST(:pref AS jsonb)",
             nativeQuery = true)
-    List<User> findByPreference(@Param("key") String key, @Param("value") String value);
+    List<User> findByPreference(@Param("pref") String prefJson);
 }
