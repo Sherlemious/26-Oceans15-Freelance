@@ -9,14 +9,14 @@ public enum ContractStatus {
     TERMINATED,
     DISPUTED;
 
-    public boolean isValidTransitionTo(ContractStatus next) {
-        Map<ContractStatus, ContractStatus[]> validTransitions = Map.of(
-                ACTIVE, new ContractStatus[]{COMPLETED, TERMINATED, DISPUTED},
-                DISPUTED, new ContractStatus[]{COMPLETED, TERMINATED},
-                COMPLETED, new ContractStatus[]{},
-                TERMINATED, new ContractStatus[]{}
-        );
+    private static final Map<ContractStatus, List<ContractStatus>> VALID_TRANSITIONS = Map.of(
+            ACTIVE, List.of(COMPLETED, TERMINATED, DISPUTED),
+            DISPUTED, List.of(COMPLETED, TERMINATED),
+            COMPLETED, List.of(),
+            TERMINATED, List.of()
+    );
 
-        return List.of(validTransitions.get(this)).contains(next);
+    public boolean isValidTransitionTo(ContractStatus next) {
+        return VALID_TRANSITIONS.getOrDefault(this, List.of()).contains(next);
     }
 }

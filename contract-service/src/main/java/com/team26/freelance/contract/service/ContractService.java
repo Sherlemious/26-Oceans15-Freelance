@@ -40,8 +40,17 @@ public class ContractService {
         return contractRepository.findAll();
     }
 
+    @Transactional
     public Contract update(Long id, Contract contractDetails) {
         Contract contract = findById(id);
+
+        boolean validStatus = contract.getStatus().isValidTransitionTo(contractDetails.getStatus());
+        if (!validStatus) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid status transition for contract " + contract.getId() + ": " + contract.getStatus() + " -> " + contractDetails.getStatus()
+            );
+        }
         
         contract.setJobId(contractDetails.getJobId());
         contract.setFreelancerId(contractDetails.getFreelancerId());
@@ -50,8 +59,13 @@ public class ContractService {
         contract.setAgreedAmount(contractDetails.getAgreedAmount());
         contract.setStatus(contractDetails.getStatus());
         contract.setStartDate(contractDetails.getStartDate());
-        contract.setEndDate(contractDetails.getEndDate());
         contract.setMetadata(contractDetails.getMetadata());
+
+        if (contractDetails.getStatus() == ContractStatus.COMPLETED) {
+            contract.setEndDate(LocalDateTime.now());
+        } else {
+            contract.setEndDate(contractDetails.getEndDate());
+        }
         
         return contractRepository.save(contract);
     }
