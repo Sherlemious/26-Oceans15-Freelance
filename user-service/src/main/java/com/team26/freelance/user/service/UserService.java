@@ -53,7 +53,6 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-    // S1-F4
     @Transactional
     public UserResponseDTO deactivate(Long id) {
         User user = userRepository.findById(id)
@@ -65,5 +64,15 @@ public class UserService {
         user.setStatus(Status.DEACTIVATED);
         userRepository.withdrawSubmittedProposals(id);
         return new UserResponseDTO(userRepository.save(user));
+    }
+
+    public List<UserResponseDTO> filterByPreference(String key, String value) {
+        if (key == null || key.isBlank() || value == null || value.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "key and value must not be blank");
+        }
+        return userRepository.findByPreference(key, value).stream()
+                .map(UserResponseDTO::new)
+                .collect(Collectors.toList());
     }
 }

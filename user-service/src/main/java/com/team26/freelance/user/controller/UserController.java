@@ -43,9 +43,15 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    // S1-F4
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<UserResponseDTO> deactivate(@PathVariable Long id) {
         return ResponseEntity.ok(userService.deactivate(id));
+    }
+
+    @GetMapping("/preferences/search")
+    public ResponseEntity<List<UserResponseDTO>> filterByPreference(
+            @RequestParam String key,
+            @RequestParam String value) {
+        return ResponseEntity.ok(userService.filterByPreference(key, value));
     }
 }
