@@ -95,4 +95,18 @@ public class UserService {
                         ((Number) row[3]).longValue()))
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> findByLanguageWithMinCompletedContracts(String lang, int minContracts) {
+        if (lang == null || lang.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "lang must not be blank");
+        }
+        if (minContracts < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minContracts must be >= 0");
+        }
+
+        return userRepository.findByLanguageWithMinCompletedContracts(lang, minContracts).stream()
+                .map(UserResponseDTO::new)
+                .collect(Collectors.toList());
+    }
 }

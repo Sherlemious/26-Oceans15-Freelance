@@ -65,4 +65,11 @@ public class UserController {
             @RequestParam int limit) {
         return ResponseEntity.ok(userService.getTopFreelancers(startDate, endDate, limit));
     }
+
+    @GetMapping("/preferences/language")
+    public ResponseEntity<List<UserResponseDTO>> findByLanguageWithMinContracts(
+            @RequestParam String lang,
+            @RequestParam int minContracts) {
+        return ResponseEntity.ok(userService.findByLanguageWithMinCompletedContracts(lang, minContracts));
+    }
 }
