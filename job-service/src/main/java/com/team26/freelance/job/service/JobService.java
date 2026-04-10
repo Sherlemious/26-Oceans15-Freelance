@@ -1,6 +1,7 @@
 package com.team26.freelance.job.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
@@ -15,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class JobService {
@@ -173,5 +175,17 @@ public class JobService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minBudget cannot be greater than maxBudget");
         }
         return jobRepository.searchJobs(status, minBudget, maxBudget);
+    }
+
+    public List<TopBudgetJobDTO> getTopBudgetJobs(int limit) {
+        List<Object[]> results = jobRepository.findTopBudgetJobs(limit);
+        return results.stream()
+                .map(row -> new TopBudgetJobDTO(
+                        ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        ((Number) row[2]).doubleValue(),
+                        ((Number) row[3]).longValue()
+                ))
+                .collect(Collectors.toList());
     }
 }

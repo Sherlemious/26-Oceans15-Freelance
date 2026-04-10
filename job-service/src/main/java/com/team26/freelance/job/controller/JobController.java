@@ -1,4 +1,5 @@
 package com.team26.freelance.job.controller;
+import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobStatus;
@@ -86,5 +87,10 @@ public class JobController {
             @RequestParam(required = false) Double minBudget,
             @RequestParam(required = false) Double maxBudget) {
         return jobService.searchJobs(status, minBudget, maxBudget);
+    }
+
+    @GetMapping("/reports/top-budget")
+    public ResponseEntity<List<TopBudgetJobDTO>> getTopBudgetJobs(@RequestParam int limit) {
+        return ResponseEntity.ok(jobService.getTopBudgetJobs(limit));
     }
 }
