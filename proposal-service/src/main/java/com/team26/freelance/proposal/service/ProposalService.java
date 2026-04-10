@@ -2,12 +2,10 @@ package com.team26.freelance.proposal.service;
 
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
-import com.team26.freelance.proposal.model.ProposalStatus;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -84,6 +82,11 @@ public class ProposalService {
         getMilestoneById(id);
         milestoneRepository.deleteById(id);
     }
+  
+  
+    public List<Proposal> searchByStatusAndDateRange(String status, LocalDateTime startDate, LocalDateTime endDate) {
+        return proposalRepository.searchByStatusAndDateRange(status, startDate, endDate);
+    }
 
     @Transactional
     public Proposal acceptProposal(Long proposalId) {
@@ -111,5 +114,4 @@ public class ProposalService {
 
         return proposalRepository.save(proposal);
     }
-
 }

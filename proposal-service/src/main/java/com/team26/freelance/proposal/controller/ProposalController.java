@@ -3,9 +3,12 @@ package com.team26.freelance.proposal.controller;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -76,6 +79,17 @@ public class ProposalController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Proposal>> searchProposals(
+            @RequestParam(required = false) String status,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(23, 59, 59);
+        return ResponseEntity.ok(proposalService.searchByStatusAndDateRange(status, start, end));
+    }
+  
     @PutMapping("/{proposalId}/accept")
     public ResponseEntity<Proposal> acceptProposal(@PathVariable Long proposalId) {
         return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
