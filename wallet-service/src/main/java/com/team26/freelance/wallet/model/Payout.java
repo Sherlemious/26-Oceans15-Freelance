@@ -29,11 +29,13 @@ public class Payout {
     private Double amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "payout_method")
     private PayoutMethod method;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "payout_status")
     private PayoutStatus status;
 
     @JdbcTypeCode(SqlTypes.JSON)
