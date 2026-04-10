@@ -1,20 +1,22 @@
 package com.team26.freelance.wallet.dto;
 
+import java.math.BigDecimal;
+
 public class RevenueReportDTO {
 
-    private double totalRevenue;
+    private BigDecimal totalRevenue;
     private long totalTransactions;
-    private double averagePayout;
-    private double refundedAmount;
+    private BigDecimal averagePayout;
+    private BigDecimal refundedAmount;
     private long refundCount;
 
     public RevenueReportDTO() {
     }
 
-    public RevenueReportDTO(double totalRevenue,
+    public RevenueReportDTO(BigDecimal totalRevenue,
                             long totalTransactions,
-                            double averagePayout,
-                            double refundedAmount,
+                            BigDecimal averagePayout,
+                            BigDecimal refundedAmount,
                             long refundCount) {
         this.totalRevenue = totalRevenue;
         this.totalTransactions = totalTransactions;
@@ -23,11 +25,11 @@ public class RevenueReportDTO {
         this.refundCount = refundCount;
     }
 
-    public double getTotalRevenue() {
+    public BigDecimal getTotalRevenue() {
         return totalRevenue;
     }
 
-    public void setTotalRevenue(double totalRevenue) {
+    public void setTotalRevenue(BigDecimal totalRevenue) {
         this.totalRevenue = totalRevenue;
     }
 
@@ -39,19 +41,19 @@ public class RevenueReportDTO {
         this.totalTransactions = totalTransactions;
     }
 
-    public double getAveragePayout() {
+    public BigDecimal getAveragePayout() {
         return averagePayout;
     }
 
-    public void setAveragePayout(double averagePayout) {
+    public void setAveragePayout(BigDecimal averagePayout) {
         this.averagePayout = averagePayout;
     }
 
-    public double getRefundedAmount() {
+    public BigDecimal getRefundedAmount() {
         return refundedAmount;
     }
 
-    public void setRefundedAmount(double refundedAmount) {
+    public void setRefundedAmount(BigDecimal refundedAmount) {
         this.refundedAmount = refundedAmount;
     }
 
