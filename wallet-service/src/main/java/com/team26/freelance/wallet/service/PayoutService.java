@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Service
@@ -35,10 +36,10 @@ public class PayoutService {
 
     @Transactional
     public PayoutResponseDTO applyPromoToPayout(Long payoutId, Long promoCodeId) {
-        Payout payout = payoutRepository.findById(payoutId)
+        Payout payout = payoutRepository.findByIdWithPromos(payoutId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
 
-        PromoCode promoCode = promoCodeRepository.findById(promoCodeId)
+        PromoCode promoCode = promoCodeRepository.findByIdForUpdate(promoCodeId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Promo code not found"));
 
         if (payout.getStatus() != PayoutStatus.PENDING) {
@@ -69,25 +70,25 @@ public class PayoutService {
         payoutPromo.setDiscountApplied(calculateDiscountApplied(payout, promoCode));
         payoutPromo.setAppliedAt(now);
         payoutPromoRepository.save(payoutPromo);
+        payout.getPayoutPromos().add(payoutPromo);
 
         promoCode.setCurrentUses(currentUses + 1);
         promoCodeRepository.save(promoCode);
 
-        Payout updatedPayout = payoutRepository.findByIdWithPromos(payoutId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
-
-        return new PayoutResponseDTO(updatedPayout);
+        return new PayoutResponseDTO(payout);
     }
 
     private double calculateDiscountApplied(Payout payout, PromoCode promoCode) {
-        double discountApplied;
+        BigDecimal amount = BigDecimal.valueOf(payout.getAmount());
+        BigDecimal discountValue = BigDecimal.valueOf(promoCode.getDiscountValue());
+        BigDecimal discountApplied;
 
         if (promoCode.getDiscountType() == DiscountType.PERCENTAGE) {
-            discountApplied = payout.getAmount() * promoCode.getDiscountValue() / 100.0;
+            discountApplied = amount.multiply(discountValue).divide(BigDecimal.valueOf(100));
         } else {
-            discountApplied = promoCode.getDiscountValue();
+            discountApplied = discountValue;
         }
 
-        return Math.min(discountApplied, payout.getAmount());
+        return discountApplied.min(amount).doubleValue();
     }
 }
