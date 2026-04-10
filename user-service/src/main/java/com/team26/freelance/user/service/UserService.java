@@ -122,6 +122,16 @@ public class UserService {
         UserSkill targetSkill = userSkillRepository.findById(skillId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UserSkill not found"));
 
-        return new UserResponseDTO(user);
+        if (!targetSkill.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill does not belong to user");
+        }
+
+        for (UserSkill userSkill : user.getUserSkills()) {
+            userSkill.setIsPrimary(false);
+        }
+        targetSkill.setIsPrimary(true);
+
+        User savedUser = userRepository.save(user);
+        return new UserResponseDTO(savedUser);
     }
 }
