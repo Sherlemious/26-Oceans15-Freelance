@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
@@ -36,5 +37,11 @@ public class ContractController {
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(contractService.createContract(contract));
+    }
+
+    @PutMapping("/{contractId}/progress")
+    public ResponseEntity<Contract> updateContractProgress(@PathVariable Long contractId,
+                                                           @RequestBody Map<String, Object> incomingMetadata) {
+        return ResponseEntity.ok(contractService.updateContractProgress(contractId, incomingMetadata));
     }
 }
