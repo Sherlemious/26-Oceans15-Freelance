@@ -19,4 +19,7 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     List<Job> searchJobs(@Param("status") String status,
                          @Param("minBudget") Double minBudget,
                          @Param("maxBudget") Double maxBudget);
+
+    @Query(value = "SELECT * FROM jobs WHERE requirements ->> :key = :value AND (:status IS NULL OR status = :status)", nativeQuery = true)
+    List<Job> findByRequirementAndStatus(@Param("key") String key, @Param("value") String value, @Param("status") String status);
 }
