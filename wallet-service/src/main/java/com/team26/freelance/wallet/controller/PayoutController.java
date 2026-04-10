@@ -58,4 +58,9 @@ public class PayoutController {
     public ResponseEntity<Payout> refundPayout(@PathVariable Long id, @RequestBody RefundRequest request) {
         return ResponseEntity.ok(payoutService.processRefund(id, request.getReason()));
     }
+
+    @PutMapping("/{id}/retry")
+    public ResponseEntity<Payout> retryFailedPayout(@PathVariable Long id) {
+        return ResponseEntity.ok(payoutService.retryFailedPayout(id));
+    }
 }
