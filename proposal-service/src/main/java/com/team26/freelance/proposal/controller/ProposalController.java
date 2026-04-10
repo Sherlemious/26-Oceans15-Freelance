@@ -89,4 +89,9 @@ public class ProposalController {
         LocalDateTime end = endDate.atTime(23, 59, 59);
         return ResponseEntity.ok(proposalService.searchByStatusAndDateRange(status, start, end));
     }
+  
+    @PutMapping("/{proposalId}/accept")
+    public ResponseEntity<Proposal> acceptProposal(@PathVariable Long proposalId) {
+        return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
+    }
 }

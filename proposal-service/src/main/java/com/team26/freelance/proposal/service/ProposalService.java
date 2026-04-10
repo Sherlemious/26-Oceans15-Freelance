@@ -82,7 +82,36 @@ public class ProposalService {
         getMilestoneById(id);
         milestoneRepository.deleteById(id);
     }
+  
+  
     public List<Proposal> searchByStatusAndDateRange(String status, LocalDateTime startDate, LocalDateTime endDate) {
         return proposalRepository.searchByStatusAndDateRange(status, startDate, endDate);
+    }
+
+    @Transactional
+    public Proposal acceptProposal(Long proposalId) {
+        Proposal proposal = proposalRepository.findById(proposalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+
+        if (proposal.getStatus() != ProposalStatus.SUBMITTED
+                && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
+        }
+
+        String role = proposalRepository.findFreelancerRole(proposal.getFreelancerId());
+        if (role == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer user not found");
+        }
+        if (!role.equals("FREELANCER")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not a FREELANCER");
+        }
+
+        proposal.setStatus(ProposalStatus.ACCEPTED);
+        proposal.setAcceptedAt(LocalDateTime.now());
+        proposalRepository.updateJobStatusToInProgress(proposal.getJobId());
+        proposalRepository.insertContractFromProposal(proposalId);
+
+        return proposalRepository.save(proposal);
     }
 }
