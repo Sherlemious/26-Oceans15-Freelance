@@ -1,5 +1,6 @@
 package com.team26.freelance.wallet.service;
 
+import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutStatus;
 import com.team26.freelance.wallet.repository.PayoutRepository;
@@ -10,7 +11,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class PayoutService {
@@ -68,5 +71,24 @@ public class PayoutService {
         payout.getTransactionDetails().put("refundReason", reason);
         payout.getTransactionDetails().put("refundedAt", LocalDateTime.now().toString());
         return payoutRepository.save(payout);
+    }
+
+    public FreelancerPayoutSummaryDTO getFreelancerPayoutSummary(Long freelancerId) {
+        if (payoutRepository.countUsersById(freelancerId) == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        List<Object[]> rows = payoutRepository.getPayoutSummaryByFreelancer(freelancerId);
+        Map<String, Double> methodBreakdown = new LinkedHashMap<>();
+        long totalPayouts = 0;
+        double totalAmount = 0.0;
+        for (Object[] row : rows) {
+            String method = (String) row[0];
+            long count = ((Number) row[1]).longValue();
+            double sum = ((Number) row[2]).doubleValue();
+            methodBreakdown.put(method, sum);
+            totalPayouts += count;
+            totalAmount += sum;
+        }
+        return new FreelancerPayoutSummaryDTO(freelancerId, totalPayouts, totalAmount, methodBreakdown);
     }
 }
