@@ -2,6 +2,7 @@ package com.team26.freelance.job.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.team26.freelance.job.model.Job;
+import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -57,6 +58,11 @@ public class JobService {
     public void deleteJob(Long jobId) {
         Job job = getJobById(jobId);
         jobRepository.delete(job);
+    }
+
+    public List<Job> filterByRequirement(String key, String value, JobStatus status) {
+        String statusStr = status != null ? status.name() : null;
+        return jobRepository.findByRequirementAndStatus(key, value, statusStr);
     }
 
     private void validateRating(int rating) {
