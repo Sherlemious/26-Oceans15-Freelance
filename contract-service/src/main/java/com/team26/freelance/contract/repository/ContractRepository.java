@@ -23,7 +23,7 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
         WHERE freelancer_id = :freelancerId
           AND start_date >= :startDate AND start_date <= :endDate
     """, nativeQuery = true)
-    Object[][] getFreelancerPerformance(@Param("freelancerId") Long freelancerId,
+    FreelancerPerformanceProjection getFreelancerPerformance(@Param("freelancerId") Long freelancerId,
                                         @Param("startDate") java.time.LocalDateTime startDate,
                                         @Param("endDate") java.time.LocalDateTime endDate);
 

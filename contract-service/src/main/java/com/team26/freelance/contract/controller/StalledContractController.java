@@ -6,7 +6,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
 import java.util.List;
 
 @RestController
@@ -21,8 +20,8 @@ public class StalledContractController {
 
     @GetMapping("/stalled")
     public List<StalledContractDTO> getStalledContracts(
-            @RequestParam("maxProgress") double maxProgress,
-            @RequestParam("stalledDays") double stalledDays) {
+            @RequestParam("maxProgress") @jakarta.validation.constraints.Min(0) @jakarta.validation.constraints.Max(100) double maxProgress,
+            @RequestParam("stalledDays") @jakarta.validation.constraints.Min(0) double stalledDays) {
 
         return stalledContractService.getStalledContracts(maxProgress, stalledDays);
     }
