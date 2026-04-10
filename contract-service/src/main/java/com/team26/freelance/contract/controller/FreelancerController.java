@@ -4,6 +4,8 @@ import com.team26.freelance.contract.dto.FreelancerPerformanceDTO;
 import com.team26.freelance.contract.service.FreelancerPerformanceService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @RestController
 @RequestMapping("/api/contracts/freelancer")
@@ -18,8 +20,8 @@ public class FreelancerController {
     @GetMapping("/{freelancerId}/summary")
     public ResponseEntity<FreelancerPerformanceDTO> getSummary(
             @PathVariable Long freelancerId,
-            @RequestParam String startDate,
-            @RequestParam String endDate) {
+            @RequestParam("startDate") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam("endDate") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate) {
 
         FreelancerPerformanceDTO summary = performanceService.getSummary(freelancerId, startDate, endDate);
         return ResponseEntity.ok(summary);

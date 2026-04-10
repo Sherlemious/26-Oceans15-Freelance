@@ -9,9 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ContractRepository extends JpaRepository<Contract, Long> {
 
-    @Query(value = "SELECT COUNT(*) FROM users WHERE id = :freelancerId", nativeQuery = true)
-    long countUserById(@Param("freelancerId") Long freelancerId);
-
     @Query(value = """
         SELECT 
             COUNT(*) as totalContracts,

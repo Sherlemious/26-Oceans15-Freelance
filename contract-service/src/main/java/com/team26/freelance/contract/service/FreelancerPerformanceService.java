@@ -2,6 +2,7 @@ package com.team26.freelance.contract.service;
 
 import com.team26.freelance.contract.dto.FreelancerPerformanceDTO;
 import com.team26.freelance.contract.repository.ContractRepository;
+import com.team26.freelance.contract.client.UserClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -12,18 +13,24 @@ import java.time.LocalDateTime;
 public class FreelancerPerformanceService {
 
     private final ContractRepository contractRepository;
+    private final UserClient userClient;
 
-    public FreelancerPerformanceService(ContractRepository contractRepository) {
+    public FreelancerPerformanceService(ContractRepository contractRepository, UserClient userClient) {
         this.contractRepository = contractRepository;
+        this.userClient = userClient;
     }
 
-    public FreelancerPerformanceDTO getSummary(Long freelancerId, String startDateStr, String endDateStr) {
-        if (contractRepository.countUserById(freelancerId) == 0) {
+    public FreelancerPerformanceDTO getSummary(Long freelancerId, java.time.LocalDate startDateParam, java.time.LocalDate endDateParam) {
+        try {
+            userClient.getUserById(freelancerId);
+        } catch (feign.FeignException.NotFound e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error verifying user");
         }
 
-        LocalDateTime startDate = LocalDateTime.parse(startDateStr + "T00:00:00");
-        LocalDateTime endDate = LocalDateTime.parse(endDateStr + "T23:59:59");
+        LocalDateTime startDate = startDateParam.atStartOfDay();
+        LocalDateTime endDate = endDateParam.atTime(23, 59, 59);
 
         Object[][] result = contractRepository.getFreelancerPerformance(freelancerId, startDate, endDate);
 
@@ -42,4 +49,3 @@ public class FreelancerPerformanceService {
                 completionRate, averageDurationDays, totalEarnings);
     }
 }
-
