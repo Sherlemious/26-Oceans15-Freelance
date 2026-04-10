@@ -65,4 +65,12 @@ public class JobController {
         int rating = Integer.parseInt(body.get("rating").toString());
         return jobService.rateJobClient(id,contractId, rating);
     }
+
+    @GetMapping("/search")
+    public List<Job> searchJobs(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Double minBudget,
+            @RequestParam(required = false) Double maxBudget) {
+        return jobService.searchJobs(status, minBudget, maxBudget);
+    }
 }
