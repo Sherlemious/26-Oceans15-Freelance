@@ -26,4 +26,22 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     Object[][] getFreelancerPerformance(@Param("freelancerId") Long freelancerId,
                                         @Param("startDate") java.time.LocalDateTime startDate,
                                         @Param("endDate") java.time.LocalDateTime endDate);
+
+    @Query(value = """
+        SELECT 
+            c.id as contractId,
+            u.name as freelancerName,
+            j.title as jobTitle,
+            c.agreed_amount as agreedAmount,
+            COALESCE(CAST(c.metadata->>'progressPercentage' AS numeric), 0) as progressPercentage,
+            EXTRACT(EPOCH FROM (NOW() - COALESCE(CAST(c.metadata->>'lastActivityDate' AS timestamp), c.created_at)))/86400 as daysSinceLastActivity
+        FROM contracts c
+        JOIN users u ON c.freelancer_id = u.id
+        JOIN jobs j ON c.job_id = j.id
+        WHERE c.status = 'ACTIVE'
+          AND COALESCE(CAST(c.metadata->>'progressPercentage' AS numeric), 0) <= :maxProgress
+          AND (EXTRACT(EPOCH FROM (NOW() - COALESCE(CAST(c.metadata->>'lastActivityDate' AS timestamp), c.created_at)))/86400) > :stalledDays
+    """, nativeQuery = true)
+    java.util.List<Object[]> findStalledContracts(@Param("maxProgress") double maxProgress,
+                                                  @Param("stalledDays") double stalledDays);
 }
