@@ -30,6 +30,19 @@ public class ContractService {
                 ));
     }
 
+    public Contract getActiveContractForUser(Long userId) {
+        if (contractRepository.countUsersById(userId) == 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "User not found"
+            );
+        }
+
+        return contractRepository.findMostRecentActiveContractByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Active contract not found"
+                ));
+    }
+
     @Transactional
     public Contract createContract(Contract contract) {
         // default status to ACTIVE if not provided
