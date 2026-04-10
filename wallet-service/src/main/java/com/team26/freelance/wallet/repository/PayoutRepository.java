@@ -23,4 +23,15 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
     );
+
+    @Query(value = "SELECT COUNT(*) FROM users WHERE id = :userId", nativeQuery = true)
+    int countUsersById(@Param("userId") Long userId);
+
+    @Query(value = """
+        SELECT method, COUNT(*), SUM(amount)
+        FROM payouts
+        WHERE freelancer_id = :freelancerId AND status = 'COMPLETED'
+        GROUP BY method
+        """, nativeQuery = true)
+    List<Object[]> getPayoutSummaryByFreelancer(@Param("freelancerId") Long freelancerId);
 }

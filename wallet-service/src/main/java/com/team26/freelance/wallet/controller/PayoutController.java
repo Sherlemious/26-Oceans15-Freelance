@@ -1,5 +1,6 @@
 package com.team26.freelance.wallet.controller;
 
+import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.service.PayoutService;
@@ -57,5 +58,10 @@ public class PayoutController {
     @PutMapping("/{id}/refund")
     public ResponseEntity<Payout> refundPayout(@PathVariable Long id, @RequestBody RefundRequest request) {
         return ResponseEntity.ok(payoutService.processRefund(id, request.getReason()));
+    }
+
+    @GetMapping("/freelancer/{freelancerId}/summary")
+    public ResponseEntity<FreelancerPayoutSummaryDTO> getFreelancerSummary(@PathVariable Long freelancerId) {
+        return ResponseEntity.ok(payoutService.getFreelancerPayoutSummary(freelancerId));
     }
 }
