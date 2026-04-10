@@ -1,5 +1,6 @@
 package com.team26.freelance.wallet.controller;
 
+import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.service.PayoutService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -51,5 +52,10 @@ public class PayoutController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(payoutService.searchByStatusAndDateRange(status, startDate, endDate));
+    }
+
+    @PutMapping("/{id}/refund")
+    public ResponseEntity<Payout> refundPayout(@PathVariable Long id, @RequestBody RefundRequest request) {
+        return ResponseEntity.ok(payoutService.processRefund(id, request.getReason()));
     }
 }
