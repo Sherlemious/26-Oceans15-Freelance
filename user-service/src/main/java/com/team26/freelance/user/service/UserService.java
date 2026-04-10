@@ -1,5 +1,6 @@
 package com.team26.freelance.user.service;
 
+import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
+import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 
 @Service
@@ -53,7 +56,6 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-    // S1-F4
     @Transactional
     public UserResponseDTO deactivate(Long id) {
         User user = userRepository.findById(id)
@@ -65,5 +67,32 @@ public class UserService {
         user.setStatus(Status.DEACTIVATED);
         userRepository.withdrawSubmittedProposals(id);
         return new UserResponseDTO(userRepository.save(user));
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> filterByPreference(String key, String value) {
+        if (key.isBlank() || value.isBlank()) {
+            throw new IllegalArgumentException("key and value must not be blank");
+        }
+
+        String prefJson = String.format("{\"%s\": \"%s\"}", key, value);
+        return userRepository.findByPreference(prefJson).stream()
+                .map(UserResponseDTO::new)
+                .toList();
+    }
+    public List<TopFreelancerDTO> getTopFreelancers(LocalDate startDate, LocalDate endDate, int limit) {
+        if (startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "startDate must be before endDate");
+        }
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(23, 59, 59);
+        return userRepository.findTopFreelancersByEarnings(start, end, limit).stream()
+                .map(row -> new TopFreelancerDTO(
+                        ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        ((Number) row[2]).doubleValue(),
+                        ((Number) row[3]).longValue()))
+                .collect(Collectors.toList());
     }
 }
