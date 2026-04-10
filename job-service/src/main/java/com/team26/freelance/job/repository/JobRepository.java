@@ -13,7 +13,7 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     @Query(value = "SELECT * FROM jobs j WHERE " +
             "(:status IS NULL OR j.status = :status) AND " +
             "(:minBudget IS NULL OR j.budget_max >= :minBudget) AND " +
-            "(:maxBudget IS NULL OR j.budget_max <= :maxBudget) " +
+            "(:maxBudget IS NULL OR j.budget_min <= :maxBudget) " +
             "ORDER BY j.budget_max DESC",
             nativeQuery = true)
     List<Job> searchJobs(@Param("status") String status,
