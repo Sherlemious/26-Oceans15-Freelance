@@ -75,10 +75,10 @@ public class JobService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot close job with active contracts");
             }
 
+            jobRepository.rejectSubmittedProposalsByJobId(id);
+
             job.setStatus(JobStatus.CLOSED);
             jobRepository.save(job);
-
-            jobRepository.rejectSubmittedProposalsByJobId(id);
         }
     }
 

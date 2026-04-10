@@ -20,6 +20,7 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     @Modifying
     @Query(value = "UPDATE proposals SET status = 'REJECTED' WHERE job_id = :jobId AND status = 'SUBMITTED'", nativeQuery = true)
     void rejectSubmittedProposalsByJobId(@Param("jobId") Long jobId);
+
     @Query(value = "SELECT * FROM jobs j WHERE " +
             "(:status IS NULL OR j.status = :status) AND " +
             "(:minBudget IS NULL OR j.budget_max >= :minBudget) AND " +
