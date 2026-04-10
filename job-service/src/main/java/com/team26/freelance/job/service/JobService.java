@@ -147,4 +147,10 @@ public class JobService {
         job.setRequirements(existingRequirements);
         return jobRepository.save(job);
     }
+    public List<Job> searchJobs(String status, Double minBudget, Double maxBudget) {
+        if (minBudget != null && maxBudget != null && minBudget > maxBudget) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minBudget cannot be greater than maxBudget");
+        }
+        return jobRepository.searchJobs(status, minBudget, maxBudget);
+    }
 }

@@ -72,5 +72,13 @@ public class JobController {
             @PathVariable Long id,
             @RequestBody Map<String, Object> requirements) {
         return jobService.updateRequirements(id, requirements);
+      
+    }
+    @GetMapping("/search")
+    public List<Job> searchJobs(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Double minBudget,
+            @RequestParam(required = false) Double maxBudget) {
+        return jobService.searchJobs(status, minBudget, maxBudget);
     }
 }
