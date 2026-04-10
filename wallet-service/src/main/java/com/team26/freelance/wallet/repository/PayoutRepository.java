@@ -18,8 +18,9 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
                 COALESCE(SUM(CASE WHEN p.status = 'REFUNDED' THEN p.amount ELSE 0 END), 0) AS refundedAmount,
                 COALESCE(SUM(CASE WHEN p.status = 'REFUNDED' THEN 1 ELSE 0 END), 0) AS refundCount
             FROM payouts p
-            WHERE p.created_at BETWEEN :startDate AND :endDate
+            WHERE p.created_at >= :startDate
+              AND p.created_at < :endExclusive
             """, nativeQuery = true)
     Object[] getRevenueReport(@Param("startDate") LocalDateTime startDate,
-                              @Param("endDate") LocalDateTime endDate);
+                              @Param("endExclusive") LocalDateTime endExclusive);
 }

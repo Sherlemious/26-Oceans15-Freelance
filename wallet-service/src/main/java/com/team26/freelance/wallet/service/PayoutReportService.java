@@ -24,9 +24,9 @@ public class PayoutReportService {
         }
 
         LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.atTime(23, 59, 59);
+        LocalDateTime endExclusive = endDate.plusDays(1).atStartOfDay();
 
-        Object[] row = payoutRepository.getRevenueReport(start, end);
+        Object[] row = payoutRepository.getRevenueReport(start, endExclusive);
         double totalRevenue = ((Number) row[0]).doubleValue();
         long totalTransactions = ((Number) row[1]).longValue();
         double refundedAmount = ((Number) row[2]).doubleValue();
