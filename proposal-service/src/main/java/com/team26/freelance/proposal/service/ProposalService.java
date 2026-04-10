@@ -1,5 +1,6 @@
 package com.team26.freelance.proposal.service;
 
+import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
@@ -81,8 +82,7 @@ public class ProposalService {
     public void deleteMilestone(Long id) {
         getMilestoneById(id);
         milestoneRepository.deleteById(id);
-    }
-  
+    }  
   
     public List<Proposal> searchByStatusAndDateRange(String status, LocalDateTime startDate, LocalDateTime endDate) {
         return proposalRepository.searchByStatusAndDateRange(status, startDate, endDate);
@@ -113,5 +113,32 @@ public class ProposalService {
         proposalRepository.insertContractFromProposal(proposalId);
 
         return proposalRepository.save(proposal);
+    }
+  
+    public FeeEstimateDTO estimateFee(double bidAmount, int estimatedDays) {
+        if (bidAmount <= 0 || estimatedDays <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "bidAmount and estimatedDays must be positive");
+        }
+
+        double lower = bidAmount * 0.8;
+        double upper = bidAmount * 1.2;
+        int similarCount = proposalRepository.countActiveSimilarProposals(lower, upper);
+
+        double feePercentage;
+        if (similarCount <= 5) {
+            feePercentage = 20.0;
+        } else if (similarCount <= 15) {
+            feePercentage = 15.0;
+        } else {
+            feePercentage = 10.0;
+        }
+
+        double platformFee = bidAmount * feePercentage / 100;
+        double freelancerPayout = bidAmount - platformFee;
+        double estimatedDailyRate = freelancerPayout / estimatedDays;
+
+        return new FeeEstimateDTO(bidAmount, platformFee, freelancerPayout,
+                feePercentage, estimatedDailyRate);
     }
 }

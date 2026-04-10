@@ -50,4 +50,14 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         WHERE p.id = :proposalId
         """, nativeQuery = true)
     void insertContractFromProposal(@Param("proposalId") Long proposalId);
+           
+    @Query(value = """
+        SELECT COUNT(*) FROM proposals
+        WHERE status IN ('SUBMITTED', 'SHORTLISTED')
+          AND bid_amount BETWEEN :lowerBound AND :upperBound
+        """, nativeQuery = true)
+    int countActiveSimilarProposals(
+            @Param("lowerBound") double lowerBound,
+            @Param("upperBound") double upperBound
+    );
 }

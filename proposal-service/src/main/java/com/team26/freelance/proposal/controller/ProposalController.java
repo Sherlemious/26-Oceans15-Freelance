@@ -1,5 +1,7 @@
 package com.team26.freelance.proposal.controller;
 
+import com.team26.freelance.proposal.dto.FeeEstimateDTO;
+import com.team26.freelance.proposal.dto.FeeEstimateRequest;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
@@ -93,5 +95,11 @@ public class ProposalController {
     @PutMapping("/{proposalId}/accept")
     public ResponseEntity<Proposal> acceptProposal(@PathVariable Long proposalId) {
         return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
+    }
+  
+    @PostMapping("/estimate")
+    public ResponseEntity<FeeEstimateDTO> estimateFee(@RequestBody FeeEstimateRequest request) {
+        return ResponseEntity.ok(proposalService.estimateFee(
+                request.getBidAmount(), request.getEstimatedDays()));
     }
 }
