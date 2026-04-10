@@ -1,6 +1,8 @@
 package com.team26.freelance.job.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -10,7 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity
 @Table(name = "jobs")
 public class Job {
@@ -54,8 +56,8 @@ public class Job {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    @JsonIgnore
+    
+    
     @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<JobAttachment> jobAttachments = new ArrayList<>();
 

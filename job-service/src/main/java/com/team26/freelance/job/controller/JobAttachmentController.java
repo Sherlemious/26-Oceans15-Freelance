@@ -1,11 +1,13 @@
 package com.team26.freelance.job.controller;
 
+import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.service.JobAttachmentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/jobs/{jobId}/attachments")
@@ -33,24 +35,40 @@ public class JobAttachmentController {
 
     @GetMapping("/{attachmentId}")
     public JobAttachment getAttachmentById(
-            @PathVariable Long attachmentId
+            @PathVariable Long attachmentId,
+            @PathVariable Long jobId
     ) {
-        return jobAttachmentService.getAttachmentById(attachmentId);
+        return jobAttachmentService.getAttachmentById(attachmentId, jobId);
     }
 
     @PutMapping("/{attachmentId}")
     public JobAttachment updateAttachment(
             @PathVariable Long attachmentId,
-            @RequestBody JobAttachment attachment
+            @RequestBody JobAttachment attachment,
+            @PathVariable Long jobId
     ) {
-        return jobAttachmentService.updateAttachment(attachmentId, attachment);
+        return jobAttachmentService.updateAttachment(attachmentId, attachment, jobId);
     }
 
     @DeleteMapping("/{attachmentId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAttachment(
-            @PathVariable Long attachmentId
+            @PathVariable Long attachmentId,
+            @PathVariable Long jobId
     ) {
-        jobAttachmentService.deleteAttachment(attachmentId);
+        jobAttachmentService.deleteAttachment(attachmentId, jobId);
+    }
+
+
+    // Verify Job Attachment
+    @PutMapping("/{attachmentId}/verify")
+    public Job verifyAttachment(
+            @PathVariable Long jobId,
+            @PathVariable Long attachmentId,
+            @RequestBody Map<String, Object> body
+    ) {
+        Long verifiedBy = Long.valueOf(body.get("verifiedBy").toString());
+        System.out.println("Verifying attachment " + attachmentId + " for job " + jobId + " by user " + verifiedBy);
+        return jobAttachmentService.verifyAttachment(jobId, attachmentId, verifiedBy);
     }
 }
