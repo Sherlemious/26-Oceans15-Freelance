@@ -81,10 +81,25 @@ public class ProposalController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Proposal>> searchProposals(
+            @RequestParam(required = false) String status,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(23, 59, 59);
+        return ResponseEntity.ok(proposalService.searchByStatusAndDateRange(status, start, end));
+    }
+  
+    @PutMapping("/{proposalId}/accept")
+    public ResponseEntity<Proposal> acceptProposal(@PathVariable Long proposalId) {
+        return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
+    }
+  
     @PostMapping("/estimate")
     public ResponseEntity<FeeEstimateDTO> estimateFee(@RequestBody FeeEstimateRequest request) {
         return ResponseEntity.ok(proposalService.estimateFee(
                 request.getBidAmount(), request.getEstimatedDays()));
     }
-
 }

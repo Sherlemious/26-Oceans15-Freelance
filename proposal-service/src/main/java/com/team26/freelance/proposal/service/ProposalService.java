@@ -82,8 +82,39 @@ public class ProposalService {
     public void deleteMilestone(Long id) {
         getMilestoneById(id);
         milestoneRepository.deleteById(id);
+    }  
+  
+    public List<Proposal> searchByStatusAndDateRange(String status, LocalDateTime startDate, LocalDateTime endDate) {
+        return proposalRepository.searchByStatusAndDateRange(status, startDate, endDate);
     }
 
+    @Transactional
+    public Proposal acceptProposal(Long proposalId) {
+        Proposal proposal = proposalRepository.findById(proposalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+
+        if (proposal.getStatus() != ProposalStatus.SUBMITTED
+                && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
+        }
+
+        String role = proposalRepository.findFreelancerRole(proposal.getFreelancerId());
+        if (role == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer user not found");
+        }
+        if (!role.equals("FREELANCER")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not a FREELANCER");
+        }
+
+        proposal.setStatus(ProposalStatus.ACCEPTED);
+        proposal.setAcceptedAt(LocalDateTime.now());
+        proposalRepository.updateJobStatusToInProgress(proposal.getJobId());
+        proposalRepository.insertContractFromProposal(proposalId);
+
+        return proposalRepository.save(proposal);
+    }
+  
     public FeeEstimateDTO estimateFee(double bidAmount, int estimatedDays) {
         if (bidAmount <= 0 || estimatedDays <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -110,5 +141,4 @@ public class ProposalService {
         return new FeeEstimateDTO(bidAmount, platformFee, freelancerPayout,
                 feePercentage, estimatedDailyRate);
     }
-
 }

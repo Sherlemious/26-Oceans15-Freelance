@@ -1,7 +1,6 @@
 package com.team26.freelance.proposal.dto;
 
 public class FeeEstimateDTO {
-
     private double bidAmount;
     private double platformFee;
     private double freelancerPayout;
@@ -18,6 +17,7 @@ public class FeeEstimateDTO {
         this.estimatedDailyRate = estimatedDailyRate;
     }
 
+    // Getters
     public double getBidAmount() { return bidAmount; }
     public double getPlatformFee() { return platformFee; }
     public double getFreelancerPayout() { return freelancerPayout; }
