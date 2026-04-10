@@ -53,6 +53,7 @@ public class JobController {
             @RequestParam String value,
             @RequestParam(required = false) JobStatus status) {
         return ResponseEntity.ok(jobService.filterByRequirement(key, value, status));
+    }
 
     // Feature 7 : Rate Job Client after Contract (Transactional)
     @PostMapping("/{id}/rate")
@@ -64,5 +65,12 @@ public class JobController {
         Long contractId = Long.valueOf(body.get("contractId").toString());
         int rating = Integer.parseInt(body.get("rating").toString());
         return jobService.rateJobClient(id,contractId, rating);
+    }
+
+    @PutMapping("/{id}/requirements")
+    public Job updateRequirements(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> requirements) {
+        return jobService.updateRequirements(id, requirements);
     }
 }

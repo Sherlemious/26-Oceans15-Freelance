@@ -12,7 +12,9 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class JobService {
@@ -129,5 +131,20 @@ public class JobService {
         return jobRepository.save(job);
     }
 
-   
+    @Transactional
+    public Job updateRequirements(Long jobId, Map<String, Object> newRequirements) {
+        Job job = getJobById(jobId);
+
+        Map<String, Object> existingRequirements = job.getRequirements();
+        if (existingRequirements == null) {
+            existingRequirements = new HashMap<>();
+        }
+
+        if (newRequirements != null) {
+            existingRequirements.putAll(newRequirements);
+        }
+
+        job.setRequirements(existingRequirements);
+        return jobRepository.save(job);
+    }
 }
