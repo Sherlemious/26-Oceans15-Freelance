@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.controller;
 
+import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.model.Contract;
 
 import com.team26.freelance.contract.service.ContractService;
@@ -36,5 +37,14 @@ public class ContractController {
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(contractService.createContract(contract));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<ContractSummaryDTO>> searchContracts(@RequestParam Double minAmount,
+                                                                    @RequestParam Double maxAmount,
+                                                                    @RequestParam(required = false) String status) {
+        return ResponseEntity.ok(
+                contractService.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount, status)
+        );
     }
 }
