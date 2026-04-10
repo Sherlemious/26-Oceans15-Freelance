@@ -51,6 +51,11 @@ public class UserController {
         return ResponseEntity.ok(userService.deactivate(id));
     }
 
+    @PutMapping("/{userId}/skills/{skillId}/primary")
+    public ResponseEntity<UserResponseDTO> setPrimarySkill(@PathVariable Long userId, @PathVariable Long skillId) {
+        return ResponseEntity.ok(userService.setPrimarySkill(userId, skillId));
+    }
+
     @GetMapping("/preferences/search")
     public ResponseEntity<List<UserResponseDTO>> filterByPreference(
             @RequestParam String key,
