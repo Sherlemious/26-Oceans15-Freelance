@@ -2,6 +2,7 @@ package com.team26.freelance.job.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.team26.freelance.job.model.Job;
+import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -11,7 +12,9 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class JobService {
@@ -57,6 +60,11 @@ public class JobService {
     public void deleteJob(Long jobId) {
         Job job = getJobById(jobId);
         jobRepository.delete(job);
+    }
+
+    public List<Job> filterByRequirement(String key, String value, JobStatus status) {
+        String statusStr = status != null ? status.name() : null;
+        return jobRepository.findByRequirementAndStatus(key, value, statusStr);
     }
 
     private void validateRating(int rating) {
@@ -121,5 +129,28 @@ public class JobService {
 
         // 5. Save and return
         return jobRepository.save(job);
+    }
+
+    @Transactional
+    public Job updateRequirements(Long jobId, Map<String, Object> newRequirements) {
+        Job job = getJobById(jobId);
+
+        Map<String, Object> existingRequirements = job.getRequirements();
+        if (existingRequirements == null) {
+            existingRequirements = new HashMap<>();
+        }
+
+        if (newRequirements != null) {
+            existingRequirements.putAll(newRequirements);
+        }
+
+        job.setRequirements(existingRequirements);
+        return jobRepository.save(job);
+    }
+    public List<Job> searchJobs(String status, Double minBudget, Double maxBudget) {
+        if (minBudget != null && maxBudget != null && minBudget > maxBudget) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minBudget cannot be greater than maxBudget");
+        }
+        return jobRepository.searchJobs(status, minBudget, maxBudget);
     }
 }

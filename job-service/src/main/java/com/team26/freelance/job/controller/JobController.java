@@ -1,7 +1,9 @@
 package com.team26.freelance.job.controller;
 import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
+import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.service.JobService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,6 +47,13 @@ public class JobController {
         jobService.deleteJob(id);
     }
 
+    @GetMapping("/requirements/search")
+    public ResponseEntity<List<Job>> searchByRequirement(
+            @RequestParam String key,
+            @RequestParam String value,
+            @RequestParam(required = false) JobStatus status) {
+        return ResponseEntity.ok(jobService.filterByRequirement(key, value, status));
+    }
 
     // Feature 7 : Rate Job Client after Contract (Transactional)
     @PostMapping("/{id}/rate")
@@ -56,5 +65,20 @@ public class JobController {
         Long contractId = Long.valueOf(body.get("contractId").toString());
         int rating = Integer.parseInt(body.get("rating").toString());
         return jobService.rateJobClient(id,contractId, rating);
+    }
+
+    @PutMapping("/{id}/requirements")
+    public Job updateRequirements(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> requirements) {
+        return jobService.updateRequirements(id, requirements);
+      
+    }
+    @GetMapping("/search")
+    public List<Job> searchJobs(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Double minBudget,
+            @RequestParam(required = false) Double maxBudget) {
+        return jobService.searchJobs(status, minBudget, maxBudget);
     }
 }
