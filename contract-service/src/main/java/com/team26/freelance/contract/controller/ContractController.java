@@ -1,13 +1,13 @@
 package com.team26.freelance.contract.controller;
 
 import com.team26.freelance.contract.model.Contract;
+import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import com.team26.freelance.contract.service.ContractService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
 
 @RestController
 @RequestMapping("/api/contracts")
@@ -28,6 +28,23 @@ public class ContractController {
         return ResponseEntity.ok(contractService.searchByMetadata(key, operator, value));
     }
   
+    @PutMapping("/{id}")
+    public ResponseEntity<Contract> update(@PathVariable Long id, @RequestBody Contract contractDetails) {
+        return ResponseEntity.ok(contractService.update(id, contractDetails));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        contractService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/batch-status")
+    public ResponseEntity<Integer> updateStatuses(@RequestBody List<ContractStatusUpdateRequest> contractUpdates) {
+        int updatedCount = contractService.updateStatuses(contractUpdates);
+        return ResponseEntity.ok(updatedCount);
+    }
+
     // GET /api/contracts
     @GetMapping
     public ResponseEntity<List<Contract>> getAllContracts() {

@@ -35,7 +35,8 @@ public class Proposal {
     private Integer estimatedDays;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "proposal_status")
     private ProposalStatus status;
 
     @JdbcTypeCode(SqlTypes.JSON)

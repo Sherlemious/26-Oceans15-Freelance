@@ -4,7 +4,9 @@ import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
+import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.repository.UserRepository;
+import com.team26.freelance.user.repository.UserSkillRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,9 +20,11 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserSkillRepository userSkillRepository;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, UserSkillRepository userSkillRepository) {
         this.userRepository = userRepository;
+        this.userSkillRepository = userSkillRepository;
     }
 
     public UserResponseDTO create(User user) {
@@ -108,5 +112,26 @@ public class UserService {
         return userRepository.findByLanguageWithMinCompletedContracts(lang, minContracts).stream()
                 .map(UserResponseDTO::new)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public UserResponseDTO setPrimarySkill(Long userId, Long skillId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        UserSkill targetSkill = userSkillRepository.findById(skillId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UserSkill not found"));
+
+        if (!targetSkill.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill does not belong to user");
+        }
+
+        for (UserSkill userSkill : user.getUserSkills()) {
+            userSkill.setIsPrimary(false);
+        }
+        targetSkill.setIsPrimary(true);
+
+        User savedUser = userRepository.save(user);
+        return new UserResponseDTO(savedUser);
     }
 }
