@@ -4,8 +4,10 @@ import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
-import org.springframework.stereotype.Service;
 import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class UserSkillService {
@@ -20,18 +22,25 @@ public class UserSkillService {
 
     public UserSkill create(Long userId, UserSkill skill) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         skill.setUser(user);
         return userSkillRepository.save(skill);
     }
 
     public UserSkill findById(Long id) {
         return userSkillRepository.findById(id)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "UserSkill not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UserSkill not found"));
     }
 
     public List<UserSkill> findAll() {
         return userSkillRepository.findAll();
+    }
+
+    public List<UserSkill> findByUserId(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        return userSkillRepository.findByUserId(userId);
     }
 
     public UserSkill update(Long id, UserSkill updated) {
@@ -47,5 +56,17 @@ public class UserSkillService {
 
     public void delete(Long id) {
         userSkillRepository.deleteById(id);
+    }
+
+    public void deleteByUserSkill(Long userId, Long skillId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        UserSkill skill = findById(skillId);
+        if (!skill.getUser().getId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill does not belong to user");
+        }
+
+        userSkillRepository.delete(skill);
     }
 }

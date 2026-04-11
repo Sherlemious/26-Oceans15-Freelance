@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
@@ -72,6 +73,12 @@ public class ContractController {
         return ResponseEntity.ok(contractService.getContractById(id));
     }
 
+    // GET /api/contracts/user/{userId}/active
+    @GetMapping("/user/{userId}/active")
+    public ResponseEntity<Contract> getActiveContractForUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(contractService.getActiveContractForUser(userId));
+    }
+
     // POST /api/contracts
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
@@ -86,5 +93,9 @@ public class ContractController {
         return ResponseEntity.ok(
                 contractService.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount, status)
         );
+    @PutMapping("/{contractId}/progress")
+    public ResponseEntity<Contract> updateContractProgress(@PathVariable Long contractId,
+                                                           @RequestBody Map<String, Object> incomingMetadata) {
+        return ResponseEntity.ok(contractService.updateContractProgress(contractId, incomingMetadata));
     }
 }

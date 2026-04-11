@@ -14,6 +14,9 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -158,6 +161,19 @@ public class ContractService {
                 ));
     }
 
+    public Contract getActiveContractForUser(Long userId) {
+        if (contractRepository.countUsersById(userId) == 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "User not found"
+            );
+        }
+
+        return contractRepository.findMostRecentActiveContractByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Active contract not found"
+                ));
+    }
+
     @Transactional
     public Contract createContract(Contract contract) {
         // default status to ACTIVE if not provided
@@ -193,6 +209,22 @@ public class ContractService {
         }
 
         return contractSummaries;
+    @Transactional
+    public Contract updateContractProgress(Long contractId, Map<String, Object> incomingMetadata) {
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Contract not found"
+                ));
+
+        Map<String, Object> existingMetadata = contract.getMetadata();
+        if (existingMetadata == null) {
+            existingMetadata = new HashMap<>();
+        }
+
+        existingMetadata.putAll(incomingMetadata);
+        contract.setMetadata(existingMetadata);
+
+        return contractRepository.save(contract);
     }
 
 }
