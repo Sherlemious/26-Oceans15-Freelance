@@ -2,6 +2,7 @@ package com.team26.freelance.proposal.repository;
 
 import com.team26.freelance.proposal.model.Proposal;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -60,4 +61,30 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
             @Param("lowerBound") double lowerBound,
             @Param("upperBound") double upperBound
     );
+
+    @Query(value = "SELECT id FROM contracts WHERE proposal_id = :proposalId AND status = 'ACTIVE' LIMIT 1", nativeQuery = true)
+    Long findActiveContractIdByProposalId(@Param("proposalId") Long proposalId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE contracts SET status = 'COMPLETED', end_date = NOW() WHERE id = :contractId", nativeQuery = true)
+    void markContractAsCompleted(@Param("contractId") Long contractId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE jobs SET status = 'CLOSED' WHERE id = :jobId", nativeQuery = true)
+    void updateJobStatusToClosed(@Param("jobId") Long jobId);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+        INSERT INTO payouts (contract_id, freelancer_id, amount, method, status, created_at) 
+        VALUES (:contractId, :freelancerId, :amount, 'BANK_TRANSFER', 'PENDING', NOW())
+        """, nativeQuery = true)
+    void insertPendingPayout(
+            @Param("contractId") Long contractId,
+            @Param("freelancerId") Long freelancerId,
+            @Param("amount") Double amount
+    );
+
 }

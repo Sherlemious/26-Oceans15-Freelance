@@ -23,7 +23,8 @@ public class PromoCode {
     private String code;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "discount_type")
     private DiscountType discountType;
 
     @Column(nullable = false)

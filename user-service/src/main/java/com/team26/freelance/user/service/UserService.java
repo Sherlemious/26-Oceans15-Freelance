@@ -9,9 +9,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.List;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -69,17 +69,19 @@ public class UserService {
         return new UserResponseDTO(userRepository.save(user));
     }
 
-    @Transactional(readOnly = true)
+    // S1-F5
     public List<UserResponseDTO> filterByPreference(String key, String value) {
-        if (key.isBlank() || value.isBlank()) {
-            throw new IllegalArgumentException("key and value must not be blank");
+        if (key == null || key.isBlank() || value == null || value.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "key and value must not be blank");
         }
-
         String prefJson = String.format("{\"%s\": \"%s\"}", key, value);
         return userRepository.findByPreference(prefJson).stream()
                 .map(UserResponseDTO::new)
-                .toList();
+                .collect(Collectors.toList());
     }
+
+    // S1-F6
     public List<TopFreelancerDTO> getTopFreelancers(LocalDate startDate, LocalDate endDate, int limit) {
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,

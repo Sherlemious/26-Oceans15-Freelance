@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import java.util.List;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -21,9 +21,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
             nativeQuery = true)
     void withdrawSubmittedProposals(@Param("userId") Long userId);
 
+    // S1-F5
     @Query(value = "SELECT * FROM users WHERE preferences @> CAST(:pref AS jsonb)",
             nativeQuery = true)
     List<User> findByPreference(@Param("pref") String prefJson);
+
+    // S1-F6
     @Query(value = """
             SELECT u.id, u.name,
                    COALESCE(SUM(c.agreed_amount), 0) AS total_earnings,
