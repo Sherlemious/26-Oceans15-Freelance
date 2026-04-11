@@ -1,7 +1,6 @@
 package com.team26.freelance.user.controller;
 
 import com.team26.freelance.user.dto.TopFreelancerDTO;
-import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.service.UserService;
@@ -29,11 +28,6 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.findById(id));
-    }
-
-    @GetMapping("/{id}/profile")
-    public ResponseEntity<UserProfileDTO> getProfile(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUserProfile(id));
     }
 
     @GetMapping
