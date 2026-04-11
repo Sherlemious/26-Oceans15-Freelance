@@ -53,6 +53,14 @@ public class Contract {
         this.createdAt = LocalDateTime.now();
     }
 
+    @PrePersist
+    @PreUpdate
+    protected void syncDerivedFields() {
+        if (this.status == ContractStatus.COMPLETED || this.status == ContractStatus.TERMINATED) {
+            this.endDate = LocalDateTime.now();
+        }
+    }
+
     public Contract() {
     }
 

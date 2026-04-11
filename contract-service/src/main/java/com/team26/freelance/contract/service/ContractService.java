@@ -1,7 +1,6 @@
 package com.team26.freelance.contract.service;
 
 import com.team26.freelance.contract.model.Contract;
-import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,7 +8,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -46,13 +44,8 @@ public class ContractService {
         contract.setAgreedAmount(contractDetails.getAgreedAmount());
         contract.setStatus(contractDetails.getStatus());
         contract.setStartDate(contractDetails.getStartDate());
+        contract.setEndDate(contractDetails.getEndDate());
         contract.setMetadata(contractDetails.getMetadata());
-
-        if (contractDetails.getStatus() == ContractStatus.COMPLETED) {
-            contract.setEndDate(LocalDateTime.now());
-        } else {
-            contract.setEndDate(contractDetails.getEndDate());
-        }
         
         return contractRepository.save(contract);
     }
@@ -96,9 +89,6 @@ public class ContractService {
             }
 
             contract.setStatus(update.status());
-            if (update.status() == ContractStatus.COMPLETED) {
-                contract.setEndDate(LocalDateTime.now());
-            }
             toSave.add(contract);
         }
 
