@@ -1,6 +1,7 @@
 package com.team26.freelance.user.service;
 
 import com.team26.freelance.user.dto.TopFreelancerDTO;
+import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserProfileSkillDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
@@ -14,12 +15,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
@@ -160,6 +162,48 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public UserContractSummaryDTO getUserContractSummary(Long userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        List<Object[]> summaryRows = userRepository.findUserContractSummaryById(userId);
+        if (summaryRows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+        Object[] summaryRow = summaryRows.get(0);
+
+        return new UserContractSummaryDTO(
+                ((Number) summaryRow[0]).longValue(),
+                (String) summaryRow[1],
+                ((Number) summaryRow[2]).longValue(),
+                ((Number) summaryRow[3]).longValue(),
+                ((Number) summaryRow[4]).longValue(),
+                toBigDecimal(summaryRow[5]),
+                toBigDecimal(summaryRow[6])
+        );
+    }
+
+    @Transactional
+    public UserResponseDTO updatePreferences(Long userId, Map<String, Object> incomingPreferences) {
+        if (incomingPreferences == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid preferences payload: expected JSON object, got null");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Map<String, Object> merged = new HashMap<>(
+                user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
+        );
+        merged.putAll(incomingPreferences);
+
+        user.setPreferences(merged);
+        User savedUser = userRepository.save(user);
+        return new UserResponseDTO(savedUser);
+    }
+
     @Transactional
     public UserResponseDTO setPrimarySkill(Long userId, Long skillId) {
         User user = userRepository.findById(userId)
@@ -208,32 +252,13 @@ public class UserService {
         return source != null && source.toLowerCase(Locale.ROOT).contains(term.toLowerCase(Locale.ROOT));
     }
 
-    /**
-     * S1-F2: Update user preferences (JSONB)
-     * Merges incoming preferences into existing preferences.
-     * Overwrites existing keys, adds new ones.
-     * Validates that payload is a JSON object (not null, array, or primitive).
-     * Returns 400 Bad Request if payload is invalid.
-     * Returns 404 if user not found.
-     */
-    public UserResponseDTO updatePreferences(Long userId, Map<String, Object> incomingPreferences) {
-        // Validate payload: must be a non-null Map (JSON object)
-        if (incomingPreferences == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
-                "Invalid preferences payload: expected JSON object, got null");
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
         }
-        
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        
-        // Merge incoming preferences into existing ones
-        Map<String, Object> merged = new HashMap<>(
-            user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
-        );
-        merged.putAll(incomingPreferences);
-        
-        user.setPreferences(merged);
-        User savedUser = userRepository.save(user);
-        return new UserResponseDTO(savedUser);
+        if (value instanceof BigDecimal bigDecimal) {
+            return bigDecimal;
+        }
+        return new BigDecimal(value.toString());
     }
 }

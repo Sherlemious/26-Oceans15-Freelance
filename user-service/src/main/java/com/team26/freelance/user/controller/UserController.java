@@ -1,16 +1,25 @@
 package com.team26.freelance.user.controller;
 
 import com.team26.freelance.user.dto.TopFreelancerDTO;
+import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.service.UserService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -92,25 +101,13 @@ public class UserController {
             @RequestParam int minContracts) {
         return ResponseEntity.ok(userService.findByLanguageWithMinCompletedContracts(lang, minContracts));
     }
-
-    /**
-     * S1-F2: Update user preferences (JSONB)
-     * PUT /api/users/{id}/preferences
-     * 
-     * Merges incoming preferences into existing preferences.
-     * Overwrites existing keys, adds new ones.
-     * Returns 404 if user not found.
-     */
-    /**
-     * S1-F2: Update user preferences (JSONB)
-     * PUT /api/users/{id}/preferences
-     * 
-     * Merges incoming preferences into existing preferences.
-     * Expects a JSON object. Rejects null body, arrays, or primitives with 400.
-     * Returns 404 if user not found.
-     */
     @PutMapping("/{id}/preferences")
     public ResponseEntity<UserResponseDTO> updatePreferences(@PathVariable Long id, @RequestBody Map<String, Object> preferences) {
         return ResponseEntity.ok(userService.updatePreferences(id, preferences));
+    }
+
+    @GetMapping("/{id}/contract-summary")
+    public ResponseEntity<UserContractSummaryDTO> getContractSummary(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserContractSummary(id));
     }
 }
