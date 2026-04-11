@@ -1,5 +1,6 @@
 package com.team26.freelance.user.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -41,6 +42,7 @@ public class UserSkill {
     private LocalDateTime createdAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnore
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
