@@ -10,9 +10,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ProposalRepository extends JpaRepository<Proposal, Long> {
+        @Query("""
+                        SELECT DISTINCT p FROM Proposal p
+                        LEFT JOIN FETCH p.proposalMilestones m
+                        WHERE p.id = :proposalId
+                        ORDER BY m.milestoneOrder ASC
+                        """)
+        Optional<Proposal> findByIdWithMilestones(@Param("proposalId") Long proposalId);
+
         @Query(value = """
                         SELECT * FROM proposals
                         WHERE (:status IS NULL OR status = :status)

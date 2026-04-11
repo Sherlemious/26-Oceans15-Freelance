@@ -1,6 +1,9 @@
 package com.team26.freelance.proposal.service;
 
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
+import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
+import com.team26.freelance.proposal.dto.ProposalMilestoneDTO;
+import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
@@ -8,7 +11,6 @@ import com.team26.freelance.proposal.model.ProposalStatus;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 
-import org.antlr.v4.runtime.misc.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -192,6 +195,97 @@ public class ProposalService {
         }
 
         return proposalRepository.save(proposal);
+    }
+
+    @Transactional
+    public Proposal addMilestoneToProposal(Long proposalId, List<ProposalMilestone> milestones) {
+        Proposal proposal = getProposalById(proposalId);
+
+        if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Milestones can only be added to SUBMITTED or SHORTLISTED proposals");
+        }
+
+        if (milestones == null || milestones.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "At least one milestone is required");
+        }
+
+        int milestoneOrder = milestoneRepository.findMaxMilestoneOrderByProposalId(proposalId);
+
+        double currentMilestoneSum = milestoneRepository.sumAmountsByProposalId(proposalId);
+
+        double newMilestoneSum = milestones.stream()
+                .peek(this::validateMilestoneInput)
+                .mapToDouble(ProposalMilestone::getAmount)
+                .sum();
+
+        if (currentMilestoneSum + newMilestoneSum > proposal.getBidAmount()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Total milestone amounts cannot exceed proposal bid amount");
+        }
+
+        for (ProposalMilestone milestone : milestones) {
+            milestone.setProposal(proposal);
+            milestone.setMilestoneOrder(++milestoneOrder);
+            milestone.setStatus(MilestoneStatus.PENDING);
+            proposal.getProposalMilestones().add(milestone);
+        }
+
+        proposal.getProposalMilestones().sort(Comparator.comparing(ProposalMilestone::getMilestoneOrder));
+
+        return proposalRepository.save(proposal);
+    }
+
+    private void validateMilestoneInput(ProposalMilestone milestone) {
+        if (milestone == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone item cannot be null");
+        }
+        if (milestone.getTitle() == null || milestone.getTitle().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone title is required");
+        }
+        if (milestone.getDescription() == null || milestone.getDescription().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone description is required");
+        }
+        if (milestone.getAmount() == null || milestone.getAmount() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone amount must be greater than 0");
+        }
+    }
+
+    public ProposalDetailsDTO getProposalDetails(Long proposalId) {
+        Proposal proposal = proposalRepository.findByIdWithMilestones(proposalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+
+        List<ProposalMilestone> milestones = proposal.getProposalMilestones().stream()
+                .sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder))
+                .toList();
+        int totalMilestones = milestones.size();
+        int completedMilestones = (int) milestones.stream()
+                .filter(m -> (m.getStatus() == MilestoneStatus.COMPLETED || m.getStatus() == MilestoneStatus.APPROVED))
+                .count();
+
+        List<ProposalMilestoneDTO> milestoneDTOs = milestones.stream()
+                .map(m -> new ProposalMilestoneDTO(
+                        m.getId(),
+                        m.getMilestoneOrder(),
+                        m.getTitle(),
+                        m.getDescription(),
+                        m.getAmount(),
+                        m.getStatus(),
+                        m.getMetadata()))
+                .toList();
+
+        return new ProposalDetailsDTO(
+                proposal.getId(),
+                proposal.getJobId(),
+                proposal.getFreelancerId(),
+                proposal.getStatus(),
+                proposal.getBidAmount(),
+                proposal.getMetadata(),
+                milestoneDTOs,
+                totalMilestones,
+                completedMilestones);
+
     }
 
     public List<Proposal> filterProposalsByMetadata(String key, String value) {

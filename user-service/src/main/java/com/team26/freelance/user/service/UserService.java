@@ -4,6 +4,7 @@ import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserProfileSkillDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
+import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
 
@@ -69,6 +71,20 @@ public class UserService {
 
     public List<UserResponseDTO> findAll() {
         return userRepository.findAll().stream()
+                .map(UserResponseDTO::new)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> searchUsers(String name, String email, String role) {
+        String normalizedName = normalizeFilter(name);
+        String normalizedEmail = normalizeFilter(email);
+        Role normalizedRole = parseRole(role);
+
+        return userRepository.findAll().stream()
+                .filter(user -> normalizedName == null || containsIgnoreCase(user.getName(), normalizedName))
+                .filter(user -> normalizedEmail == null || containsIgnoreCase(user.getEmail(), normalizedEmail))
+                .filter(user -> normalizedRole == null || user.getRole() == normalizedRole)
                 .map(UserResponseDTO::new)
                 .collect(Collectors.toList());
     }
@@ -163,6 +179,33 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
         return new UserResponseDTO(savedUser);
+        //done 
+    }
+
+    private String normalizeFilter(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private Role parseRole(String role) {
+        String normalizedRole = normalizeFilter(role);
+        if (normalizedRole == null) {
+            return null;
+        }
+
+        try {
+            return Role.valueOf(normalizedRole.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid role value");
+        }
+    }
+
+    private boolean containsIgnoreCase(String source, String term) {
+        return source != null && source.toLowerCase(Locale.ROOT).contains(term.toLowerCase(Locale.ROOT));
     }
 
     /**

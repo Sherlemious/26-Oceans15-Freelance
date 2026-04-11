@@ -2,6 +2,7 @@ package com.team26.freelance.proposal.controller;
 
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateRequest;
+import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
@@ -45,7 +46,7 @@ public class ProposalController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Proposal> updateProposal(@PathVariable Long id,
-                                                   @RequestBody Proposal proposal) {
+            @RequestBody Proposal proposal) {
         return ResponseEntity.ok(proposalService.updateProposal(id, proposal));
     }
 
@@ -74,7 +75,7 @@ public class ProposalController {
 
     @PutMapping("/milestones/{id}")
     public ResponseEntity<ProposalMilestone> updateMilestone(@PathVariable Long id,
-                                                             @RequestBody ProposalMilestone milestone) {
+            @RequestBody ProposalMilestone milestone) {
         return ResponseEntity.ok(proposalService.updateMilestone(id, milestone));
     }
 
@@ -118,6 +119,18 @@ public class ProposalController {
     public ResponseEntity<Proposal> withdrawProposal(@NonNull @PathVariable Long id) {
         Proposal withdrawnProposal = proposalService.withdrawProposal(id);
         return ResponseEntity.ok(withdrawnProposal);
+    }
+
+    @PostMapping("/{proposalId}/milestones")
+    public ResponseEntity<Proposal> addMilestonesToProposal(@PathVariable Long proposalId,
+            @RequestBody List<ProposalMilestone> milestones) {
+        Proposal updatedProposal = proposalService.addMilestoneToProposal(proposalId, milestones);
+        return ResponseEntity.ok(updatedProposal);
+    }
+
+    @GetMapping("/{proposalId}/details")
+    public ResponseEntity<ProposalDetailsDTO> getProposalDetails(@PathVariable Long proposalId) {
+        return ResponseEntity.ok(proposalService.getProposalDetails(proposalId));
     }
 
     // ── S3-F5: Filter Proposals by Metadata ─────────────────────────────────

@@ -1,5 +1,6 @@
 package com.team26.freelance.user.repository;
 
+import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -11,6 +12,17 @@ import java.time.LocalDateTime;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE (:name IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :name, '%')))
+              AND (:email IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', :email, '%')))
+              AND (:role IS NULL OR u.role = :role)
+            """)
+    List<User> searchUsers(
+            @Param("name") String name,
+            @Param("email") String email,
+            @Param("role") Role role);
 
     @Query(value = "SELECT COUNT(*) FROM contracts WHERE freelancer_id = :userId AND status = 'ACTIVE'",
             nativeQuery = true)
