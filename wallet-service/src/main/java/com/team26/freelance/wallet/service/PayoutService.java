@@ -2,6 +2,7 @@ package com.team26.freelance.wallet.service;
 
 import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
+import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.model.DiscountType;
@@ -18,7 +19,9 @@ import java.time.LocalDateTime;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -109,6 +112,47 @@ public class PayoutService {
 
     public Payout createPayout(Payout payout) {
         return payoutRepository.save(payout);
+    }
+
+    @Transactional
+    public Payout processContractPayout(Long contractId, ProcessContractPayoutRequest request) {
+        String contractStatus = payoutRepository.findContractStatusById(contractId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found"));
+
+        if (!"COMPLETED".equals(contractStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract must be COMPLETED");
+        }
+
+        if (payoutRepository.existsByContractIdAndStatus(contractId, PayoutStatus.COMPLETED)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "already paid");
+        }
+
+        Payout pendingPayout = payoutRepository.findFirstByContractIdAndStatus(contractId, PayoutStatus.PENDING)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Pending payout not found for this contract"
+                ));
+
+        if (request.getMethod() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payout method is required");
+        }
+
+        String accountLastFour = request.getAccountLastFour();
+        if (accountLastFour != null && !accountLastFour.isBlank() && !accountLastFour.matches("\\d{4}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "accountLastFour must be exactly 4 digits");
+        }
+
+        Map<String, Object> transactionDetails = new HashMap<>();
+        transactionDetails.put("method", request.getMethod().name());
+        if (accountLastFour != null && !accountLastFour.isBlank()) {
+            transactionDetails.put("accountLastFour", accountLastFour);
+        }
+
+        pendingPayout.setStatus(PayoutStatus.COMPLETED);
+        pendingPayout.setMethod(request.getMethod());
+        pendingPayout.setTransactionDetails(transactionDetails);
+
+        return payoutRepository.save(pendingPayout);
     }
 
     public Payout updatePayout(Long id, Payout updated) {

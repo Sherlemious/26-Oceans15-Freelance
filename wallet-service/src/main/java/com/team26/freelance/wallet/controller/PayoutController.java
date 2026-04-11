@@ -2,6 +2,7 @@ package com.team26.freelance.wallet.controller;
 
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
+import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.Payout;
@@ -44,6 +45,14 @@ public class PayoutController {
     @PostMapping
     public ResponseEntity<Payout> createPayout(@RequestBody Payout payout) {
         return ResponseEntity.status(201).body(payoutService.createPayout(payout));
+    }
+
+    @PostMapping("/contract/{contractId}")
+    public ResponseEntity<Payout> processContractPayout(
+            @PathVariable Long contractId,
+            @RequestBody ProcessContractPayoutRequest request
+    ) {
+        return ResponseEntity.status(201).body(payoutService.processContractPayout(contractId, request));
     }
 
     @PutMapping("/{id}")
