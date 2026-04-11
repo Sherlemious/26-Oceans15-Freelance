@@ -9,6 +9,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -159,6 +162,24 @@ public class ContractService {
         if (contract.getStatus() == null) {
             contract.setStatus(ContractStatus.ACTIVE);
         }
+        return contractRepository.save(contract);
+    }
+
+    @Transactional
+    public Contract updateContractProgress(Long contractId, Map<String, Object> incomingMetadata) {
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Contract not found"
+                ));
+
+        Map<String, Object> existingMetadata = contract.getMetadata();
+        if (existingMetadata == null) {
+            existingMetadata = new HashMap<>();
+        }
+
+        existingMetadata.putAll(incomingMetadata);
+        contract.setMetadata(existingMetadata);
+
         return contractRepository.save(contract);
     }
 
