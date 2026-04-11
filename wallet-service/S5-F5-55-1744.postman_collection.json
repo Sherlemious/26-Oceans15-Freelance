@@ -1,0 +1,296 @@
+{
+  "info": {
+    "name": "wallet-service | S5-F5 Apply PromoCode to Payout (55-1744)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Apply PromoCode - Success (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(200);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/payouts/{{pendingPayoutId}}/promos/{{activePromoCodeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "{{pendingPayoutId}}",
+            "promos",
+            "{{activePromoCodeId}}"
+          ]
+        },
+        "description": "Payout is PENDING, promo code is active, not expired, has available uses, and not already applied."
+      }
+    },
+    {
+      "name": "Apply PromoCode - Payout Not Found (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(404);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/payouts/{{missingPayoutId}}/promos/{{activePromoCodeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "{{missingPayoutId}}",
+            "promos",
+            "{{activePromoCodeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Apply PromoCode - Promo Not Found (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(404);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/payouts/{{pendingPayoutId}}/promos/{{missingPromoCodeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "{{pendingPayoutId}}",
+            "promos",
+            "{{missingPromoCodeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Apply PromoCode - Payout Not Pending (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(400);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/payouts/{{completedPayoutId}}/promos/{{activePromoCodeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "{{completedPayoutId}}",
+            "promos",
+            "{{activePromoCodeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Apply PromoCode - Promo Inactive (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(400);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/payouts/{{pendingPayoutId}}/promos/{{inactivePromoCodeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "{{pendingPayoutId}}",
+            "promos",
+            "{{inactivePromoCodeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Apply PromoCode - Promo Expired (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(400);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/payouts/{{pendingPayoutId}}/promos/{{expiredPromoCodeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "{{pendingPayoutId}}",
+            "promos",
+            "{{expiredPromoCodeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Apply PromoCode - Max Uses Reached (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(400);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/payouts/{{pendingPayoutId}}/promos/{{maxedPromoCodeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "{{pendingPayoutId}}",
+            "promos",
+            "{{maxedPromoCodeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Apply PromoCode - Already Applied (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.response.to.have.status(400);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/api/payouts/{{promoAlreadyAppliedPayoutId}}/promos/{{alreadyAppliedPromoCodeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "{{promoAlreadyAppliedPayoutId}}",
+            "promos",
+            "{{alreadyAppliedPromoCodeId}}"
+          ]
+        },
+        "description": "Use a payout/promo pair where the promo was already applied by a previous successful call."
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "pendingPayoutId",
+      "value": "1"
+    },
+    {
+      "key": "completedPayoutId",
+      "value": "2"
+    },
+    {
+      "key": "promoAlreadyAppliedPayoutId",
+      "value": "3"
+    },
+    {
+      "key": "activePromoCodeId",
+      "value": "1"
+    },
+    {
+      "key": "inactivePromoCodeId",
+      "value": "2"
+    },
+    {
+      "key": "expiredPromoCodeId",
+      "value": "3"
+    },
+    {
+      "key": "maxedPromoCodeId",
+      "value": "4"
+    },
+    {
+      "key": "alreadyAppliedPromoCodeId",
+      "value": "5"
+    },
+    {
+      "key": "missingPayoutId",
+      "value": "999999"
+    },
+    {
+      "key": "missingPromoCodeId",
+      "value": "999999"
+    }
+  ]
+}

@@ -2,6 +2,7 @@ package com.team26.freelance.job.repository;
 
 import com.team26.freelance.job.model.Job;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -10,6 +11,14 @@ import java.util.List;
 
 @Repository
 public interface JobRepository extends JpaRepository<Job, Long> {
+
+    @Query(value = "SELECT COUNT(*) > 0 FROM contracts WHERE job_id = :jobId AND status = 'ACTIVE'", nativeQuery = true)
+    boolean existsActiveContractByJobId(@Param("jobId") Long jobId);
+
+    @Modifying
+    @Query(value = "UPDATE proposals SET status = 'REJECTED' WHERE job_id = :jobId AND status = 'SUBMITTED'", nativeQuery = true)
+    void rejectSubmittedProposalsByJobId(@Param("jobId") Long jobId);
+
     @Query(value = "SELECT * FROM jobs j WHERE " +
             "(:status IS NULL OR j.status = :status) AND " +
             "(:minBudget IS NULL OR j.budget_max >= :minBudget) AND " +
@@ -22,4 +31,22 @@ public interface JobRepository extends JpaRepository<Job, Long> {
 
     @Query(value = "SELECT * FROM jobs WHERE requirements ->> :key = :value AND (:status IS NULL OR status = :status)", nativeQuery = true)
     List<Job> findByRequirementAndStatus(@Param("key") String key, @Param("value") String value, @Param("status") String status);
+
+    @Query(value = "SELECT " +
+            "j.id as jobId, " +
+            "j.title as title, " +
+            "COALESCE(COUNT(p.id), 0) as totalProposals, " +
+            "COALESCE(AVG(p.bid_amount), 0) as averageBidAmount, " +
+            "COALESCE(MIN(p.bid_amount), 0) as lowestBid, " +
+            "COALESCE(MAX(p.bid_amount), 0) as highestBid " +
+            "FROM jobs j " +
+            "LEFT JOIN proposals p ON j.id = p.job_id " +
+            "WHERE j.id = :jobId " +
+            "AND (:startDate IS NULL OR p.submitted_at >= CAST(:startDate AS timestamp)) " +
+            "AND (:endDate IS NULL OR p.submitted_at <= CAST(:endDate AS timestamp)) " +
+            "GROUP BY j.id, j.title",
+            nativeQuery = true)
+    List<Object[]> getProposalSummary(@Param("jobId") Long jobId,
+                                      @Param("startDate") String startDate,
+                                      @Param("endDate") String endDate);
 }

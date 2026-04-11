@@ -32,7 +32,8 @@ public class Contract {
     private Double agreedAmount;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "contract_status")
     private ContractStatus status;
 
     @Column(nullable = false)
@@ -51,6 +52,14 @@ public class Contract {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        syncDerivedFields();
+    }
+
+    @PreUpdate
+    protected void syncDerivedFields() {
+        if (this.status == ContractStatus.COMPLETED || this.status == ContractStatus.TERMINATED) {
+            this.endDate = LocalDateTime.now();
+        }
     }
 
     public Contract() {

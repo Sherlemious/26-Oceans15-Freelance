@@ -91,15 +91,24 @@ public class ProposalController {
         LocalDateTime end = endDate.atTime(23, 59, 59);
         return ResponseEntity.ok(proposalService.searchByStatusAndDateRange(status, start, end));
     }
-  
+
     @PutMapping("/{proposalId}/accept")
     public ResponseEntity<Proposal> acceptProposal(@PathVariable Long proposalId) {
         return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
     }
-  
+
     @PostMapping("/estimate")
     public ResponseEntity<FeeEstimateDTO> estimateFee(@RequestBody FeeEstimateRequest request) {
         return ResponseEntity.ok(proposalService.estimateFee(
                 request.getBidAmount(), request.getEstimatedDays()));
     }
+
+    // ── S3-F4: Complete Proposal's Contract ─────────────────────────────────
+
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<Proposal> completeProposalContract(@PathVariable Long id) {
+        Proposal completedProposal = proposalService.completeProposalContract(id);
+        return ResponseEntity.ok(completedProposal);
+    }
+
 }

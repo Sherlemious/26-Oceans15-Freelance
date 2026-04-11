@@ -26,7 +26,8 @@ public class UserSkill {
     private Integer yearsOfExperience;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "proficiency_level")
     private ProficiencyLevel proficiencyLevel;
 
     @Column(nullable = false)
