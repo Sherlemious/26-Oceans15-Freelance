@@ -1,6 +1,7 @@
 package com.team26.freelance.proposal.service;
 
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
+import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.model.ProposalStatus;
@@ -24,7 +25,7 @@ public class ProposalService {
     private final ProposalMilestoneRepository milestoneRepository;
 
     public ProposalService(ProposalRepository proposalRepository,
-                           ProposalMilestoneRepository milestoneRepository) {
+            ProposalMilestoneRepository milestoneRepository) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
     }
@@ -87,8 +88,8 @@ public class ProposalService {
     public void deleteMilestone(Long id) {
         getMilestoneById(id);
         milestoneRepository.deleteById(id);
-    }  
-  
+    }
+
     public List<Proposal> searchByStatusAndDateRange(String status, LocalDateTime startDate, LocalDateTime endDate) {
         return proposalRepository.searchByStatusAndDateRange(status, startDate, endDate);
     }
@@ -119,7 +120,7 @@ public class ProposalService {
 
         return proposalRepository.save(proposal);
     }
-  
+
     public FeeEstimateDTO estimateFee(double bidAmount, int estimatedDays) {
         if (bidAmount <= 0 || estimatedDays <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -153,7 +154,8 @@ public class ProposalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         if (proposal.getStatus() != ProposalStatus.ACCEPTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal status must be ACCEPTED to complete work");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Proposal status must be ACCEPTED to complete work");
         }
 
         Long activeContractId = proposalRepository.findActiveContractIdByProposalId(proposalId);
@@ -190,6 +192,40 @@ public class ProposalService {
         }
 
         return proposalRepository.save(proposal);
+    }
+
+    public List<Proposal> filterProposalsByMetadata(String key, String value) {
+        String normalizedKey = key == null ? null : key.trim();
+        String normalizedValue = value == null ? null : value.trim();
+
+        if (normalizedKey == null || normalizedKey.isBlank() ||
+                normalizedValue == null || normalizedValue.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Metadata key and value must not be blank");
+        }
+
+        return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
+    }
+
+    // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
+
+    public ProposalAnalyticsDTO getProposalAnalytics(LocalDateTime startDate, LocalDateTime endDate) {
+        if (startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date must be before end date");
+        }
+
+        List<Object[]> results = proposalRepository.getProposalAnalyticsRawData(startDate, endDate);
+        Object[] row = results.get(0);
+
+        long total = ((Number) row[0]).longValue();
+        long accepted = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        long rejected = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+        double totalBid = ((Number) row[3]).doubleValue();
+
+        // Handle edge cases to prevent division by zero
+        double averageBid = (total == 0) ? 0.0 : (totalBid / total);
+        double acceptanceRate = (total == 0) ? 0.0 : ((double) accepted / total) * 100.0;
+
+        return new ProposalAnalyticsDTO(total, accepted, rejected, totalBid, averageBid, acceptanceRate);
     }
 
 }
