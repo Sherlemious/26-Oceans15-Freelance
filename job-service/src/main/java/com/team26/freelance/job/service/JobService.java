@@ -1,12 +1,21 @@
 package com.team26.freelance.job.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.model.Job;
+import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
@@ -188,4 +197,39 @@ public class JobService {
                 ))
                 .collect(Collectors.toList());
     }
+
+
+    public List<JobAttachmentAlertDTO> getExpiredAttachments() {
+        
+        List<Object[]> alerts = jobRepository.findExpiredAttachments();
+
+
+        ObjectMapper mapper = new ObjectMapper()
+        .registerModule(new JavaTimeModule())
+    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+    return alerts.stream()
+    .map(row -> {
+        List<JobAttachment> attachments;
+        try {
+            attachments = mapper.readValue(
+                (String) row[2],
+                new TypeReference<List<JobAttachment>>() {}
+            );
+        } catch (JsonProcessingException e) {
+            attachments = List.of(); // or throw a custom exception
+        }
+
+        return new JobAttachmentAlertDTO(
+            ((Number) row[0]).longValue(),
+            (String) row[1],
+            attachments,
+            ((Number) row[3]).intValue()
+        );
+    })
+    .collect(Collectors.toList());
+
+    }
+
+    
 }

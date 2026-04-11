@@ -1,5 +1,6 @@
 package com.team26.freelance.job.repository;
 
+import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
 import com.team26.freelance.job.model.Job;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -38,4 +39,29 @@ public interface JobRepository extends JpaRepository<Job, Long> {
             "ORDER BY j.budget_max DESC " +
             "LIMIT :limit", nativeQuery = true)
     List<Object[]> findTopBudgetJobs(@Param("limit") int limit);
+
+
+
+
+    @Query(value = """
+        SELECT j.id AS jobId, j.title AS jobTitle,
+       jsonb_agg(jsonb_build_object(
+           'id', a.id,
+           'type', a.type,
+           'fileUrl', a.file_url,        
+           'expiryDate', a.expiry_date,  
+           'verified', a.verified,
+           'metadata', a.metadata,
+           'uploadedAt', a.uploaded_at   
+       )) FILTER (WHERE a.expiry_date < NOW()) AS expiredAttachments,
+       COUNT(a.id) FILTER (WHERE a.expiry_date < NOW()) AS expiredCount
+    FROM jobs j
+    LEFT JOIN job_attachments a ON a.job_id = j.id
+    WHERE a.expiry_date < NOW()
+    GROUP BY j.id, j.title
+        """, nativeQuery = true)
+    List<Object[]> findExpiredAttachments();
+
+
+    
 }

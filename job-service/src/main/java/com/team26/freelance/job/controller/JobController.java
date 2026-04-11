@@ -1,4 +1,5 @@
 package com.team26.freelance.job.controller;
+import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
@@ -95,5 +96,10 @@ public class JobController {
             return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok(jobService.getTopBudgetJobs(limit));
+    }
+
+    @GetMapping("/attachments/expired")
+    public ResponseEntity<List<JobAttachmentAlertDTO>> getExpiredAttachments() {
+        return ResponseEntity.ok(jobService.getExpiredAttachments());
     }
 }
