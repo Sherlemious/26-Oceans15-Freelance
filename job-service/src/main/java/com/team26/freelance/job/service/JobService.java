@@ -1,6 +1,7 @@
 package com.team26.freelance.job.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.team26.freelance.job.dto.JobProposalSummaryDTO;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
@@ -12,6 +13,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -173,5 +175,41 @@ public class JobService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minBudget cannot be greater than maxBudget");
         }
         return jobRepository.searchJobs(status, minBudget, maxBudget);
+    }
+
+    public JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
+        getJobById(jobId);
+
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate cannot be after endDate");
+        }
+
+        String start = startDate != null ? startDate.atStartOfDay().toString() : null;
+        String end = endDate != null ? endDate.atTime(23, 59, 59).toString() : null;
+
+        List<Object[]> results = jobRepository.getProposalSummary(jobId, start, end);
+
+        if (results == null || results.isEmpty() || results.get(0) == null) {
+            Job job = getJobById(jobId);
+            return new JobProposalSummaryDTO(
+                    jobId,
+                    job.getTitle(),
+                    0L,
+                    0.0,
+                    0.0,
+                    0.0
+            );
+        }
+
+        Object[] result = results.get(0);
+
+        return new JobProposalSummaryDTO(
+                ((Number) result[0]).longValue(),
+                (String) result[1],
+                ((Number) result[2]).longValue(),
+                ((Number) result[3]).doubleValue(),
+                ((Number) result[4]).doubleValue(),
+                ((Number) result[5]).doubleValue()
+        );
     }
 }

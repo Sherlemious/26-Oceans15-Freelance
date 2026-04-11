@@ -31,4 +31,22 @@ public interface JobRepository extends JpaRepository<Job, Long> {
 
     @Query(value = "SELECT * FROM jobs WHERE requirements ->> :key = :value AND (:status IS NULL OR status = :status)", nativeQuery = true)
     List<Job> findByRequirementAndStatus(@Param("key") String key, @Param("value") String value, @Param("status") String status);
+
+    @Query(value = "SELECT " +
+            "j.id as jobId, " +
+            "j.title as title, " +
+            "COALESCE(COUNT(p.id), 0) as totalProposals, " +
+            "COALESCE(AVG(p.bid_amount), 0) as averageBidAmount, " +
+            "COALESCE(MIN(p.bid_amount), 0) as lowestBid, " +
+            "COALESCE(MAX(p.bid_amount), 0) as highestBid " +
+            "FROM jobs j " +
+            "LEFT JOIN proposals p ON j.id = p.job_id " +
+            "WHERE j.id = :jobId " +
+            "AND (:startDate IS NULL OR p.submitted_at >= CAST(:startDate AS timestamp)) " +
+            "AND (:endDate IS NULL OR p.submitted_at <= CAST(:endDate AS timestamp)) " +
+            "GROUP BY j.id, j.title",
+            nativeQuery = true)
+    List<Object[]> getProposalSummary(@Param("jobId") Long jobId,
+                                      @Param("startDate") String startDate,
+                                      @Param("endDate") String endDate);
 }
