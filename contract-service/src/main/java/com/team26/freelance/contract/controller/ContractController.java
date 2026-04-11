@@ -3,8 +3,8 @@ package com.team26.freelance.contract.controller;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import com.team26.freelance.contract.service.ContractService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +19,15 @@ public class ContractController {
         this.contractService = contractService;
     }
 
+    @GetMapping("/metadata/search")
+    public ResponseEntity<List<Contract>> searchContractsByMetadata(
+            @RequestParam String key,
+            @RequestParam String operator,
+            @RequestParam String value
+    ) {
+        return ResponseEntity.ok(contractService.searchByMetadata(key, operator, value));
+    }
+  
     @PutMapping("/{id}")
     public ResponseEntity<Contract> update(@PathVariable Long id, @RequestBody Contract contractDetails) {
         return ResponseEntity.ok(contractService.update(id, contractDetails));

@@ -8,10 +8,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -26,6 +28,31 @@ public class ContractService {
         this.contractRepository = contractRepository;
     }
 
+    public List<Contract> searchByMetadata(String key, String operator, String value) {
+        String normalizedOperator = operator == null ? "" : operator.trim().toLowerCase(Locale.ROOT);
+
+        if ("gt".equals(normalizedOperator) || "lt".equals(normalizedOperator)) {
+            try {
+                Double.parseDouble(value);
+            } catch (NumberFormatException e) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Value must be numeric for operator: " + normalizedOperator
+                );
+            }
+        }
+
+        return switch (normalizedOperator) {
+            case "eq" -> contractRepository.findByMetadataEquals(key, value);
+            case "gt" -> contractRepository.findByMetadataGreaterThan(key, value);
+            case "lt" -> contractRepository.findByMetadataLessThan(key, value);
+            default -> throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "operator must be one of: eq, gt, lt"
+            );
+        };
+    }
+    
     @Transactional
     public Contract update(Long id, Contract contractDetails) {
         Contract contract = getContractById(id);
