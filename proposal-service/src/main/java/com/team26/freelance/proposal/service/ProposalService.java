@@ -163,8 +163,7 @@ public class ProposalService {
 
         proposalRepository.updateJobStatusToClosed(proposal.getJobId());
 
-        Double agreedAmount = proposalRepository.findContractAgreedAmount(activeContractId);
-        proposalRepository.insertPendingPayout(activeContractId, proposal.getFreelancerId(), agreedAmount);
+        proposalRepository.insertPendingPayout(activeContractId, proposal.getFreelancerId(), proposal.getBidAmount());
 
         return proposalRepository.save(proposal);
     }
