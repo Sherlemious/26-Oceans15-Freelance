@@ -7,6 +7,7 @@ import com.team26.freelance.contract.repository.FreelancerPerformanceProjection;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -25,10 +26,13 @@ public class FreelancerPerformanceService {
     public FreelancerPerformanceDTO getSummary(Long freelancerId, java.time.LocalDate startDateParam, java.time.LocalDate endDateParam) {
         try {
             userClient.getUserById(freelancerId);
-        } catch (feign.FeignException.NotFound e) {
+        } catch (HttpClientErrorException.NotFound e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Error verifying user");
+            long count = contractRepository.countByFreelancerId(freelancerId);
+            if (count == 0) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
+            }
         }
 
         LocalDateTime startDate = startDateParam.atStartOfDay();

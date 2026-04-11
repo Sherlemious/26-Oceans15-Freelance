@@ -56,8 +56,8 @@ public class ContractController {
     }
 
     @PutMapping("/batch-status")
-    public ResponseEntity<Integer> updateStatuses(@RequestBody List<ContractStatusUpdateRequest> contractUpdates) {
-        int updatedCount = contractService.updateStatuses(contractUpdates);
+    public ResponseEntity<Integer> updateStatuses(@RequestBody Map<String, Object> request) {
+        int updatedCount = contractService.updateStatusesRaw(request);
         return ResponseEntity.ok(updatedCount);
     }
 

@@ -1,6 +1,7 @@
 package com.team26.freelance.contract.dto;
 
 public class ContractSummaryDTO {
+    private Long id;
     private Long contractId;
     private String freelancerName;
     private String jobTitle;
@@ -10,6 +11,7 @@ public class ContractSummaryDTO {
 
     public ContractSummaryDTO(Long contractId, String freelancerName, String jobTitle,
                               Double agreedAmount, String status, Long durationDays) {
+        this.id = contractId;
         this.contractId = contractId;
         this.freelancerName = freelancerName;
         this.jobTitle = jobTitle;
@@ -20,6 +22,10 @@ public class ContractSummaryDTO {
 
     public Long getContractId() {
         return contractId;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getFreelancerName() {
