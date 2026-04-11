@@ -90,7 +90,10 @@ public class JobController {
     }
 
     @GetMapping("/reports/top-budget")
-    public ResponseEntity<List<TopBudgetJobDTO>> getTopBudgetJobs(@RequestParam int limit) {
+    public ResponseEntity<List<TopBudgetJobDTO>> getTopBudgetJobs(@RequestParam(defaultValue = "10") int limit) {
+        if (limit <= 0) {
+            return ResponseEntity.badRequest().build();
+        }
         return ResponseEntity.ok(jobService.getTopBudgetJobs(limit));
     }
 }
