@@ -1,6 +1,7 @@
 package com.team26.freelance.user.controller;
 
 import com.team26.freelance.user.dto.UserDTO;
+import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.model.UserRole;
 import com.team26.freelance.user.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -122,6 +123,21 @@ public class UserController {
         
         if (updatedUser != null) {
             return ResponseEntity.ok(updatedUser);
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("User not found with ID: " + id);
+    }
+
+    /**
+     * S1-F3: Get user contract summary
+     * GET /api/users/{id}/contract-summary
+     */
+    @GetMapping("/{id}/contract-summary")
+    public ResponseEntity<?> getUserContractSummary(@PathVariable Long id) {
+        UserContractSummaryDTO summary = userService.getUserContractSummary(id);
+
+        if (summary != null) {
+            return ResponseEntity.ok(summary);
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body("User not found with ID: " + id);

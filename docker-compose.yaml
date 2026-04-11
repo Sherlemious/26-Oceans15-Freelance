@@ -17,17 +17,18 @@ services:
       retries: 5
 
   # Phase D: uncomment and add all 5 services below
-  # user-service:
-  #   build: ./user-service
-  #   ports:
-  #     - "8081:8080"
-  #   environment:
-  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
-  #     SPRING_DATASOURCE_USERNAME: postgres
-  #     SPRING_DATASOURCE_PASSWORD: postgres
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
+  user-service:
+    build: ./user-service
+    ports:
+      - "8081:8080"
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # job-service:
   #   build: ./job-service
