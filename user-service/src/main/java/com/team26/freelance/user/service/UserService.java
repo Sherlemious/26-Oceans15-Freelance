@@ -1,6 +1,8 @@
 package com.team26.freelance.user.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
+import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserProfileSkillDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
@@ -13,9 +15,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.List;
-import java.time.LocalDateTime;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -141,6 +147,45 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public UserContractSummaryDTO getUserContractSummary(Long userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Object[] summaryRow = userRepository.findUserContractSummaryById(userId);
+        if (summaryRow == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+
+        return new UserContractSummaryDTO(
+                ((Number) summaryRow[0]).longValue(),
+                (String) summaryRow[1],
+                ((Number) summaryRow[2]).longValue(),
+                ((Number) summaryRow[3]).longValue(),
+                ((Number) summaryRow[4]).longValue(),
+                toBigDecimal(summaryRow[5]),
+                toBigDecimal(summaryRow[6])
+        );
+    }
+
+    @Transactional
+    public UserResponseDTO updatePreferences(Long userId, JsonNode incomingPreferences) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Map<String, Object> merged = new HashMap<>(
+                user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
+        );
+
+        if (incomingPreferences != null && incomingPreferences.isObject()) {
+            incomingPreferences.fields().forEachRemaining(entry -> merged.put(entry.getKey(), entry.getValue()));
+        }
+
+        user.setPreferences(merged);
+        User savedUser = userRepository.save(user);
+        return new UserResponseDTO(savedUser);
+    }
+
     @Transactional
     public UserResponseDTO setPrimarySkill(Long userId, Long skillId) {
         User user = userRepository.findById(userId)
@@ -160,5 +205,15 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
         return new UserResponseDTO(savedUser);
+    }
+
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        if (value instanceof BigDecimal bigDecimal) {
+            return bigDecimal;
+        }
+        return new BigDecimal(value.toString());
     }
 }
