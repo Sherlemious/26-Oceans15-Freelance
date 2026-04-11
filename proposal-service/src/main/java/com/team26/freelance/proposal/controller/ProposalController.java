@@ -133,7 +133,6 @@ public class ProposalController {
         return ResponseEntity.ok(proposalService.getProposalDetails(proposalId));
     }
 
-
     // ── S3-F5: Filter Proposals by Metadata ─────────────────────────────────
 
     @GetMapping("/metadata/search")
