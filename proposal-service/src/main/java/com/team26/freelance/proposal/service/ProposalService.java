@@ -255,11 +255,11 @@ public class ProposalService {
 
     public ProposalDetailsDTO getProposalDetails(Long proposalId) {
         Proposal proposal = proposalRepository.findByIdWithMilestones(proposalId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         List<ProposalMilestone> milestones = proposal.getProposalMilestones().stream()
-            .sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder))
-            .toList();
+                .sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder))
+                .toList();
         int totalMilestones = milestones.size();
         int completedMilestones = (int) milestones.stream()
                 .filter(m -> (m.getStatus() == MilestoneStatus.COMPLETED || m.getStatus() == MilestoneStatus.APPROVED))
@@ -286,6 +286,9 @@ public class ProposalService {
                 milestoneDTOs,
                 totalMilestones,
                 completedMilestones);
+
+    }
+
     public List<Proposal> filterProposalsByMetadata(String key, String value) {
         String normalizedKey = key == null ? null : key.trim();
         String normalizedValue = value == null ? null : value.trim();
@@ -297,7 +300,6 @@ public class ProposalService {
 
         return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
     }
-
 
     // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
 
