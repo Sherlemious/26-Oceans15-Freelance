@@ -70,6 +70,9 @@ public class PayoutController {
         return ResponseEntity.ok(payoutService.processRefund(id, request.getReason()));
     }
 
+    @PutMapping("/{id}/retry")
+    public ResponseEntity<Payout> retryFailedPayout(@PathVariable Long id) {
+        return ResponseEntity.ok(payoutService.retryFailedPayout(id));
     @GetMapping("/{payoutId}/details")
     public ResponseEntity<PayoutDetailsDTO> getPayoutDetails(@PathVariable Long payoutId) {
         return ResponseEntity.ok(payoutService.getPayoutDetails(payoutId));

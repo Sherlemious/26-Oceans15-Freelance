@@ -17,6 +17,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -147,6 +150,42 @@ public class PayoutService {
         return payoutRepository.save(payout);
     }
 
+    @Transactional
+    public Payout retryFailedPayout(Long id) {
+        Payout payout = payoutRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
+
+        if (payout.getStatus() != PayoutStatus.FAILED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Only FAILED payouts can be retried");
+        }
+
+        payout.setStatus(PayoutStatus.COMPLETED);
+
+        Map<String, Object> transactionDetails = payout.getTransactionDetails();
+        if (transactionDetails == null) {
+            transactionDetails = new HashMap<>();
+        }
+
+        int retryAttempt = 0;
+        Object retryValue = transactionDetails.get("retryAttempt");
+
+        if (retryValue instanceof Number number) {
+            retryAttempt = number.intValue();
+        } else if (retryValue instanceof String str) {
+            try {
+                retryAttempt = Integer.parseInt(str);
+            } catch (NumberFormatException ignored) {
+                retryAttempt = 0;
+            }
+        }
+
+        transactionDetails.put("retryAttempt", retryAttempt + 1);
+        transactionDetails.put("gatewayResponse", "approved");
+
+        payout.setTransactionDetails(transactionDetails);
+
+        return payoutRepository.save(payout);
     public PayoutDetailsDTO getPayoutDetails(Long payoutId) {
         Payout payout = payoutRepository.findByIdWithPromos(payoutId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
