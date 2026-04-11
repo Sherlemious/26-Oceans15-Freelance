@@ -47,6 +47,12 @@ public class JobController {
         jobService.deleteJob(id);
     }
 
+    @PutMapping("/{id}/close")
+    public ResponseEntity<Void> closeJob(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        jobService.closeJob(id, body.get("status"));
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/requirements/search")
     public ResponseEntity<List<Job>> searchByRequirement(
             @RequestParam String key,
@@ -61,7 +67,7 @@ public class JobController {
     public Job rateJobClient(
             @PathVariable Long id,
             @RequestBody Map<String, Object> body
-    ) {        
+    ) {
         Long contractId = Long.valueOf(body.get("contractId").toString());
         int rating = Integer.parseInt(body.get("rating").toString());
         return jobService.rateJobClient(id,contractId, rating);
@@ -72,7 +78,7 @@ public class JobController {
             @PathVariable Long id,
             @RequestBody Map<String, Object> requirements) {
         return jobService.updateRequirements(id, requirements);
-      
+
     }
     @GetMapping("/search")
     public List<Job> searchJobs(

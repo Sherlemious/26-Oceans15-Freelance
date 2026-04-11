@@ -28,7 +28,8 @@ public class ProposalMilestone {
     private Double amount;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "milestone_status")
     private MilestoneStatus status;
 
     @JdbcTypeCode(SqlTypes.JSON)
