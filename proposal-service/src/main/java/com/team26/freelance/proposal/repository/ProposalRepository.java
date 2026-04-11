@@ -61,4 +61,33 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
             @Param("lowerBound") double lowerBound,
             @Param("upperBound") double upperBound
     );
+
+    @Query(value = "SELECT id FROM contracts WHERE proposal_id = :proposalId AND status = 'ACTIVE' LIMIT 1", nativeQuery = true)
+    Long findActiveContractIdByProposalId(@Param("proposalId") Long proposalId);
+
+    @Query(value = "SELECT agreed_amount FROM contracts WHERE id = :contractId", nativeQuery = true)
+    Double findContractAgreedAmount(@Param("contractId") Long contractId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE contracts SET status = 'COMPLETED', end_date = NOW() WHERE id = :contractId", nativeQuery = true)
+    void markContractAsCompleted(@Param("contractId") Long contractId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE jobs SET status = 'CLOSED' WHERE id = :jobId", nativeQuery = true)
+    void updateJobStatusToClosed(@Param("jobId") Long jobId);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+        INSERT INTO payouts (contract_id, freelancer_id, amount, status, created_at) 
+        VALUES (:contractId, :freelancerId, :amount, 'PENDING', NOW())
+        """, nativeQuery = true)
+    void insertPendingPayout(
+            @Param("contractId") Long contractId,
+            @Param("freelancerId") Long freelancerId,
+            @Param("amount") Double amount
+    );
+
 }
