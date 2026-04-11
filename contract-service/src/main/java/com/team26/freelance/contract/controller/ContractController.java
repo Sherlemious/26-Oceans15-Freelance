@@ -90,6 +90,9 @@ public class ContractController {
     public ResponseEntity<List<ContractSummaryDTO>> searchContracts(@RequestParam Double minAmount,
                                                                     @RequestParam Double maxAmount,
                                                                     @RequestParam(required = false) String status) {
+        if (minAmount < 0 || maxAmount < minAmount) {
+            return ResponseEntity.badRequest().build();
+        }
         return ResponseEntity.ok(
                 contractService.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount, status)
         );
