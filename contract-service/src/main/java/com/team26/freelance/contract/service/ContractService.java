@@ -188,13 +188,14 @@ public class ContractService {
                                                                                  String status) {
         List<Object[]> rows = contractRepository.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount, status);
         List<ContractSummaryDTO> contractSummaries = new ArrayList<>();
-
+        LocalDateTime now = LocalDateTime.now();
+        
         for (Object[] row : rows) {
             Timestamp startTimestamp = (Timestamp) row[5];
             Timestamp endTimestamp = row[6] != null ? (Timestamp) row[6] : null;
 
             LocalDateTime startDate = startTimestamp.toLocalDateTime();
-            LocalDateTime endDate = endTimestamp != null ? endTimestamp.toLocalDateTime() : LocalDateTime.now();
+            LocalDateTime endDate = endTimestamp != null ? endTimestamp.toLocalDateTime() : now;
             long durationDays = ChronoUnit.DAYS.between(startDate, endDate);
 
             ContractSummaryDTO contractSummary = new ContractSummaryDTO(
