@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.service;
 
+import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
@@ -9,6 +10,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -178,6 +183,34 @@ public class ContractService {
         return contractRepository.save(contract);
     }
 
+    public List<ContractSummaryDTO> findContractsByBudgetRangeWithFreelancerInfo(Double minAmount,
+                                                                                 Double maxAmount,
+                                                                                 String status) {
+        List<Object[]> rows = contractRepository.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount, status);
+        List<ContractSummaryDTO> contractSummaries = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (Object[] row : rows) {
+            Timestamp startTimestamp = (Timestamp) row[5];
+            Timestamp endTimestamp = row[6] != null ? (Timestamp) row[6] : null;
+
+            LocalDateTime startDate = startTimestamp.toLocalDateTime();
+            LocalDateTime endDate = endTimestamp != null ? endTimestamp.toLocalDateTime() : now;
+            long durationDays = ChronoUnit.DAYS.between(startDate, endDate);
+
+            ContractSummaryDTO contractSummary = new ContractSummaryDTO(
+                    ((Number) row[0]).longValue(),
+                    (String) row[1],
+                    (String) row[2],
+                    ((Number) row[3]).doubleValue(),
+                    row[4] != null ? row[4].toString() : null,
+                    durationDays
+            );
+            contractSummaries.add(contractSummary);
+        }
+
+        return contractSummaries;
+    }
     @Transactional
     public Contract updateContractProgress(Long contractId, Map<String, Object> incomingMetadata) {
         Contract contract = contractRepository.findById(contractId)

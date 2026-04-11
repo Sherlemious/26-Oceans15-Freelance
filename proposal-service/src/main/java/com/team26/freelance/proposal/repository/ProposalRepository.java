@@ -98,6 +98,9 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 
     @Modifying
     @Transactional
-        @Query(value = "UPDATE jobs SET status = 'OPEN' WHERE id = :jobId AND status = 'IN_PROGRESS'", nativeQuery = true)
+    @Query(value = "UPDATE jobs SET status = 'OPEN' WHERE id = :jobId AND status = 'IN_PROGRESS'", nativeQuery = true)
     void reopenJob(@Param("jobId") Long jobId);
+    
+    @Query(value = "SELECT * FROM proposals WHERE metadata @> jsonb_build_object(:jsonKey, :jsonValue)", nativeQuery = true)
+    List<Proposal> findByMetadataField(@Param("jsonKey") String key, @Param("jsonValue") String value);
 }

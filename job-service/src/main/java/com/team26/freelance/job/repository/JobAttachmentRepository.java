@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.repository.query.Param;
 
 @Repository
 public interface JobAttachmentRepository extends JpaRepository<JobAttachment, Long> {
@@ -15,4 +16,7 @@ public interface JobAttachmentRepository extends JpaRepository<JobAttachment, Lo
 
     @Query("SELECT a FROM JobAttachment a JOIN FETCH a.job WHERE a.id = :id")
     Optional<JobAttachment> findByIdWithJob(Long id);
+
+    @Query(value = "SELECT role FROM users WHERE id = :id", nativeQuery = true)
+    Optional<String> findUserRoleById(@Param("id") Long id);
 }
