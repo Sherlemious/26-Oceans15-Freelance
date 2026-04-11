@@ -210,6 +210,7 @@ public class ContractService {
         }
 
         return contractSummaries;
+    }
     @Transactional
     public Contract updateContractProgress(Long contractId, Map<String, Object> incomingMetadata) {
         Contract contract = contractRepository.findById(contractId)

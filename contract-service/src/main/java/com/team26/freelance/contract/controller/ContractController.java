@@ -96,6 +96,8 @@ public class ContractController {
         return ResponseEntity.ok(
                 contractService.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount, status)
         );
+
+    }
     @PutMapping("/{contractId}/progress")
     public ResponseEntity<Contract> updateContractProgress(@PathVariable Long contractId,
                                                            @RequestBody Map<String, Object> incomingMetadata) {
