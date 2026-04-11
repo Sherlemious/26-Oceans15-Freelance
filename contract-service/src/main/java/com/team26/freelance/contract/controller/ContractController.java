@@ -72,6 +72,12 @@ public class ContractController {
         return ResponseEntity.ok(contractService.getContractById(id));
     }
 
+    // GET /api/contracts/user/{userId}/active
+    @GetMapping("/user/{userId}/active")
+    public ResponseEntity<Contract> getActiveContractForUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(contractService.getActiveContractForUser(userId));
+    }
+
     // POST /api/contracts
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
