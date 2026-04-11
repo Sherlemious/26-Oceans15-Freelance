@@ -87,7 +87,6 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
             @Param("amount") Double amount
     );
 
-    @Query(value = "SELECT * FROM proposals WHERE metadata ->> :jsonKey = :jsonValue", nativeQuery = true)
+    @Query(value = "SELECT * FROM proposals WHERE metadata @> jsonb_build_object(:jsonKey, :jsonValue)", nativeQuery = true)
     List<Proposal> findByMetadataField(@Param("jsonKey") String key, @Param("jsonValue") String value);
-
 }

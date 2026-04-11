@@ -168,12 +168,16 @@ public class ProposalService {
         return proposalRepository.save(proposal);
     }
 
-
     public List<Proposal> filterProposalsByMetadata(String key, String value) {
-        if (key == null || key.trim().isEmpty() || value == null || value.trim().isEmpty()) {
+        String normalizedKey = key == null ? null : key.trim();
+        String normalizedValue = value == null ? null : value.trim();
+
+        if (normalizedKey == null || normalizedKey.isBlank() ||
+                normalizedValue == null || normalizedValue.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Metadata key and value must not be blank");
         }
-        return proposalRepository.findByMetadataField(key, value);
+
+        return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
     }
 
 }
