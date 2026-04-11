@@ -13,7 +13,7 @@ import java.util.List;
 public interface ProposalRepository extends JpaRepository<Proposal, Long> {
     @Query(value = """
         SELECT * FROM proposals
-        WHERE (:status IS NULL OR status = :status)
+        WHERE (:status IS NULL OR status::text = :status)
           AND submitted_at BETWEEN :startDate AND :endDate
         ORDER BY submitted_at DESC
         """, nativeQuery = true)
