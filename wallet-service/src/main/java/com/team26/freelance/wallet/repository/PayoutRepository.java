@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import java.util.Optional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,4 +24,13 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate
     );
+
+    @Query("""
+    SELECT DISTINCT p
+    FROM Payout p
+    LEFT JOIN FETCH p.payoutPromos pp
+    LEFT JOIN FETCH pp.promoCode
+    WHERE p.id = :id
+    """)
+    Optional<Payout> findByIdWithPromos(@Param("id") Long id);
 }

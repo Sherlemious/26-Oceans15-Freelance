@@ -1,5 +1,8 @@
 package com.team26.freelance.wallet.service;
 
+import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
+import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
+import com.team26.freelance.wallet.model.PayoutPromo;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutStatus;
 import com.team26.freelance.wallet.repository.PayoutRepository;
@@ -7,18 +10,26 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
+import com.team26.freelance.wallet.repository.PromoCodeRepository;
 
+import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 
 @Service
 public class PayoutService {
 
     private final PayoutRepository payoutRepository;
+    private final PromoCodeRepository promoCodeRepository;
 
-    public PayoutService(PayoutRepository payoutRepository) {
+    public PayoutService(PayoutRepository payoutRepository, PromoCodeRepository promoCodeRepository) {
         this.payoutRepository = payoutRepository;
+        this.promoCodeRepository = promoCodeRepository;
     }
 
     public List<Payout> getAllPayouts() {
@@ -68,5 +79,77 @@ public class PayoutService {
         payout.getTransactionDetails().put("refundReason", reason);
         payout.getTransactionDetails().put("refundedAt", LocalDateTime.now().toString());
         return payoutRepository.save(payout);
+    }
+
+    public PayoutDetailsDTO getPayoutDetails(Long payoutId) {
+        Payout payout = payoutRepository.findByIdWithPromos(payoutId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
+
+        List<AppliedPromoCodeDTO> appliedPromoCodes = new ArrayList<>();
+        double totalDiscount = 0.0;
+
+        for (PayoutPromo payoutPromo : payout.getPayoutPromos()) {
+            AppliedPromoCodeDTO promoDTO = new AppliedPromoCodeDTO(
+                    payoutPromo.getPromoCode().getCode(),
+                    payoutPromo.getPromoCode().getDiscountType().name(),
+                    payoutPromo.getDiscountApplied(),
+                    payoutPromo.getAppliedAt()
+            );
+
+            appliedPromoCodes.add(promoDTO);
+            totalDiscount += payoutPromo.getDiscountApplied();
+        }
+
+        PayoutDetailsDTO dto = new PayoutDetailsDTO();
+        dto.setPayoutId(payout.getId());
+        dto.setContractId(payout.getContractId());
+        dto.setFreelancerId(payout.getFreelancerId());
+        dto.setOriginalAmount(payout.getAmount());
+        dto.setMethod(payout.getMethod().name());
+        dto.setStatus(payout.getStatus().name());
+        dto.setTransactionDetails(payout.getTransactionDetails());
+        dto.setAppliedPromoCodes(appliedPromoCodes);
+        dto.setTotalDiscount(totalDiscount);
+        dto.setFinalAmount(payout.getAmount() - totalDiscount);
+
+        return dto;
+    public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {
+        if (limit <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Limit must be positive");
+        }
+
+        List<Object[]> rows = promoCodeRepository.findTopUsedPromoCodes(limit);
+        List<PromoCodeUsageDTO> result = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (Object[] row : rows) {
+            PromoCodeUsageDTO dto = new PromoCodeUsageDTO();
+
+            dto.setPromoCodeId(((Number) row[0]).longValue());
+            dto.setCode((String) row[1]);
+            dto.setDiscountType((String) row[2]);
+            dto.setDiscountValue(((Number) row[3]).doubleValue());
+            dto.setTimesUsed(((Number) row[4]).intValue());
+            dto.setTotalDiscountGiven(row[5] == null ? 0.0 : ((Number) row[5]).doubleValue());
+            dto.setActive((Boolean) row[6]);
+
+            LocalDateTime expiryDate;
+            if (row[7] instanceof LocalDateTime localDateTime) {
+                expiryDate = localDateTime;
+            } else if (row[7] instanceof Timestamp timestamp) {
+                expiryDate = timestamp.toLocalDateTime();
+            } else {
+                throw new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Unexpected expiry date type returned from database"
+                );
+            }
+
+            dto.setExpired(expiryDate.isBefore(now));
+
+            result.add(dto);
+        }
+
+        return result;
     }
 }

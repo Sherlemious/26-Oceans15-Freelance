@@ -1,6 +1,7 @@
 package com.team26.freelance.user.controller;
 
 import com.team26.freelance.user.dto.TopFreelancerDTO;
+import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.service.UserService;
@@ -30,6 +31,11 @@ public class UserController {
         return ResponseEntity.ok(userService.findById(id));
     }
 
+    @GetMapping("/{id}/profile")
+    public ResponseEntity<UserProfileDTO> getProfile(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserProfile(id));
+    }
+
     @GetMapping
     public ResponseEntity<List<UserResponseDTO>> getAll() {
         return ResponseEntity.ok(userService.findAll());
@@ -49,6 +55,11 @@ public class UserController {
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<UserResponseDTO> deactivate(@PathVariable Long id) {
         return ResponseEntity.ok(userService.deactivate(id));
+    }
+
+    @PutMapping("/{userId}/skills/{skillId}/primary")
+    public ResponseEntity<UserResponseDTO> setPrimarySkill(@PathVariable Long userId, @PathVariable Long skillId) {
+        return ResponseEntity.ok(userService.setPrimarySkill(userId, skillId));
     }
 
     @GetMapping("/preferences/search")

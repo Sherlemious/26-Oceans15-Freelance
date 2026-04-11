@@ -3,21 +3,13 @@ package com.team26.freelance.contract.controller;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.service.ContractService;
+import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
-
-
-import com.team26.freelance.contract.service.ContractService;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 
@@ -25,10 +17,10 @@ import java.util.List;
 @RequestMapping("/api/contracts")
 public class ContractController {
 
-    private final ContractService contractHistoryService;
+    private final ContractService contractService;
 
-    public ContractController(ContractService contractHistoryService) {
-        this.contractHistoryService = contractHistoryService;
+    public ContractController(ContractService contractService) {
+        this.contractService = contractService;
     }
 
     @GetMapping("/history")
@@ -37,14 +29,34 @@ public class ContractController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) ContractStatus status
     ) {
-        List<Contract> contracts = contractHistoryService.getContractHistory(startDate, endDate, status);
+        List<Contract> contracts = contractService.getContractHistory(startDate, endDate, status);
         return ResponseEntity.ok(contracts);
     }
-}
-    private final ContractService contractService;
 
-    public ContractController(ContractService contractService) {
-        this.contractService = contractService;
+    @GetMapping("/metadata/search")
+    public ResponseEntity<List<Contract>> searchContractsByMetadata(
+            @RequestParam String key,
+            @RequestParam String operator,
+            @RequestParam String value
+    ) {
+        return ResponseEntity.ok(contractService.searchByMetadata(key, operator, value));
+    }
+  
+    @PutMapping("/{id}")
+    public ResponseEntity<Contract> update(@PathVariable Long id, @RequestBody Contract contractDetails) {
+        return ResponseEntity.ok(contractService.update(id, contractDetails));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        contractService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/batch-status")
+    public ResponseEntity<Integer> updateStatuses(@RequestBody List<ContractStatusUpdateRequest> contractUpdates) {
+        int updatedCount = contractService.updateStatuses(contractUpdates);
+        return ResponseEntity.ok(updatedCount);
     }
 
     // GET /api/contracts

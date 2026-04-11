@@ -20,7 +20,8 @@ public class JobAttachment {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "job_attachment_type")
     private JobAttachmentType type;
 
     @Column(nullable = false)
