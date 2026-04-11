@@ -1,11 +1,6 @@
 package com.team26.freelance.job.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.model.Job;
@@ -22,6 +17,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -197,40 +193,30 @@ public class JobService {
                 ))
                 .collect(Collectors.toList());
     }
+    public List<JobAttachmentAlertDTO> getJobsWithExpiredAttachments() {
+    List<Long> jobIds = jobRepository.findJobIdsWithExpiredAttachments();
 
+    return jobIds.stream()
+        .map(jobId -> {
+            Job job = jobRepository.findById(jobId).orElseThrow();
 
-    public List<JobAttachmentAlertDTO> getExpiredAttachments() {
-        
-        List<Object[]> alerts = jobRepository.findExpiredAttachments();
+            List<JobAttachment> expiredAttachments = job.getJobAttachments()
+                .stream()
+                .filter(a -> a.getExpiryDate() != null && a.getExpiryDate().isBefore(LocalDate.now()))
+                .toList();
 
-
-        ObjectMapper mapper = new ObjectMapper()
-        .registerModule(new JavaTimeModule())
-    .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-    return alerts.stream()
-    .map(row -> {
-        List<JobAttachment> attachments;
-        try {
-            attachments = mapper.readValue(
-                (String) row[3],
-                new TypeReference<List<JobAttachment>>() {}
+            return new JobAttachmentAlertDTO(
+                job.getId(),
+                job.getTitle(),
+                job.getStatus(),        // JobStatus enum directly
+                expiredAttachments,     // List<JobAttachment> directly
+                expiredAttachments.size() // int, not long
             );
-        } catch (JsonProcessingException e) {
-            attachments = List.of(); // or throw a custom exception
-        }
+        })
+        .filter(dto -> dto.getExpiredCount() > 0)
+        .toList();
+}
 
-         return new JobAttachmentAlertDTO(
-                        ((Number) row[0]).longValue(),   // jobId
-                        (String) row[1],                 // jobTitle
-                        JobStatus.valueOf(String.valueOf(row[2])), // jobStatus 
-                        attachments,
-                        ((Number) row[4]).intValue()     // expiredCount
-                );
-    })
-    .collect(Collectors.toList());
-
-    }
 
     
 }

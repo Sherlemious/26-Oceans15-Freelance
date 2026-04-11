@@ -100,6 +100,6 @@ public class JobController {
 
     @GetMapping("/attachments/expired")
     public ResponseEntity<List<JobAttachmentAlertDTO>> getExpiredAttachments() {
-        return ResponseEntity.ok(jobService.getExpiredAttachments());
+        return ResponseEntity.ok(jobService.getJobsWithExpiredAttachments());
     }
 }
