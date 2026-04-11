@@ -20,8 +20,8 @@ public class FreelancerController {
     @GetMapping("/{freelancerId}/summary")
     public ResponseEntity<FreelancerPerformanceDTO> getSummary(
             @PathVariable Long freelancerId,
-            @RequestParam("startDate") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
-            @RequestParam("endDate") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate) {
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate) {
 
         FreelancerPerformanceDTO summary = performanceService.getSummary(freelancerId, startDate, endDate);
         return ResponseEntity.ok(summary);
