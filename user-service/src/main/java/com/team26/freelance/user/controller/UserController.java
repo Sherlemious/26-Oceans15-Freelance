@@ -94,14 +94,13 @@ public class UserController {
             @RequestParam int minContracts) {
         return ResponseEntity.ok(userService.findByLanguageWithMinCompletedContracts(lang, minContracts));
     }
-
-    @GetMapping("/{id}/contract-summary")
-    public ResponseEntity<UserContractSummaryDTO> getUserContractSummary(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUserContractSummary(id));
-    }
-
     @PutMapping("/{id}/preferences")
     public ResponseEntity<UserResponseDTO> updatePreferences(@PathVariable Long id, @RequestBody JsonNode preferences) {
         return ResponseEntity.ok(userService.updatePreferences(id, preferences));
+    }
+
+    @GetMapping("/{id}/contract-summary")
+    public ResponseEntity<UserContractSummaryDTO> getContractSummary(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserContractSummary(id));
     }
 }

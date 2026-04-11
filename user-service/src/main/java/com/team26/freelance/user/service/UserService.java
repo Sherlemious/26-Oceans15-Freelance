@@ -12,10 +12,10 @@ import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -29,10 +29,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    public UserService(UserRepository userRepository, UserSkillRepository userSkillRepository) {
+    public UserService(UserRepository userRepository, UserSkillRepository userSkillRepository, JdbcTemplate jdbcTemplate) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public UserResponseDTO create(User user) {
