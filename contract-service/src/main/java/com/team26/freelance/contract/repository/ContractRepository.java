@@ -1,15 +1,41 @@
 package com.team26.freelance.contract.repository;
 
 import com.team26.freelance.contract.model.Contract;
+import com.team26.freelance.contract.model.ContractStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+
+import java.util.Optional;
 
 @Repository
 public interface ContractRepository extends JpaRepository<Contract, Long> {
+
+    @Query(value = "SELECT COUNT(id) FROM users WHERE id = :userId", nativeQuery = true)
+    long countUsersById(@Param("userId") Long userId);
+
+    @Query(value = "SELECT * FROM contracts WHERE (freelancer_id=:userId OR client_id=:userId) AND status='ACTIVE' ORDER BY created_at DESC LIMIT 1", nativeQuery = true)
+    Optional<Contract> findMostRecentActiveContractByUserId(@Param("userId") Long userId);
+    @Query("SELECT COUNT(c) FROM Contract c WHERE c.createdAt < :cutoff AND c.status IN ('COMPLETED', 'TERMINATED')")
+    long countPurgeable(@Param("cutoff") LocalDateTime cutoff);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("DELETE FROM Contract c WHERE c.createdAt < :cutoff AND c.status IN ('COMPLETED', 'TERMINATED')")
+    int deleteOldContracts(@Param("cutoff") LocalDateTime cutoff);
+	List<Contract> findByCreatedAtBetweenOrderByCreatedAtAsc(LocalDateTime startDateTime, LocalDateTime endDateTime);
+
+	List<Contract> findByCreatedAtBetweenAndStatusOrderByCreatedAtAsc(
+			LocalDateTime startDateTime,
+			LocalDateTime endDateTime,
+			ContractStatus status
+	);
 
 	@Query(value = "SELECT * FROM contracts WHERE metadata->>:key = :value", nativeQuery = true)
 	List<Contract> findByMetadataEquals(@Param("key") String key, @Param("value") String value);

@@ -8,7 +8,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -26,6 +32,21 @@ public class ContractService {
 
     public ContractService(ContractRepository contractRepository) {
         this.contractRepository = contractRepository;
+    }
+
+    public List<Contract> getContractHistory(LocalDate startDate, LocalDate endDate, ContractStatus status) {
+        if (startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate must not be after endDate");
+        }
+
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
+
+        if (status != null) {
+            return contractRepository.findByCreatedAtBetweenAndStatusOrderByCreatedAtAsc(startDateTime, endDateTime, status);
+        }
+
+        return contractRepository.findByCreatedAtBetweenOrderByCreatedAtAsc(startDateTime, endDateTime);
     }
 
     public List<Contract> searchByMetadata(String key, String operator, String value) {
@@ -135,12 +156,43 @@ public class ContractService {
                 ));
     }
 
+    public Contract getActiveContractForUser(Long userId) {
+        if (contractRepository.countUsersById(userId) == 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "User not found"
+            );
+        }
+
+        return contractRepository.findMostRecentActiveContractByUserId(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Active contract not found"
+                ));
+    }
+
     @Transactional
     public Contract createContract(Contract contract) {
         // default status to ACTIVE if not provided
         if (contract.getStatus() == null) {
             contract.setStatus(ContractStatus.ACTIVE);
         }
+        return contractRepository.save(contract);
+    }
+
+    @Transactional
+    public Contract updateContractProgress(Long contractId, Map<String, Object> incomingMetadata) {
+        Contract contract = contractRepository.findById(contractId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Contract not found"
+                ));
+
+        Map<String, Object> existingMetadata = contract.getMetadata();
+        if (existingMetadata == null) {
+            existingMetadata = new HashMap<>();
+        }
+
+        existingMetadata.putAll(incomingMetadata);
+        contract.setMetadata(existingMetadata);
+
         return contractRepository.save(contract);
     }
 

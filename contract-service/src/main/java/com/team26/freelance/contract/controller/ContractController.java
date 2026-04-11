@@ -1,13 +1,18 @@
 package com.team26.freelance.contract.controller;
 
 import com.team26.freelance.contract.model.Contract;
-import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
+import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.service.ContractService;
+import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/contracts")
@@ -17,6 +22,16 @@ public class ContractController {
 
     public ContractController(ContractService contractService) {
         this.contractService = contractService;
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<Contract>> getContractHistory(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) ContractStatus status
+    ) {
+        List<Contract> contracts = contractService.getContractHistory(startDate, endDate, status);
+        return ResponseEntity.ok(contracts);
     }
 
     @GetMapping("/metadata/search")
@@ -57,10 +72,22 @@ public class ContractController {
         return ResponseEntity.ok(contractService.getContractById(id));
     }
 
+    // GET /api/contracts/user/{userId}/active
+    @GetMapping("/user/{userId}/active")
+    public ResponseEntity<Contract> getActiveContractForUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(contractService.getActiveContractForUser(userId));
+    }
+
     // POST /api/contracts
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(contractService.createContract(contract));
+    }
+
+    @PutMapping("/{contractId}/progress")
+    public ResponseEntity<Contract> updateContractProgress(@PathVariable Long contractId,
+                                                           @RequestBody Map<String, Object> incomingMetadata) {
+        return ResponseEntity.ok(contractService.updateContractProgress(contractId, incomingMetadata));
     }
 }

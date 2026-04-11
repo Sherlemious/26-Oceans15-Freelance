@@ -1,12 +1,12 @@
 package com.team26.freelance.contract.dto;
 
 public class FreelancerPerformanceDTO {
-    private Long freelancerId;
-    private long totalContracts;
-    private double averageContractValue;
-    private double completionRate;
-    private double averageDurationDays;
-    private double totalEarnings;
+    private final Long freelancerId;
+    private final long totalContracts;
+    private final double averageContractValue;
+    private final double completionRate;
+    private final double averageDurationDays;
+    private final double totalEarnings;
 
     public FreelancerPerformanceDTO(Long freelancerId, long totalContracts, double averageContractValue,
                                     double completionRate, double averageDurationDays, double totalEarnings) {
