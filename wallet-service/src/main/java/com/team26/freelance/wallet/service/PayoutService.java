@@ -1,6 +1,7 @@
 package com.team26.freelance.wallet.service;
 
 import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
+import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -203,6 +205,9 @@ public class PayoutService {
   public List<Payout> searchByStatusAndDateRange(String status,
                                                  LocalDate startDate,
                                                  LocalDate endDate) {
+    if (startDate == null || endDate == null) {
+      return payoutRepository.findAll();
+    }
     LocalDateTime start = startDate.atStartOfDay();
     LocalDateTime end = endDate.atTime(23, 59, 59);
     return payoutRepository.searchByStatusAndDateRange(status, start, end);
@@ -296,6 +301,25 @@ public class PayoutService {
     dto.setFinalAmount(payout.getAmount() - totalDiscount);
 
     return dto;
+  }
+
+  public FreelancerPayoutSummaryDTO getFreelancerPayoutSummary(Long freelancerId) {
+    if (payoutRepository.countUsersById(freelancerId) == 0) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+    }
+    List<Object[]> rows = payoutRepository.getPayoutSummaryByFreelancer(freelancerId);
+    Map<String, Double> methodBreakdown = new LinkedHashMap<>();
+    long totalPayouts = 0;
+    double totalAmount = 0.0;
+    for (Object[] row : rows) {
+      String method = (String) row[0];
+      long count = ((Number) row[1]).longValue();
+      double sum = ((Number) row[2]).doubleValue();
+      methodBreakdown.put(method, sum);
+      totalPayouts += count;
+      totalAmount += sum;
+    }
+    return new FreelancerPayoutSummaryDTO(freelancerId, totalPayouts, totalAmount, methodBreakdown);
   }
 
   public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {
