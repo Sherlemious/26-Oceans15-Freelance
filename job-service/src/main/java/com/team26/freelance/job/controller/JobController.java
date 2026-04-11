@@ -1,4 +1,6 @@
 package com.team26.freelance.job.controller;
+import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
+import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -91,6 +93,19 @@ public class JobController {
         return jobService.searchJobs(status, minBudget, maxBudget);
     }
 
+    @GetMapping("/reports/top-budget")
+    public ResponseEntity<List<TopBudgetJobDTO>> getTopBudgetJobs(@RequestParam(defaultValue = "10") int limit) {
+        if (limit <= 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(jobService.getTopBudgetJobs(limit));
+    }
+
+    @GetMapping("/attachments/expired")
+    public ResponseEntity<List<JobAttachmentAlertDTO>> getExpiredAttachments() {
+        return ResponseEntity.ok(jobService.getJobsWithExpiredAttachments());
+    }
+  
     @GetMapping("/{id}/proposal-summary")
     public JobProposalSummaryDTO getProposalSummary(
             @PathVariable Long id,

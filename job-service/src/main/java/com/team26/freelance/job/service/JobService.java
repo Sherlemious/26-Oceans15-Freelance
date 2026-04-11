@@ -1,12 +1,17 @@
 package com.team26.freelance.job.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
+import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
 import com.team26.freelance.job.model.Job;
+import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpClientErrorException;
@@ -17,6 +22,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class JobService {
@@ -177,6 +183,43 @@ public class JobService {
         return jobRepository.searchJobs(status, minBudget, maxBudget);
     }
 
+    public List<TopBudgetJobDTO> getTopBudgetJobs(int limit) {
+        List<Object[]> results = jobRepository.findTopBudgetJobs(limit);
+        return results.stream()
+                .map(row -> new TopBudgetJobDTO(
+                        ((Number) row[0]).longValue(),
+                        (String) row[1],
+                        ((Number) row[2]).doubleValue(),
+                        ((Number) row[3]).longValue()
+                ))
+                .collect(Collectors.toList());
+    }
+    public List<JobAttachmentAlertDTO> getJobsWithExpiredAttachments() {
+    List<Long> jobIds = jobRepository.findJobIdsWithExpiredAttachments();
+
+    return jobIds.stream()
+        .map(jobId -> {
+            Job job = jobRepository.findById(jobId).orElseThrow();
+
+            List<JobAttachment> expiredAttachments = job.getJobAttachments()
+                .stream()
+                .filter(a -> a.getExpiryDate() != null && a.getExpiryDate().isBefore(LocalDate.now()))
+                .toList();
+
+            return new JobAttachmentAlertDTO(
+                job.getId(),
+                job.getTitle(),
+                job.getStatus(),        // JobStatus enum directly
+                expiredAttachments,     // List<JobAttachment> directly
+                expiredAttachments.size() // int, not long
+            );
+        })
+        .filter(dto -> dto.getExpiredCount() > 0)
+        .toList();
+}
+
+
+    
     public JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
         getJobById(jobId);
 
