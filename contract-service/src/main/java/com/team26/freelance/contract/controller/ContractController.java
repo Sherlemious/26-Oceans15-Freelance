@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.controller;
 
+import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.service.ContractService;
@@ -85,6 +86,16 @@ public class ContractController {
                 .body(contractService.createContract(contract));
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<ContractSummaryDTO>> searchContracts(@RequestParam Double minAmount,
+                                                                    @RequestParam Double maxAmount,
+                                                                    @RequestParam(required = false) String status) {
+        if (minAmount < 0 || maxAmount < minAmount) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(
+                contractService.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount, status)
+        );
     @PutMapping("/{contractId}/progress")
     public ResponseEntity<Contract> updateContractProgress(@PathVariable Long contractId,
                                                            @RequestBody Map<String, Object> incomingMetadata) {
