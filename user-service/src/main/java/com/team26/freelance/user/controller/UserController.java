@@ -1,6 +1,5 @@
 package com.team26.freelance.user.controller;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
@@ -18,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.Map;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -103,7 +102,7 @@ public class UserController {
         return ResponseEntity.ok(userService.findByLanguageWithMinCompletedContracts(lang, minContracts));
     }
     @PutMapping("/{id}/preferences")
-    public ResponseEntity<UserResponseDTO> updatePreferences(@PathVariable Long id, @RequestBody JsonNode preferences) {
+    public ResponseEntity<UserResponseDTO> updatePreferences(@PathVariable Long id, @RequestBody Map<String, Object> preferences) {
         return ResponseEntity.ok(userService.updatePreferences(id, preferences));
     }
 

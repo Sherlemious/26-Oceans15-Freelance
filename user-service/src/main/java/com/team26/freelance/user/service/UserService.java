@@ -1,6 +1,5 @@
 package com.team26.freelance.user.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
@@ -24,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 
 @Service
 public class UserService {
@@ -185,17 +185,19 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponseDTO updatePreferences(Long userId, JsonNode incomingPreferences) {
+    public UserResponseDTO updatePreferences(Long userId, Map<String, Object> incomingPreferences) {
+        if (incomingPreferences == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid preferences payload: expected JSON object, got null");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         Map<String, Object> merged = new HashMap<>(
                 user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
         );
-
-        if (incomingPreferences != null && incomingPreferences.isObject()) {
-            incomingPreferences.fields().forEachRemaining(entry -> merged.put(entry.getKey(), entry.getValue()));
-        }
+        merged.putAll(incomingPreferences);
 
         user.setPreferences(merged);
         User savedUser = userRepository.save(user);
