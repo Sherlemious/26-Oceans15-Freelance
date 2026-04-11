@@ -71,5 +71,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
             WHERE u.id = :userId
             GROUP BY u.id, u.name
             """, nativeQuery = true)
-    Object[] findUserContractSummaryById(@Param("userId") Long userId);
+    List<Object[]> findUserContractSummaryById(@Param("userId") Long userId);
 }
