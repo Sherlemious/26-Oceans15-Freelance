@@ -47,6 +47,7 @@ public class JobService {
 
     public Job updateJob(Long jobId, Job updatedJob) {
         Job existingJob = getJobById(jobId);
+
         existingJob.setTitle(updatedJob.getTitle());
         existingJob.setDescription(updatedJob.getDescription());
         existingJob.setCategory(updatedJob.getCategory());
@@ -54,6 +55,7 @@ public class JobService {
         existingJob.setBudgetMin(updatedJob.getBudgetMin());
         existingJob.setBudgetMax(updatedJob.getBudgetMax());
         existingJob.setRequirements(updatedJob.getRequirements());
+
         return jobRepository.save(existingJob);
     }
 
@@ -61,6 +63,25 @@ public class JobService {
         Job job = getJobById(jobId);
         jobRepository.delete(job);
     }
+
+    @Transactional
+    public void closeJob(Long id, String status) {
+        Job job = jobRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
+
+        if ("CLOSED".equalsIgnoreCase(status)) {
+            boolean hasActiveContracts = jobRepository.existsActiveContractByJobId(id);
+            if (hasActiveContracts) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot close job with active contracts");
+            }
+
+            jobRepository.rejectSubmittedProposalsByJobId(id);
+
+            job.setStatus(JobStatus.CLOSED);
+            jobRepository.save(job);
+        }
+    }
+
 
     public List<Job> filterByRequirement(String key, String value, JobStatus status) {
         String statusStr = status != null ? status.name() : null;
