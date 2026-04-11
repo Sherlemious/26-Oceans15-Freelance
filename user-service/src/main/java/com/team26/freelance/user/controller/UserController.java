@@ -1,15 +1,14 @@
 package com.team26.freelance.user.controller;
 
 import com.team26.freelance.user.dto.TopFreelancerDTO;
-import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.service.UserService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -29,11 +28,6 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.findById(id));
-    }
-
-    @GetMapping("/{id}/profile")
-    public ResponseEntity<UserProfileDTO> getProfile(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUserProfile(id));
     }
 
     @GetMapping
@@ -57,11 +51,7 @@ public class UserController {
         return ResponseEntity.ok(userService.deactivate(id));
     }
 
-    @PutMapping("/{userId}/skills/{skillId}/primary")
-    public ResponseEntity<UserResponseDTO> setPrimarySkill(@PathVariable Long userId, @PathVariable Long skillId) {
-        return ResponseEntity.ok(userService.setPrimarySkill(userId, skillId));
-    }
-
+    // S1-F5
     @GetMapping("/preferences/search")
     public ResponseEntity<List<UserResponseDTO>> filterByPreference(
             @RequestParam String key,
@@ -69,18 +59,12 @@ public class UserController {
         return ResponseEntity.ok(userService.filterByPreference(key, value));
     }
 
+    // S1-F6
     @GetMapping("/reports/top-freelancers")
     public ResponseEntity<List<TopFreelancerDTO>> topFreelancers(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam int limit) {
         return ResponseEntity.ok(userService.getTopFreelancers(startDate, endDate, limit));
-    }
-
-    @GetMapping("/preferences/language")
-    public ResponseEntity<List<UserResponseDTO>> findByLanguageWithMinContracts(
-            @RequestParam String lang,
-            @RequestParam int minContracts) {
-        return ResponseEntity.ok(userService.findByLanguageWithMinCompletedContracts(lang, minContracts));
     }
 }
