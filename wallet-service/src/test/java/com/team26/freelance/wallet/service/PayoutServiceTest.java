@@ -55,7 +55,7 @@ class PayoutServiceTest {
 
         when(payoutRepository.findContractStatusById(contractId)).thenReturn(Optional.of("COMPLETED"));
         when(payoutRepository.existsByContractIdAndStatus(contractId, PayoutStatus.COMPLETED)).thenReturn(false);
-        when(payoutRepository.findFirstByContractIdAndStatus(contractId, PayoutStatus.PENDING))
+        when(payoutRepository.findFirstByContractIdAndStatusOrderByCreatedAtAsc(contractId, PayoutStatus.PENDING))
                 .thenReturn(Optional.of(pendingPayout));
         when(payoutRepository.save(any(Payout.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -66,6 +66,29 @@ class PayoutServiceTest {
         assertEquals("BANK_TRANSFER", result.getTransactionDetails().get("method"));
         assertEquals("9876", result.getTransactionDetails().get("accountLastFour"));
         verify(payoutRepository).save(pendingPayout);
+    }
+
+    @Test
+    void processContractPayoutShouldPreserveExistingTransactionDetails() {
+        Long contractId = 4L;
+        Payout pendingPayout = buildPendingPayout(contractId);
+        pendingPayout.getTransactionDetails().put("createdBy", "S3-F4");
+
+        ProcessContractPayoutRequest request = new ProcessContractPayoutRequest();
+        request.setMethod(PayoutMethod.BANK_TRANSFER);
+        request.setAccountLastFour("9876");
+
+        when(payoutRepository.findContractStatusById(contractId)).thenReturn(Optional.of("COMPLETED"));
+        when(payoutRepository.existsByContractIdAndStatus(contractId, PayoutStatus.COMPLETED)).thenReturn(false);
+        when(payoutRepository.findFirstByContractIdAndStatusOrderByCreatedAtAsc(contractId, PayoutStatus.PENDING))
+                .thenReturn(Optional.of(pendingPayout));
+        when(payoutRepository.save(any(Payout.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Payout result = payoutService.processContractPayout(contractId, request);
+
+        assertEquals("S3-F4", result.getTransactionDetails().get("createdBy"));
+        assertEquals("BANK_TRANSFER", result.getTransactionDetails().get("method"));
+        assertEquals("9876", result.getTransactionDetails().get("accountLastFour"));
     }
 
     @Test
@@ -84,7 +107,7 @@ class PayoutServiceTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
         assertTrue(exception.getReason().contains("already paid"));
-        verify(payoutRepository, never()).findFirstByContractIdAndStatus(any(Long.class), any(PayoutStatus.class));
+        verify(payoutRepository, never()).findFirstByContractIdAndStatusOrderByCreatedAtAsc(any(Long.class), any(PayoutStatus.class));
     }
 
     @Test

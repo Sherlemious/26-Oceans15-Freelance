@@ -127,7 +127,7 @@ public class PayoutService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "already paid");
         }
 
-        Payout pendingPayout = payoutRepository.findFirstByContractIdAndStatus(contractId, PayoutStatus.PENDING)
+        Payout pendingPayout = payoutRepository.findFirstByContractIdAndStatusOrderByCreatedAtAsc(contractId, PayoutStatus.PENDING)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
                         "Pending payout not found for this contract"
@@ -142,7 +142,10 @@ public class PayoutService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "accountLastFour must be exactly 4 digits");
         }
 
-        Map<String, Object> transactionDetails = new HashMap<>();
+        Map<String, Object> transactionDetails = pendingPayout.getTransactionDetails();
+        if (transactionDetails == null) {
+            transactionDetails = new HashMap<>();
+        }
         transactionDetails.put("method", request.getMethod().name());
         if (accountLastFour != null && !accountLastFour.isBlank()) {
             transactionDetails.put("accountLastFour", accountLastFour);
