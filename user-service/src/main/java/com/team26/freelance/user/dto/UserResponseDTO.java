@@ -45,5 +45,4 @@ public class UserResponseDTO {
     public Map<String, Object> getPreferences() { return preferences; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public List<UserSkillResponseDTO> getUserSkills() { return userSkills; }
-    //s1-f2
 }
