@@ -102,8 +102,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> filterByPreference(String key, String value) {
-        if (key.isBlank() || value.isBlank()) {
-            throw new IllegalArgumentException("key and value must not be blank");
+        if (key == null || key.isBlank() || value == null || value.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "key and value must not be blank");
         }
 
         String prefJson = String.format("{\"%s\": \"%s\"}", key, value);
