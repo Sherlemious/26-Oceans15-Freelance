@@ -1,0 +1,116 @@
+{
+  "info": {
+    "name": "S5-F6 Revenue Report by Date Range (55-1744)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Revenue report - valid range",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{walletBaseUrl}}/api/payouts/reports/revenue?startDate=2026-01-01&endDate=2026-01-31",
+          "host": [
+            "{{walletBaseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "reports",
+            "revenue"
+          ],
+          "query": [
+            {
+              "key": "startDate",
+              "value": "2026-01-01"
+            },
+            {
+              "key": "endDate",
+              "value": "2026-01-31"
+            }
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('Revenue report contract is present', function () {",
+              "    pm.expect(body).to.have.property('totalRevenue');",
+              "    pm.expect(body).to.have.property('totalTransactions');",
+              "    pm.expect(body).to.have.property('averagePayout');",
+              "    pm.expect(body).to.have.property('refundedAmount');",
+              "    pm.expect(body).to.have.property('refundCount');",
+              "});",
+              "",
+              "pm.test('averagePayout is 0 when no completed transactions', function () {",
+              "    if (body.totalTransactions === 0) {",
+              "        pm.expect(body.averagePayout).to.eql(0);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Revenue report - invalid date range",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{walletBaseUrl}}/api/payouts/reports/revenue?startDate=2026-02-01&endDate=2026-01-01",
+          "host": [
+            "{{walletBaseUrl}}"
+          ],
+          "path": [
+            "api",
+            "payouts",
+            "reports",
+            "revenue"
+          ],
+          "query": [
+            {
+              "key": "startDate",
+              "value": "2026-02-01"
+            },
+            {
+              "key": "endDate",
+              "value": "2026-01-01"
+            }
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 400 for invalid range', function () {",
+              "    pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "walletBaseUrl",
+      "value": "http://localhost:8085"
+    }
+  ]
+}
