@@ -78,7 +78,10 @@ public class UserService {
         String normalizedEmail = normalizeFilter(email);
         Role normalizedRole = parseRole(role);
 
-        return userRepository.searchUsers(normalizedName, normalizedEmail, normalizedRole).stream()
+        return userRepository.findAll().stream()
+                .filter(user -> normalizedName == null || containsIgnoreCase(user.getName(), normalizedName))
+                .filter(user -> normalizedEmail == null || containsIgnoreCase(user.getEmail(), normalizedEmail))
+                .filter(user -> normalizedRole == null || user.getRole() == normalizedRole)
                 .map(UserResponseDTO::new)
                 .collect(Collectors.toList());
     }
@@ -196,5 +199,9 @@ public class UserService {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid role value");
         }
+    }
+
+    private boolean containsIgnoreCase(String source, String term) {
+        return source != null && source.toLowerCase(Locale.ROOT).contains(term.toLowerCase(Locale.ROOT));
     }
 }
