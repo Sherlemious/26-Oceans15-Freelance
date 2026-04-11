@@ -1,6 +1,7 @@
 package com.team26.freelance.proposal.service;
 
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
+import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.model.ProposalStatus;
@@ -178,6 +179,29 @@ public class ProposalService {
         }
 
         return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
+    }
+
+
+    // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
+
+    public ProposalAnalyticsDTO getProposalAnalytics(LocalDateTime startDate, LocalDateTime endDate) {
+        if (startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date must be before end date");
+        }
+
+        List<Object[]> results = proposalRepository.getProposalAnalyticsRawData(startDate, endDate);
+        Object[] row = results.get(0);
+
+        long total = ((Number) row[0]).longValue();
+        long accepted = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        long rejected = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+        double totalBid = ((Number) row[3]).doubleValue();
+
+        // Handle edge cases to prevent division by zero
+        double averageBid = (total == 0) ? 0.0 : (totalBid / total);
+        double acceptanceRate = (total == 0) ? 0.0 : ((double) accepted / total) * 100.0;
+
+        return new ProposalAnalyticsDTO(total, accepted, rejected, totalBid, averageBid, acceptanceRate);
     }
 
 }
