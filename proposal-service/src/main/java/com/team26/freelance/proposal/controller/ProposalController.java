@@ -43,7 +43,7 @@ public class ProposalController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Proposal> updateProposal(@PathVariable Long id,
-                                                   @RequestBody Proposal proposal) {
+            @RequestBody Proposal proposal) {
         return ResponseEntity.ok(proposalService.updateProposal(id, proposal));
     }
 
@@ -72,7 +72,7 @@ public class ProposalController {
 
     @PutMapping("/milestones/{id}")
     public ResponseEntity<ProposalMilestone> updateMilestone(@PathVariable Long id,
-                                                             @RequestBody ProposalMilestone milestone) {
+            @RequestBody ProposalMilestone milestone) {
         return ResponseEntity.ok(proposalService.updateMilestone(id, milestone));
     }
 
@@ -116,6 +116,13 @@ public class ProposalController {
     public ResponseEntity<Proposal> withdrawProposal(@NonNull @PathVariable Long id) {
         Proposal withdrawnProposal = proposalService.withdrawProposal(id);
         return ResponseEntity.ok(withdrawnProposal);
+    }
+
+    @PostMapping("/{proposalId}/milestones")
+    public ResponseEntity<Proposal> addMilestonesToProposal(@PathVariable Long proposalId,
+            @RequestBody List<ProposalMilestone> milestones) {
+        Proposal updatedProposal = proposalService.addMilestoneToProposal(proposalId, milestones);
+        return ResponseEntity.ok(updatedProposal);
     }
 
 }
