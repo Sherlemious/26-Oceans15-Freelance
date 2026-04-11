@@ -103,4 +103,16 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
     
     @Query(value = "SELECT * FROM proposals WHERE metadata @> jsonb_build_object(:jsonKey, :jsonValue)", nativeQuery = true)
     List<Proposal> findByMetadataField(@Param("jsonKey") String key, @Param("jsonValue") String value);
+
+    @Query(value = """
+        SELECT 
+            COUNT(id), 
+            SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END), 
+            SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END), 
+            COALESCE(SUM(bid_amount), 0.0) 
+        FROM proposals 
+        WHERE submitted_at >= :startDate AND submitted_at <= :endDate
+        """, nativeQuery = true)
+    List<Object[]> getProposalAnalyticsRawData(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+
 }
