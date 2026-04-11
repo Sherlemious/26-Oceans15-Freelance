@@ -7,7 +7,9 @@ import com.team26.freelance.proposal.model.ProposalStatus;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 
+import org.antlr.v4.runtime.misc.NotNull;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
@@ -164,6 +166,28 @@ public class ProposalService {
         proposalRepository.updateJobStatusToClosed(proposal.getJobId());
 
         proposalRepository.insertPendingPayout(activeContractId, proposal.getFreelancerId(), proposal.getBidAmount());
+
+        return proposalRepository.save(proposal);
+    }
+
+    @Transactional
+    public Proposal withdrawProposal(@NonNull Long proposalId) {
+        Proposal proposal = proposalRepository.findById(proposalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+
+        if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Only SUBMITTED or SHORTLISTED proposals can be withdrawn");
+        }
+
+        proposal.setStatus(ProposalStatus.WITHDRAWN);
+
+        if (proposal.getJobId() != null) {
+            int activeProposals = proposalRepository.countActiveProposals(proposal.getJobId());
+            if (activeProposals == 0) {
+                proposalRepository.reopenJob(proposal.getJobId());
+            }
+        }
 
         return proposalRepository.save(proposal);
     }

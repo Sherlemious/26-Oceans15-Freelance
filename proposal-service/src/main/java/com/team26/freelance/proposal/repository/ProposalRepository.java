@@ -12,19 +12,18 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
-public interface ProposalRepository extends JpaRepository<Proposal, Long> {          
+public interface ProposalRepository extends JpaRepository<Proposal, Long> {
     @Query(value = """
-        SELECT * FROM proposals
-        WHERE (:status IS NULL OR status = :status)
-          AND submitted_at BETWEEN :startDate AND :endDate
-        ORDER BY submitted_at DESC
-        """, nativeQuery = true)
+            SELECT * FROM proposals
+            WHERE (:status IS NULL OR status = :status)
+              AND submitted_at BETWEEN :startDate AND :endDate
+            ORDER BY submitted_at DESC
+            """, nativeQuery = true)
     List<Proposal> searchByStatusAndDateRange(
             @Param("status") String status,
             @Param("startDate") LocalDateTime startDate,
-            @Param("endDate") LocalDateTime endDate
-    );
-           
+            @Param("endDate") LocalDateTime endDate);
+
     @Query(value = "SELECT role FROM users WHERE id = :freelancerId", nativeQuery = true)
     String findFreelancerRole(@Param("freelancerId") Long freelancerId);
 
@@ -36,31 +35,30 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
     @Modifying
     @Transactional
     @Query(value = """
-        INSERT INTO contracts (job_id, freelancer_id, client_id, proposal_id,
-                               agreed_amount, status, start_date, created_at)
-        SELECT p.job_id,
-               p.freelancer_id,
-               j.client_id,
-               p.id,
-               p.bid_amount,
-               'ACTIVE',
-               NOW(),
-               NOW()
-        FROM proposals p
-        JOIN jobs j ON j.id = p.job_id
-        WHERE p.id = :proposalId
-        """, nativeQuery = true)
+            INSERT INTO contracts (job_id, freelancer_id, client_id, proposal_id,
+                                   agreed_amount, status, start_date, created_at)
+            SELECT p.job_id,
+                   p.freelancer_id,
+                   j.client_id,
+                   p.id,
+                   p.bid_amount,
+                   'ACTIVE',
+                   NOW(),
+                   NOW()
+            FROM proposals p
+            JOIN jobs j ON j.id = p.job_id
+            WHERE p.id = :proposalId
+            """, nativeQuery = true)
     void insertContractFromProposal(@Param("proposalId") Long proposalId);
-           
+
     @Query(value = """
-        SELECT COUNT(*) FROM proposals
-        WHERE status IN ('SUBMITTED', 'SHORTLISTED')
-          AND bid_amount BETWEEN :lowerBound AND :upperBound
-        """, nativeQuery = true)
+            SELECT COUNT(*) FROM proposals
+            WHERE status IN ('SUBMITTED', 'SHORTLISTED')
+              AND bid_amount BETWEEN :lowerBound AND :upperBound
+            """, nativeQuery = true)
     int countActiveSimilarProposals(
             @Param("lowerBound") double lowerBound,
-            @Param("upperBound") double upperBound
-    );
+            @Param("upperBound") double upperBound);
 
     @Query(value = "SELECT id FROM contracts WHERE proposal_id = :proposalId AND status = 'ACTIVE' LIMIT 1", nativeQuery = true)
     Long findActiveContractIdByProposalId(@Param("proposalId") Long proposalId);
@@ -78,13 +76,19 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
     @Modifying
     @Transactional
     @Query(value = """
-        INSERT INTO payouts (contract_id, freelancer_id, amount, method, status, created_at) 
-        VALUES (:contractId, :freelancerId, :amount, 'BANK_TRANSFER', 'PENDING', NOW())
-        """, nativeQuery = true)
+            INSERT INTO payouts (contract_id, freelancer_id, amount, method, status, created_at)
+            VALUES (:contractId, :freelancerId, :amount, 'BANK_TRANSFER', 'PENDING', NOW())
+            """, nativeQuery = true)
     void insertPendingPayout(
             @Param("contractId") Long contractId,
             @Param("freelancerId") Long freelancerId,
-            @Param("amount") Double amount
-    );
+            @Param("amount") Double amount);
 
+        @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId AND status IN ('SUBMITTED', 'SHORTLISTED')", nativeQuery = true)
+    int countActiveProposals(@Param("jobId") Long jobId);
+
+    @Modifying
+    @Transactional
+        @Query(value = "UPDATE jobs SET status = 'OPEN' WHERE id = :jobId AND status = 'IN_PROGRESS'", nativeQuery = true)
+    void reopenJob(@Param("jobId") Long jobId);
 }
