@@ -1,6 +1,7 @@
 package com.team26.freelance.contract.service;
 
 import com.team26.freelance.contract.model.Contract;
+import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +28,7 @@ public class ContractService {
 
     @Transactional
     public Contract update(Long id, Contract contractDetails) {
-        Contract contract = findById(id);
+        Contract contract = getContractById(id);
 
         boolean validStatus = contract.getStatus().isValidTransitionTo(contractDetails.getStatus());
         if (!validStatus) {
@@ -51,7 +52,7 @@ public class ContractService {
     }
 
     public void delete(Long id) {
-        Contract contract = findById(id);
+        Contract contract = getContractById(id);
         contractRepository.delete(contract);
     }
 
