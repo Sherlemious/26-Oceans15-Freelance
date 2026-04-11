@@ -2,6 +2,7 @@ package com.team26.freelance.proposal.controller;
 
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateRequest;
+import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
@@ -123,6 +124,11 @@ public class ProposalController {
             @RequestBody List<ProposalMilestone> milestones) {
         Proposal updatedProposal = proposalService.addMilestoneToProposal(proposalId, milestones);
         return ResponseEntity.ok(updatedProposal);
+    }
+
+    @GetMapping("/{proposalId}/details")
+    public ResponseEntity<ProposalDetailsDTO> getProposalDetails(@PathVariable Long proposalId) {
+        return ResponseEntity.ok(proposalService.getProposalDetails(proposalId));
     }
 
 }
