@@ -44,22 +44,28 @@ public interface JobRepository extends JpaRepository<Job, Long> {
 
 
     @Query(value = """
-        SELECT j.id AS jobId, j.title AS jobTitle,
-       jsonb_agg(jsonb_build_object(
-           'id', a.id,
-           'type', a.type,
-           'fileUrl', a.file_url,        
-           'expiryDate', a.expiry_date,  
-           'verified', a.verified,
-           'metadata', a.metadata,
-           'uploadedAt', a.uploaded_at   
-       )) FILTER (WHERE a.expiry_date < NOW()) AS expiredAttachments,
-       COUNT(a.id) FILTER (WHERE a.expiry_date < NOW()) AS expiredCount
+    SELECT 
+        j.id AS jobId,
+        j.title AS jobTitle,
+        j.status AS jobStatus,
+        jsonb_agg(
+            jsonb_build_object(
+                'id', a.id,
+                'type', a.type,
+                'fileUrl', a.file_url,
+                'expiryDate', a.expiry_date,
+                'verified', a.verified,
+                'metadata', a.metadata,
+                'uploadedAt', a.uploaded_at
+            )
+        ) FILTER (WHERE a.expiry_date < NOW()) AS expiredAttachments,
+        COUNT(a.id) FILTER (WHERE a.expiry_date < NOW()) AS expiredCount
     FROM jobs j
-    LEFT JOIN job_attachments a ON a.job_id = j.id
-    WHERE a.expiry_date < NOW()
-    GROUP BY j.id, j.title
-        """, nativeQuery = true)
+    LEFT JOIN job_attachments a 
+        ON a.job_id = j.id
+    GROUP BY j.id, j.title, j.status
+    HAVING COUNT(a.id) FILTER (WHERE a.expiry_date < NOW()) > 0
+""", nativeQuery = true)
     List<Object[]> findExpiredAttachments();
 
 

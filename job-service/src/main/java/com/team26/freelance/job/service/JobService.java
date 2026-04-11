@@ -213,19 +213,20 @@ public class JobService {
         List<JobAttachment> attachments;
         try {
             attachments = mapper.readValue(
-                (String) row[2],
+                (String) row[3],
                 new TypeReference<List<JobAttachment>>() {}
             );
         } catch (JsonProcessingException e) {
             attachments = List.of(); // or throw a custom exception
         }
 
-        return new JobAttachmentAlertDTO(
-            ((Number) row[0]).longValue(),
-            (String) row[1],
-            attachments,
-            ((Number) row[3]).intValue()
-        );
+         return new JobAttachmentAlertDTO(
+                        ((Number) row[0]).longValue(),   // jobId
+                        (String) row[1],                 // jobTitle
+                        JobStatus.valueOf(String.valueOf(row[2])), // jobStatus 
+                        attachments,
+                        ((Number) row[4]).intValue()     // expiredCount
+                );
     })
     .collect(Collectors.toList());
 
