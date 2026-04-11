@@ -24,7 +24,6 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     @Transactional
     @Query("DELETE FROM Contract c WHERE c.createdAt < :cutoff AND c.status IN ('COMPLETED', 'TERMINATED')")
     int deleteOldContracts(@Param("cutoff") LocalDateTime cutoff);
-}
 	List<Contract> findByCreatedAtBetweenOrderByCreatedAtAsc(LocalDateTime startDateTime, LocalDateTime endDateTime);
 
 	List<Contract> findByCreatedAtBetweenAndStatusOrderByCreatedAtAsc(
