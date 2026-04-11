@@ -1,5 +1,6 @@
 package com.team26.freelance.wallet.controller;
 
+import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.Payout;
@@ -60,6 +61,9 @@ public class PayoutController {
         return ResponseEntity.ok(payoutService.processRefund(id, request.getReason()));
     }
 
+    @GetMapping("/{payoutId}/details")
+    public ResponseEntity<PayoutDetailsDTO> getPayoutDetails(@PathVariable Long payoutId) {
+        return ResponseEntity.ok(payoutService.getPayoutDetails(payoutId));
     @GetMapping("/promos/top-used")
     public ResponseEntity<List<PromoCodeUsageDTO>> getTopUsedPromoCodes(@RequestParam int limit) {
         return ResponseEntity.ok(payoutService.getTopUsedPromoCodes(limit));

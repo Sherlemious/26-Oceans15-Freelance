@@ -1,5 +1,8 @@
 package com.team26.freelance.wallet.service;
 
+import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
+import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
+import com.team26.freelance.wallet.model.PayoutPromo;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutStatus;
 import com.team26.freelance.wallet.repository.PayoutRepository;
@@ -15,6 +18,8 @@ import java.util.ArrayList;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
 
 @Service
 public class PayoutService {
@@ -76,6 +81,38 @@ public class PayoutService {
         return payoutRepository.save(payout);
     }
 
+    public PayoutDetailsDTO getPayoutDetails(Long payoutId) {
+        Payout payout = payoutRepository.findByIdWithPromos(payoutId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
+
+        List<AppliedPromoCodeDTO> appliedPromoCodes = new ArrayList<>();
+        double totalDiscount = 0.0;
+
+        for (PayoutPromo payoutPromo : payout.getPayoutPromos()) {
+            AppliedPromoCodeDTO promoDTO = new AppliedPromoCodeDTO(
+                    payoutPromo.getPromoCode().getCode(),
+                    payoutPromo.getPromoCode().getDiscountType().name(),
+                    payoutPromo.getDiscountApplied(),
+                    payoutPromo.getAppliedAt()
+            );
+
+            appliedPromoCodes.add(promoDTO);
+            totalDiscount += payoutPromo.getDiscountApplied();
+        }
+
+        PayoutDetailsDTO dto = new PayoutDetailsDTO();
+        dto.setPayoutId(payout.getId());
+        dto.setContractId(payout.getContractId());
+        dto.setFreelancerId(payout.getFreelancerId());
+        dto.setOriginalAmount(payout.getAmount());
+        dto.setMethod(payout.getMethod().name());
+        dto.setStatus(payout.getStatus().name());
+        dto.setTransactionDetails(payout.getTransactionDetails());
+        dto.setAppliedPromoCodes(appliedPromoCodes);
+        dto.setTotalDiscount(totalDiscount);
+        dto.setFinalAmount(payout.getAmount() - totalDiscount);
+
+        return dto;
     public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {
         if (limit <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Limit must be positive");
