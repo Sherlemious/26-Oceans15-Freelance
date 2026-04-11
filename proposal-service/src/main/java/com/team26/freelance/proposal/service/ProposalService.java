@@ -285,6 +285,7 @@ public class ProposalService {
                 milestoneDTOs,
                 totalMilestones,
                 completedMilestones);
+
     }
 
     public List<Proposal> filterProposalsByMetadata(String key, String value) {
