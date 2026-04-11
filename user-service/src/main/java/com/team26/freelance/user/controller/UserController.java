@@ -5,11 +5,11 @@ import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.service.UserService;
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 import java.time.LocalDate;
 
 @RestController
@@ -93,8 +93,16 @@ public class UserController {
      * Overwrites existing keys, adds new ones.
      * Returns 404 if user not found.
      */
+    /**
+     * S1-F2: Update user preferences (JSONB)
+     * PUT /api/users/{id}/preferences
+     * 
+     * Merges incoming preferences into existing preferences.
+     * Expects a JSON object. Rejects null body, arrays, or primitives with 400.
+     * Returns 404 if user not found.
+     */
     @PutMapping("/{id}/preferences")
-    public ResponseEntity<UserResponseDTO> updatePreferences(@PathVariable Long id, @RequestBody JsonNode preferences) {
+    public ResponseEntity<UserResponseDTO> updatePreferences(@PathVariable Long id, @RequestBody Map<String, Object> preferences) {
         return ResponseEntity.ok(userService.updatePreferences(id, preferences));
     }
 }

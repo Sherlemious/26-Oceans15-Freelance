@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
-import com.fasterxml.jackson.databind.JsonNode;
+
 
 @Service
 public class UserService {
@@ -169,21 +169,25 @@ public class UserService {
      * S1-F2: Update user preferences (JSONB)
      * Merges incoming preferences into existing preferences.
      * Overwrites existing keys, adds new ones.
+     * Validates that payload is a JSON object (not null, array, or primitive).
+     * Returns 400 Bad Request if payload is invalid.
      * Returns 404 if user not found.
      */
-    public UserResponseDTO updatePreferences(Long userId, JsonNode incomingPreferences) {
+    public UserResponseDTO updatePreferences(Long userId, Map<String, Object> incomingPreferences) {
+        // Validate payload: must be a non-null Map (JSON object)
+        if (incomingPreferences == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, 
+                "Invalid preferences payload: expected JSON object, got null");
+        }
+        
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         
+        // Merge incoming preferences into existing ones
         Map<String, Object> merged = new HashMap<>(
             user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
         );
-        
-        if (incomingPreferences != null && incomingPreferences.isObject()) {
-            incomingPreferences.fields().forEachRemaining(entry -> 
-                merged.put(entry.getKey(), entry.getValue())
-            );
-        }
+        merged.putAll(incomingPreferences);
         
         user.setPreferences(merged);
         User savedUser = userRepository.save(user);
