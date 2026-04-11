@@ -1,22 +1,59 @@
 package com.team26.freelance.user.repository;
 
 import com.team26.freelance.user.model.User;
-import com.team26.freelance.user.model.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    
-    @Query(value = "SELECT u FROM User u WHERE " +
-            "(:name IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', CAST(:name AS string), '%'))) AND " +
-            "(:email IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:email AS string), '%'))) AND " +
-            "(:role IS NULL OR u.role = :role)")
-    List<User> searchUsers(@Param("name") String name, 
-                          @Param("email") String email, 
-                          @Param("role") UserRole role);
+
+    @Query(value = "SELECT COUNT(*) FROM contracts WHERE freelancer_id = :userId AND status = 'ACTIVE'",
+            nativeQuery = true)
+    long countActiveContracts(@Param("userId") Long userId);
+
+    @Modifying
+    @Query(value = "UPDATE proposals SET status = 'WITHDRAWN' WHERE freelancer_id = :userId AND status = 'SUBMITTED'",
+            nativeQuery = true)
+    void withdrawSubmittedProposals(@Param("userId") Long userId);
+
+    @Query(value = "SELECT * FROM users WHERE preferences @> CAST(:pref AS jsonb)",
+            nativeQuery = true)
+    List<User> findByPreference(@Param("pref") String prefJson);
+    @Query(value = """
+            SELECT u.id, u.name,
+                   COALESCE(SUM(c.agreed_amount), 0) AS total_earnings,
+                   COUNT(c.id) AS contract_count
+            FROM users u
+            JOIN contracts c ON c.freelancer_id = u.id
+            WHERE c.status = 'COMPLETED'
+              AND c.created_at BETWEEN :startDate AND :endDate
+            GROUP BY u.id, u.name
+            ORDER BY total_earnings DESC
+            LIMIT :limitVal
+            """, nativeQuery = true)
+    List<Object[]> findTopFreelancersByEarnings(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
+            @Param("limitVal") int limitVal);
+
+    @Query(value = """
+            SELECT u.*
+            FROM users u
+            LEFT JOIN (
+                SELECT c.freelancer_id, COUNT(*) AS completed_count
+                FROM contracts c
+                WHERE c.status = 'COMPLETED'
+                GROUP BY c.freelancer_id
+            ) cc ON cc.freelancer_id = u.id
+            WHERE u.preferences ->> 'language' = :lang
+              AND COALESCE(cc.completed_count, 0) >= :minContracts
+            """, nativeQuery = true)
+    List<User> findByLanguageWithMinCompletedContracts(
+            @Param("lang") String lang,
+            @Param("minContracts") int minContracts);
 }
