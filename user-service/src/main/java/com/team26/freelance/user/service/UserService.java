@@ -9,11 +9,16 @@ import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
@@ -23,10 +28,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    public UserService(UserRepository userRepository, UserSkillRepository userSkillRepository) {
+    public UserService(UserRepository userRepository, UserSkillRepository userSkillRepository, JdbcTemplate jdbcTemplate) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public UserResponseDTO create(User user) {
@@ -160,5 +167,72 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
         return new UserResponseDTO(savedUser);
+    }
+
+    /**
+     * S1-F2: Update user preferences (JSONB)
+     * Merges incoming preferences into existing preferences.
+     * Overwrites existing keys, adds new ones.
+     * Returns 404 if user not found.
+     */
+    @Transactional
+    public UserResponseDTO updatePreferences(Long userId, JsonNode incomingPreferences) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Map<String, Object> merged = new HashMap<>(
+                user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
+        );
+
+        if (incomingPreferences != null && incomingPreferences.isObject()) {
+            incomingPreferences.fields().forEachRemaining(entry ->
+                    merged.put(entry.getKey(), entry.getValue().asText())
+            );
+        }
+
+        user.setPreferences(merged);
+        User savedUser = userRepository.save(user);
+        return new UserResponseDTO(savedUser);
+    }
+
+    /**
+     * S1-F3: Get user contract summary
+     * Returns aggregated contract information for a user
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getUserContractSummary(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("userId", user.getId());
+        summary.put("name", user.getName());
+
+        try {
+            String sql = "SELECT " +
+                    "COUNT(*) as total_contracts, " +
+                    "COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0) as completed_contracts, " +
+                    "COALESCE(SUM(CASE WHEN status = 'TERMINATED' THEN 1 ELSE 0 END), 0) as terminated_contracts, " +
+                    "COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN agreed_amount ELSE 0 END), 0) as total_earnings, " +
+                    "COALESCE(AVG(CASE WHEN status = 'COMPLETED' THEN agreed_amount ELSE NULL END), 0) as average_contract_value " +
+                    "FROM contracts WHERE freelancer_id = ?";
+
+            Map<String, Object> contractData = jdbcTemplate.queryForMap(sql, userId);
+
+            summary.put("totalContracts", ((Number) contractData.get("total_contracts")).longValue());
+            summary.put("completedContracts", ((Number) contractData.get("completed_contracts")).longValue());
+            summary.put("terminatedContracts", ((Number) contractData.get("terminated_contracts")).longValue());
+            summary.put("totalEarnings", ((Number) contractData.get("total_earnings")).longValue());
+            summary.put("averageContractValue", ((Number) contractData.get("average_contract_value")).longValue());
+        } catch (Exception e) {
+            // If contracts table doesn't exist, return all zeros
+            summary.put("totalContracts", 0L);
+            summary.put("completedContracts", 0L);
+            summary.put("terminatedContracts", 0L);
+            summary.put("totalEarnings", 0L);
+            summary.put("averageContractValue", 0L);
+        }
+
+        return summary;
     }
 }
