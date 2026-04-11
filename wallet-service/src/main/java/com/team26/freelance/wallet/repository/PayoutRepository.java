@@ -32,7 +32,7 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
 
     @Query(value = """
             SELECT * FROM payouts
-            WHERE (:status IS NULL OR status = :status)
+            WHERE (:status IS NULL OR status = :status::payout_status)
               AND created_at BETWEEN :startDate AND :endDate
             ORDER BY created_at DESC
             """, nativeQuery = true)

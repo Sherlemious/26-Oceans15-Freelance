@@ -6,34 +6,25 @@ import com.team26.freelance.job.repository.JobAttachmentRepository;
 import com.team26.freelance.job.repository.JobRepository;
 
 import jakarta.transaction.Transactional;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
+
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class JobAttachmentService {
 
     private final JobAttachmentRepository jobAttachmentRepository;
     private final JobRepository jobRepository;
-
-    private final RestTemplate restTemplate;
-
-    @Value("${user.service.url}")
-    private String userServiceUrl;
     
 
     public JobAttachmentService(JobAttachmentRepository jobAttachmentRepository,
-                                JobRepository jobRepository, RestTemplate restTemplate) {
+                                JobRepository jobRepository) {
         this.jobAttachmentRepository = jobAttachmentRepository;
-        this.jobRepository = jobRepository;
-        this.restTemplate = restTemplate;
+        this.jobRepository = jobRepository;;
     }
 
     public JobAttachment createAttachment(Long jobId, JobAttachment attachment) {
@@ -101,21 +92,12 @@ public class JobAttachmentService {
     }
 
     public void verifyUserRole(Long userId){
-        JsonNode user;
-        try {
-            user = restTemplate.getForObject(
-                    userServiceUrl + "/api/users/" + userId,
-                    JsonNode.class
-            );
-        } catch (HttpClientErrorException.NotFound e) {
+        Optional<String> roleOpt = jobAttachmentRepository.findUserRoleById(userId);
+        if (roleOpt == null || !roleOpt.isPresent()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
 
-        if (user == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-        }
-
-        String role = user.get("role").asText();
+        String role = roleOpt.get();
         if (!"ADMIN".equals(role)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User does not have permission to verify attachments");
         }

@@ -4,6 +4,7 @@ import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.dto.ProposalMilestoneDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
+import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.model.ProposalStatus;
@@ -254,11 +255,11 @@ public class ProposalService {
 
     public ProposalDetailsDTO getProposalDetails(Long proposalId) {
         Proposal proposal = proposalRepository.findByIdWithMilestones(proposalId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         List<ProposalMilestone> milestones = proposal.getProposalMilestones().stream()
-            .sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder))
-            .toList();
+                .sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder))
+                .toList();
         int totalMilestones = milestones.size();
         int completedMilestones = (int) milestones.stream()
                 .filter(m -> (m.getStatus() == MilestoneStatus.COMPLETED || m.getStatus() == MilestoneStatus.APPROVED))
@@ -285,6 +286,40 @@ public class ProposalService {
                 milestoneDTOs,
                 totalMilestones,
                 completedMilestones);
+    }
+
+    public List<Proposal> filterProposalsByMetadata(String key, String value) {
+        String normalizedKey = key == null ? null : key.trim();
+        String normalizedValue = value == null ? null : value.trim();
+
+        if (normalizedKey == null || normalizedKey.isBlank() ||
+                normalizedValue == null || normalizedValue.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Metadata key and value must not be blank");
+        }
+
+        return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
+    }
+
+    // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
+
+    public ProposalAnalyticsDTO getProposalAnalytics(LocalDateTime startDate, LocalDateTime endDate) {
+        if (startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date must be before end date");
+        }
+
+        List<Object[]> results = proposalRepository.getProposalAnalyticsRawData(startDate, endDate);
+        Object[] row = results.get(0);
+
+        long total = ((Number) row[0]).longValue();
+        long accepted = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        long rejected = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+        double totalBid = ((Number) row[3]).doubleValue();
+
+        // Handle edge cases to prevent division by zero
+        double averageBid = (total == 0) ? 0.0 : (totalBid / total);
+        double acceptanceRate = (total == 0) ? 0.0 : ((double) accepted / total) * 100.0;
+
+        return new ProposalAnalyticsDTO(total, accepted, rejected, totalBid, averageBid, acceptanceRate);
     }
 
 }

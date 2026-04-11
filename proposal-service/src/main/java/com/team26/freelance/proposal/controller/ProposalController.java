@@ -3,6 +3,7 @@ package com.team26.freelance.proposal.controller;
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateRequest;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
+import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -129,6 +131,32 @@ public class ProposalController {
     @GetMapping("/{proposalId}/details")
     public ResponseEntity<ProposalDetailsDTO> getProposalDetails(@PathVariable Long proposalId) {
         return ResponseEntity.ok(proposalService.getProposalDetails(proposalId));
+    }
+
+    // ── S3-F5: Filter Proposals by Metadata ─────────────────────────────────
+
+    @GetMapping("/metadata/search")
+    public ResponseEntity<List<Proposal>> searchByMetadata(
+            @RequestParam String key,
+            @RequestParam String value) {
+
+        List<Proposal> results = proposalService.filterProposalsByMetadata(key, value);
+        return ResponseEntity.ok(results);
+    }
+
+    // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
+
+    @GetMapping("/analytics")
+    public ResponseEntity<ProposalAnalyticsDTO> getAnalytics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        // Convert to timestamp: start at 00:00:00, end at 23:59:59
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+
+        ProposalAnalyticsDTO report = proposalService.getProposalAnalytics(start, end);
+        return ResponseEntity.ok(report);
     }
 
 }
