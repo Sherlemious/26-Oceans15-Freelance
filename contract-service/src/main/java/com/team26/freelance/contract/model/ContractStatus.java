@@ -10,10 +10,10 @@ public enum ContractStatus {
     DISPUTED;
 
     private static final Map<ContractStatus, List<ContractStatus>> VALID_TRANSITIONS = Map.of(
-            ACTIVE, List.of(COMPLETED, TERMINATED, DISPUTED),
-            DISPUTED, List.of(ACTIVE, TERMINATED),
-            COMPLETED, List.of(),
-            TERMINATED, List.of()
+            ACTIVE, List.of(ACTIVE, COMPLETED, TERMINATED, DISPUTED),
+            DISPUTED, List.of(DISPUTED, ACTIVE, TERMINATED),
+            COMPLETED, List.of(COMPLETED),
+            TERMINATED, List.of(TERMINATED)
     );
 
     public boolean isValidTransitionTo(ContractStatus next) {

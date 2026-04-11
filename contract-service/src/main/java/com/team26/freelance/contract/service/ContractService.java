@@ -8,7 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -26,6 +29,21 @@ public class ContractService {
 
     public ContractService(ContractRepository contractRepository) {
         this.contractRepository = contractRepository;
+    }
+
+    public List<Contract> getContractHistory(LocalDate startDate, LocalDate endDate, ContractStatus status) {
+        if (startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate must not be after endDate");
+        }
+
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
+
+        if (status != null) {
+            return contractRepository.findByCreatedAtBetweenAndStatusOrderByCreatedAtAsc(startDateTime, endDateTime, status);
+        }
+
+        return contractRepository.findByCreatedAtBetweenOrderByCreatedAtAsc(startDateTime, endDateTime);
     }
 
     public List<Contract> searchByMetadata(String key, String operator, String value) {

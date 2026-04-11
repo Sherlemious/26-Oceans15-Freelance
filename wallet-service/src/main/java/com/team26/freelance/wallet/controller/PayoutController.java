@@ -1,13 +1,22 @@
 package com.team26.freelance.wallet.controller;
 
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
+import com.team26.freelance.wallet.dto.PayoutResponseDTO;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.service.PayoutService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -67,8 +76,18 @@ public class PayoutController {
     @GetMapping("/{payoutId}/details")
     public ResponseEntity<PayoutDetailsDTO> getPayoutDetails(@PathVariable Long payoutId) {
         return ResponseEntity.ok(payoutService.getPayoutDetails(payoutId));
+    }
+
     @GetMapping("/promos/top-used")
     public ResponseEntity<List<PromoCodeUsageDTO>> getTopUsedPromoCodes(@RequestParam int limit) {
         return ResponseEntity.ok(payoutService.getTopUsedPromoCodes(limit));
+    }
+
+    @PostMapping("/{payoutId}/promos/{promoCodeId}")
+    public ResponseEntity<PayoutResponseDTO> applyPromoCodeToPayout(
+            @PathVariable Long payoutId,
+            @PathVariable Long promoCodeId
+    ) {
+        return ResponseEntity.ok(payoutService.applyPromoToPayout(payoutId, promoCodeId));
     }
 }
