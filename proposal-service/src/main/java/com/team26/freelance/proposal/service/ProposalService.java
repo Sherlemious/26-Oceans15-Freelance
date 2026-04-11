@@ -1,6 +1,8 @@
 package com.team26.freelance.proposal.service;
 
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
+import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
+import com.team26.freelance.proposal.dto.ProposalMilestoneDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
@@ -248,6 +250,41 @@ public class ProposalService {
         if (milestone.getAmount() == null || milestone.getAmount() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone amount must be greater than 0");
         }
+    }
+
+    public ProposalDetailsDTO getProposalDetails(Long proposalId) {
+        Proposal proposal = proposalRepository.findByIdWithMilestones(proposalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+
+        List<ProposalMilestone> milestones = proposal.getProposalMilestones().stream()
+                .sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder))
+                .toList();
+        int totalMilestones = milestones.size();
+        int completedMilestones = (int) milestones.stream()
+                .filter(m -> (m.getStatus() == MilestoneStatus.COMPLETED || m.getStatus() == MilestoneStatus.APPROVED))
+                .count();
+
+        List<ProposalMilestoneDTO> milestoneDTOs = milestones.stream()
+                .map(m -> new ProposalMilestoneDTO(
+                        m.getId(),
+                        m.getMilestoneOrder(),
+                        m.getTitle(),
+                        m.getDescription(),
+                        m.getAmount(),
+                        m.getStatus(),
+                        m.getMetadata()))
+                .toList();
+
+        return new ProposalDetailsDTO(
+                proposal.getId(),
+                proposal.getJobId(),
+                proposal.getFreelancerId(),
+                proposal.getStatus(),
+                proposal.getBidAmount(),
+                proposal.getMetadata(),
+                milestoneDTOs,
+                totalMilestones,
+                completedMilestones);
     }
 
     public List<Proposal> filterProposalsByMetadata(String key, String value) {
