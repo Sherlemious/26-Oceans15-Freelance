@@ -52,9 +52,9 @@ public class Contract {
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
+        syncDerivedFields();
     }
 
-    @PrePersist
     @PreUpdate
     protected void syncDerivedFields() {
         if (this.status == ContractStatus.COMPLETED || this.status == ContractStatus.TERMINATED) {
