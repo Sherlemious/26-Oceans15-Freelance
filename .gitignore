@@ -17,6 +17,9 @@ out/
 .settings/
 .factorypath
 
+# VsCode
+.vscode/
+
 # Spring Boot / Application logs
 *.log
 logs/

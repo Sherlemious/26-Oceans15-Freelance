@@ -1,4 +1,6 @@
 package com.team26.freelance.job.controller;
+import com.team26.freelance.job.dto.JobProposalSummaryDTO;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobStatus;
@@ -6,6 +8,7 @@ import com.team26.freelance.job.service.JobService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -47,6 +50,12 @@ public class JobController {
         jobService.deleteJob(id);
     }
 
+    @PutMapping("/{id}/close")
+    public ResponseEntity<Void> closeJob(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        jobService.closeJob(id, body.get("status"));
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/requirements/search")
     public ResponseEntity<List<Job>> searchByRequirement(
             @RequestParam String key,
@@ -61,7 +70,7 @@ public class JobController {
     public Job rateJobClient(
             @PathVariable Long id,
             @RequestBody Map<String, Object> body
-    ) {        
+    ) {
         Long contractId = Long.valueOf(body.get("contractId").toString());
         int rating = Integer.parseInt(body.get("rating").toString());
         return jobService.rateJobClient(id,contractId, rating);
@@ -72,7 +81,7 @@ public class JobController {
             @PathVariable Long id,
             @RequestBody Map<String, Object> requirements) {
         return jobService.updateRequirements(id, requirements);
-      
+
     }
     @GetMapping("/search")
     public List<Job> searchJobs(
@@ -80,5 +89,13 @@ public class JobController {
             @RequestParam(required = false) Double minBudget,
             @RequestParam(required = false) Double maxBudget) {
         return jobService.searchJobs(status, minBudget, maxBudget);
+    }
+
+    @GetMapping("/{id}/proposal-summary")
+    public JobProposalSummaryDTO getProposalSummary(
+            @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return jobService.getProposalSummary(id, startDate, endDate);
     }
 }
