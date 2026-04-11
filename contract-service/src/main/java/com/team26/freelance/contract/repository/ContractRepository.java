@@ -81,4 +81,17 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     """, nativeQuery = true)
     java.util.List<Object[]> findStalledContracts(@Param("maxProgress") double maxProgress,
                                                   @Param("stalledDays") double stalledDays);
+
+    @Query(value = """
+        SELECT c.id, u.name, j.title, c.agreed_amount, c.status, c.start_date, c.end_date
+        FROM contracts c
+        JOIN users u ON c.freelancer_id = u.id
+        JOIN jobs j ON c.job_id = j.id
+        WHERE c.agreed_amount BETWEEN :minAmount AND :maxAmount
+          AND (:status IS NULL OR c.status = CAST(:status AS VARCHAR))
+        ORDER BY c.agreed_amount DESC
+    """, nativeQuery = true)
+    java.util.List<Object[]> findContractsByBudgetRangeWithFreelancerInfo(@Param("minAmount") Double minAmount,
+                                                                           @Param("maxAmount") Double maxAmount,
+                                                                           @Param("status") String status);
 }

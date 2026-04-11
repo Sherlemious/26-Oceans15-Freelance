@@ -2,13 +2,13 @@ package com.team26.freelance.proposal.service;
 
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
+import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.model.ProposalStatus;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 
-import org.antlr.v4.runtime.misc.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -248,6 +248,40 @@ public class ProposalService {
         if (milestone.getAmount() == null || milestone.getAmount() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone amount must be greater than 0");
         }
+    }
+
+    public List<Proposal> filterProposalsByMetadata(String key, String value) {
+        String normalizedKey = key == null ? null : key.trim();
+        String normalizedValue = value == null ? null : value.trim();
+
+        if (normalizedKey == null || normalizedKey.isBlank() ||
+                normalizedValue == null || normalizedValue.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Metadata key and value must not be blank");
+        }
+
+        return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
+    }
+
+    // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
+
+    public ProposalAnalyticsDTO getProposalAnalytics(LocalDateTime startDate, LocalDateTime endDate) {
+        if (startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date must be before end date");
+        }
+
+        List<Object[]> results = proposalRepository.getProposalAnalyticsRawData(startDate, endDate);
+        Object[] row = results.get(0);
+
+        long total = ((Number) row[0]).longValue();
+        long accepted = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        long rejected = row[2] != null ? ((Number) row[2]).longValue() : 0L;
+        double totalBid = ((Number) row[3]).doubleValue();
+
+        // Handle edge cases to prevent division by zero
+        double averageBid = (total == 0) ? 0.0 : (totalBid / total);
+        double acceptanceRate = (total == 0) ? 0.0 : ((double) accepted / total) * 100.0;
+
+        return new ProposalAnalyticsDTO(total, accepted, rejected, totalBid, averageBid, acceptanceRate);
     }
 
 }
