@@ -17,8 +17,8 @@ public class ContractPurgeService {
 
     @Transactional
     public long purgeOldContracts(int olderThanDays) {
-        if (olderThanDays < 1) {
-            throw new IllegalArgumentException("olderThanDays must be >= 1");
+        if (olderThanDays < 0) {
+            throw new IllegalArgumentException("olderThanDays must be a positive number");
         }
         LocalDateTime cutoff = LocalDateTime.now().minusDays(olderThanDays);
         return contractRepository.deleteOldContracts(cutoff);
