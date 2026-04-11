@@ -1,5 +1,6 @@
 package com.team26.freelance.wallet.controller;
 
+import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
@@ -69,9 +70,9 @@ public class PayoutController {
   @GetMapping("/search")
   public ResponseEntity<List<Payout>>
   searchPayouts(@RequestParam(required = false) String status,
-                @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                 LocalDate startDate,
-                @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                 LocalDate endDate) {
     return ResponseEntity.ok(
         payoutService.searchByStatusAndDateRange(status, startDate, endDate));
@@ -106,5 +107,11 @@ public class PayoutController {
                          @PathVariable Long promoCodeId) {
     return ResponseEntity.ok(
         payoutService.applyPromoToPayout(payoutId, promoCodeId));
+  }
+
+  @GetMapping("/freelancer/{freelancerId}/summary")
+  public ResponseEntity<FreelancerPayoutSummaryDTO> getFreelancerSummary(
+      @PathVariable Long freelancerId) {
+    return ResponseEntity.ok(payoutService.getFreelancerPayoutSummary(freelancerId));
   }
 }

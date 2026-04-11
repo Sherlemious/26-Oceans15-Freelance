@@ -36,7 +36,7 @@ public class Payout {
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "payout_status")
-    private PayoutStatus status;
+    private PayoutStatus status = PayoutStatus.PENDING;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
