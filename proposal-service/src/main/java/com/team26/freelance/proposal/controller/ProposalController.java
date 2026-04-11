@@ -111,4 +111,15 @@ public class ProposalController {
         return ResponseEntity.ok(completedProposal);
     }
 
+
+    // ── S3-F5: Filter Proposals by Metadata ─────────────────────────────────
+
+    @GetMapping("/metadata/search")
+    public ResponseEntity<List<Proposal>> searchByMetadata(
+            @RequestParam String key,
+            @RequestParam String value) {
+
+        List<Proposal> results = proposalService.filterProposalsByMetadata(key, value);
+        return ResponseEntity.ok(results);
+    }
 }
