@@ -8,8 +8,7 @@ COPY pom.xml .
 COPY src/ src/
 
 RUN apt-get update && apt-get install -y maven && \
-    mvn clean install -DskipTests && \
-    mvn package -DskipTests
+    mvn clean package -DskipTests
 
 FROM eclipse-temurin:25.0.2_10-jdk
 
