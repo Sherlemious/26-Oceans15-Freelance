@@ -8,7 +8,9 @@ import com.team26.freelance.proposal.model.ProposalStatus;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 
+import org.antlr.v4.runtime.misc.NotNull;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +25,7 @@ public class ProposalService {
     private final ProposalMilestoneRepository milestoneRepository;
 
     public ProposalService(ProposalRepository proposalRepository,
-                           ProposalMilestoneRepository milestoneRepository) {
+            ProposalMilestoneRepository milestoneRepository) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
     }
@@ -86,8 +88,8 @@ public class ProposalService {
     public void deleteMilestone(Long id) {
         getMilestoneById(id);
         milestoneRepository.deleteById(id);
-    }  
-  
+    }
+
     public List<Proposal> searchByStatusAndDateRange(String status, LocalDateTime startDate, LocalDateTime endDate) {
         return proposalRepository.searchByStatusAndDateRange(status, startDate, endDate);
     }
@@ -118,7 +120,7 @@ public class ProposalService {
 
         return proposalRepository.save(proposal);
     }
-  
+
     public FeeEstimateDTO estimateFee(double bidAmount, int estimatedDays) {
         if (bidAmount <= 0 || estimatedDays <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -152,7 +154,8 @@ public class ProposalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         if (proposal.getStatus() != ProposalStatus.ACCEPTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal status must be ACCEPTED to complete work");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Proposal status must be ACCEPTED to complete work");
         }
 
         Long activeContractId = proposalRepository.findActiveContractIdByProposalId(proposalId);
@@ -169,6 +172,28 @@ public class ProposalService {
         return proposalRepository.save(proposal);
     }
 
+    @Transactional
+    public Proposal withdrawProposal(@NonNull Long proposalId) {
+        Proposal proposal = proposalRepository.findById(proposalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+
+        if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Only SUBMITTED or SHORTLISTED proposals can be withdrawn");
+        }
+
+        proposal.setStatus(ProposalStatus.WITHDRAWN);
+
+        if (proposal.getJobId() != null) {
+            int activeProposals = proposalRepository.countActiveProposals(proposal.getJobId());
+            if (activeProposals == 0) {
+                proposalRepository.reopenJob(proposal.getJobId());
+            }
+        }
+
+        return proposalRepository.save(proposal);
+    }
+
     public List<Proposal> filterProposalsByMetadata(String key, String value) {
         String normalizedKey = key == null ? null : key.trim();
         String normalizedValue = value == null ? null : value.trim();
@@ -180,7 +205,6 @@ public class ProposalService {
 
         return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
     }
-
 
     // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
 
