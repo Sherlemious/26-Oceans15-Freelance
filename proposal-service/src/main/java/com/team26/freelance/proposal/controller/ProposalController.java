@@ -8,6 +8,7 @@ import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -113,6 +114,11 @@ public class ProposalController {
         return ResponseEntity.ok(completedProposal);
     }
 
+    @PutMapping("/{id}/withdraw")
+    public ResponseEntity<Proposal> withdrawProposal(@NonNull @PathVariable Long id) {
+        Proposal withdrawnProposal = proposalService.withdrawProposal(id);
+        return ResponseEntity.ok(withdrawnProposal);
+    }
 
     // ── S3-F5: Filter Proposals by Metadata ─────────────────────────────────
 
