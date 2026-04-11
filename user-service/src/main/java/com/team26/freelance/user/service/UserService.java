@@ -14,9 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.JsonNode;
 
 @Service
 public class UserService {
@@ -158,6 +161,31 @@ public class UserService {
         }
         targetSkill.setIsPrimary(true);
 
+        User savedUser = userRepository.save(user);
+        return new UserResponseDTO(savedUser);
+    }
+
+    /**
+     * S1-F2: Update user preferences (JSONB)
+     * Merges incoming preferences into existing preferences.
+     * Overwrites existing keys, adds new ones.
+     * Returns 404 if user not found.
+     */
+    public UserResponseDTO updatePreferences(Long userId, JsonNode incomingPreferences) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        
+        Map<String, Object> merged = new HashMap<>(
+            user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
+        );
+        
+        if (incomingPreferences != null && incomingPreferences.isObject()) {
+            incomingPreferences.fields().forEachRemaining(entry -> 
+                merged.put(entry.getKey(), entry.getValue())
+            );
+        }
+        
+        user.setPreferences(merged);
         User savedUser = userRepository.save(user);
         return new UserResponseDTO(savedUser);
     }
