@@ -1,6 +1,8 @@
 package com.team26.freelance.user.service;
 
 import com.team26.freelance.user.dto.TopFreelancerDTO;
+import com.team26.freelance.user.dto.UserProfileDTO;
+import com.team26.freelance.user.dto.UserProfileSkillDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
@@ -35,6 +37,31 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         return new UserResponseDTO(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileDTO getUserProfile(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        List<UserProfileSkillDTO> skills = user.getUserSkills().stream()
+                .map(skill -> new UserProfileSkillDTO(
+                        skill.getSkillName(),
+                        skill.getCategory(),
+                        skill.getYearsOfExperience(),
+                        skill.getProficiencyLevel(),
+                        skill.getIsPrimary(),
+                        skill.getMetadata()))
+                .collect(Collectors.toList());
+
+        return new UserProfileDTO(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getPreferences(),
+                skills,
+                skills.size());
     }
 
     public List<UserResponseDTO> findAll() {
