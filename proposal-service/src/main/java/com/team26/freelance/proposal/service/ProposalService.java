@@ -144,4 +144,29 @@ public class ProposalService {
         return new FeeEstimateDTO(bidAmount, platformFee, freelancerPayout,
                 feePercentage, estimatedDailyRate);
     }
+
+    @Transactional
+    public Proposal completeProposalContract(Long proposalId) {
+        Proposal proposal = proposalRepository.findById(proposalId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+
+        if (proposal.getStatus() != ProposalStatus.ACCEPTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal status must be ACCEPTED to complete work");
+        }
+
+        Long activeContractId = proposalRepository.findActiveContractIdByProposalId(proposalId);
+        if (activeContractId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No ACTIVE contract found for this proposal");
+        }
+
+        proposalRepository.markContractAsCompleted(activeContractId);
+
+        proposalRepository.updateJobStatusToClosed(proposal.getJobId());
+
+        Double agreedAmount = proposalRepository.findContractAgreedAmount(activeContractId);
+        proposalRepository.insertPendingPayout(activeContractId, proposal.getFreelancerId(), agreedAmount);
+
+        return proposalRepository.save(proposal);
+    }
+
 }
