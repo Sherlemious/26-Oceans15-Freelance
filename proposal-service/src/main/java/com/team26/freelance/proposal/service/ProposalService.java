@@ -4,6 +4,7 @@ import com.team26.freelance.proposal.dto.CreateProposalDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.dto.ProposalMilestoneDTO;
+import com.team26.freelance.proposal.dto.UpdateProposalDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.model.Proposal;
@@ -46,10 +47,6 @@ public class ProposalService {
     }
 
     public Proposal createProposal(CreateProposalDTO request) {
-        if (request.jobId() == null || request.freelancerId() == null || request.coverLetter() == null ||
-                request.bidAmount() == null || request.estimatedDays() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing required fields");
-        }
         Proposal proposal = new Proposal();
         proposal.setJobId(request.jobId());
         proposal.setFreelancerId(request.freelancerId());
@@ -60,13 +57,13 @@ public class ProposalService {
         return proposalRepository.save(proposal);
     }
 
-    public Proposal updateProposal(Long id, Proposal updated) {
+    public Proposal updateProposal(Long id, UpdateProposalDTO updated) {
         Proposal existing = getProposalById(id);
-        existing.setCoverLetter(updated.getCoverLetter());
-        existing.setBidAmount(updated.getBidAmount());
-        existing.setEstimatedDays(updated.getEstimatedDays());
-        existing.setStatus(updated.getStatus());
-        existing.setMetadata(updated.getMetadata());
+        existing.setCoverLetter(updated.coverLetter());
+        existing.setBidAmount(updated.bidAmount());
+        existing.setEstimatedDays(updated.estimatedDays());
+        existing.setStatus(updated.status());
+        existing.setMetadata(updated.metadata());
         return proposalRepository.save(existing);
     }
 

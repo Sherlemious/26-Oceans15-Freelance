@@ -5,9 +5,11 @@ import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateRequest;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
+import com.team26.freelance.proposal.dto.UpdateProposalDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
@@ -41,13 +43,13 @@ public class ProposalController {
     }
 
     @PostMapping
-    public ResponseEntity<Proposal> createProposal(@RequestBody CreateProposalDTO request) {
+    public ResponseEntity<Proposal> createProposal(@Valid @RequestBody CreateProposalDTO request) {
         return ResponseEntity.status(201).body(proposalService.createProposal(request));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Proposal> updateProposal(@PathVariable Long id,
-            @RequestBody Proposal proposal) {
+            @Valid @RequestBody UpdateProposalDTO proposal) {
         return ResponseEntity.ok(proposalService.updateProposal(id, proposal));
     }
 
@@ -74,7 +76,7 @@ public class ProposalController {
     }
 
     @PostMapping("/estimate")
-    public ResponseEntity<FeeEstimateDTO> estimateFee(@RequestBody FeeEstimateRequest request) {
+    public ResponseEntity<FeeEstimateDTO> estimateFee(@Valid @RequestBody FeeEstimateRequest request) {
         return ResponseEntity.ok(proposalService.estimateFee(
                 request.getBidAmount(), request.getEstimatedDays()));
     }

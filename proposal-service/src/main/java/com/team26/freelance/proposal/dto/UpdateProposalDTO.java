@@ -5,7 +5,9 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.Map;
 
-public record CreateProposalDTO(
+import com.team26.freelance.proposal.model.ProposalStatus;
+
+public record UpdateProposalDTO(
         @NotNull(message = "jobId is required")
         Long jobId,
         @NotNull(message = "freelancerId is required")
@@ -18,5 +20,8 @@ public record CreateProposalDTO(
         @NotNull(message = "estimatedDays is required")
         @Positive(message = "estimatedDays must be positive")
         Integer estimatedDays,
-        Map<String, Object> metadata) {
+        Map<String, Object> metadata,
+        @NotNull(message = "status is required")
+        ProposalStatus status) {
+
 }

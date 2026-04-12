@@ -1,11 +1,18 @@
 package com.team26.freelance.proposal.dto;
 
-public class FeeEstimateRequest {
-    private double bidAmount;
-    private int estimatedDays;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
-    public double getBidAmount() { return bidAmount; }
-    public void setBidAmount(double bidAmount) { this.bidAmount = bidAmount; }
-    public int getEstimatedDays() { return estimatedDays; }
-    public void setEstimatedDays(int estimatedDays) { this.estimatedDays = estimatedDays; }
+public class FeeEstimateRequest {
+    @NotNull(message = "bidAmount is required")
+    @Positive(message = "bidAmount must be positive")
+    private Double bidAmount;
+    @NotNull(message = "estimatedDays is required")
+    @Positive(message = "estimatedDays must be positive")
+    private Integer estimatedDays;
+
+    public Double getBidAmount() { return bidAmount; }
+    public void setBidAmount(Double bidAmount) { this.bidAmount = bidAmount; }
+    public Integer getEstimatedDays() { return estimatedDays; }
+    public void setEstimatedDays(Integer estimatedDays) { this.estimatedDays = estimatedDays; }
 }

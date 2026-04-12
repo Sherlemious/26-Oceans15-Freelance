@@ -2,6 +2,7 @@ package com.team26.freelance.proposal.controller;
 
 import java.util.List;
 
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -41,7 +42,7 @@ public class ProposalMilestoneController {
 
     @PostMapping("/proposal/{id}")
     public ResponseEntity<ProposalMilestone> createMilestone(@NonNull @PathVariable Long id,
-            @RequestBody CreateProposalMilestoneDTO milestone) {
+            @Valid @RequestBody CreateProposalMilestoneDTO milestone) {
         return ResponseEntity.status(201).body(proposalMilestoneService.createMilestone(id, milestone));
     }
 
