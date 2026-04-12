@@ -24,7 +24,7 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 
         @Query(value = """
                         SELECT * FROM proposals
-                        WHERE (:status IS NULL OR status = :status)
+                        WHERE (:status IS NULL OR CAST(status AS VARCHAR) = :status)
                           AND submitted_at BETWEEN :startDate AND :endDate
                         ORDER BY submitted_at DESC
                         """, nativeQuery = true)
@@ -62,14 +62,14 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 
         @Query(value = """
                         SELECT COUNT(*) FROM proposals
-                        WHERE status IN ('SUBMITTED', 'SHORTLISTED')
+                        WHERE CAST(status AS VARCHAR) IN ('SUBMITTED', 'SHORTLISTED')
                           AND bid_amount BETWEEN :lowerBound AND :upperBound
                         """, nativeQuery = true)
         int countActiveSimilarProposals(
                         @Param("lowerBound") double lowerBound,
                         @Param("upperBound") double upperBound);
 
-        @Query(value = "SELECT id FROM contracts WHERE proposal_id = :proposalId AND status = 'ACTIVE' LIMIT 1", nativeQuery = true)
+        @Query(value = "SELECT id FROM contracts WHERE proposal_id = :proposalId AND CAST(status AS VARCHAR) = 'ACTIVE' LIMIT 1", nativeQuery = true)
         Long findActiveContractIdByProposalId(@Param("proposalId") Long proposalId);
 
         @Modifying
@@ -93,12 +93,12 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         @Param("freelancerId") Long freelancerId,
                         @Param("amount") Double amount);
 
-        @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId AND status IN ('SUBMITTED', 'SHORTLISTED')", nativeQuery = true)
+        @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId AND CAST(status AS VARCHAR) IN ('SUBMITTED', 'SHORTLISTED')", nativeQuery = true)
         int countActiveProposals(@Param("jobId") Long jobId);
 
         @Modifying
         @Transactional
-        @Query(value = "UPDATE jobs SET status = 'OPEN' WHERE id = :jobId AND status = 'IN_PROGRESS'", nativeQuery = true)
+        @Query(value = "UPDATE jobs SET status = 'OPEN' WHERE id = :jobId AND CAST(status AS VARCHAR) = 'IN_PROGRESS'", nativeQuery = true)
         void reopenJob(@Param("jobId") Long jobId);
 
         @Query(value = "SELECT * FROM proposals WHERE metadata @> jsonb_build_object(:jsonKey, :jsonValue)", nativeQuery = true)
@@ -107,8 +107,8 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         @Query(value = """
                         SELECT
                             COUNT(id),
-                            SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END),
-                            SUM(CASE WHEN status = 'REJECTED' THEN 1 ELSE 0 END),
+                            SUM(CASE WHEN CAST(status AS VARCHAR) = 'ACCEPTED' THEN 1 ELSE 0 END),
+                            SUM(CASE WHEN CAST(status AS VARCHAR) = 'REJECTED' THEN 1 ELSE 0 END),
                             COALESCE(SUM(bid_amount), 0.0)
                         FROM proposals
                         WHERE submitted_at >= :startDate AND submitted_at <= :endDate

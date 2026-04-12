@@ -37,7 +37,7 @@ public class Proposal {
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "proposal_status")
-    private ProposalStatus status;
+    private ProposalStatus status = ProposalStatus.SUBMITTED;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")

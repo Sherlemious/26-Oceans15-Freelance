@@ -45,6 +45,9 @@ public class ProposalService {
     }
 
     public Proposal createProposal(Proposal proposal) {
+        if (proposal.getStatus() == null) {
+            proposal.setStatus(ProposalStatus.SUBMITTED);
+        }
         return proposalRepository.save(proposal);
     }
 
@@ -75,6 +78,9 @@ public class ProposalService {
     }
 
     public ProposalMilestone createMilestone(ProposalMilestone milestone) {
+        if (milestone.getStatus() == null) {
+            milestone.setStatus(MilestoneStatus.PENDING);
+        }
         return milestoneRepository.save(milestone);
     }
 

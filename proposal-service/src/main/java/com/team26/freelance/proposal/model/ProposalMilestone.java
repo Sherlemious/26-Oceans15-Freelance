@@ -31,7 +31,7 @@ public class ProposalMilestone {
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "milestone_status")
-    private MilestoneStatus status;
+    private MilestoneStatus status = MilestoneStatus.PENDING;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
