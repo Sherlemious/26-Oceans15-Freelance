@@ -57,35 +57,6 @@ public class ProposalController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── Milestone CRUD ─────────────────────────────────────────────────────
-
-    @GetMapping("/milestones")
-    public ResponseEntity<List<ProposalMilestone>> getAllMilestones() {
-        return ResponseEntity.ok(proposalService.getAllMilestones());
-    }
-
-    @GetMapping("/milestones/{id}")
-    public ResponseEntity<ProposalMilestone> getMilestoneById(@PathVariable Long id) {
-        return ResponseEntity.ok(proposalService.getMilestoneById(id));
-    }
-
-    @PostMapping("/milestones")
-    public ResponseEntity<ProposalMilestone> createMilestone(@RequestBody ProposalMilestone milestone) {
-        return ResponseEntity.status(201).body(proposalService.createMilestone(milestone));
-    }
-
-    @PutMapping("/milestones/{id}")
-    public ResponseEntity<ProposalMilestone> updateMilestone(@PathVariable Long id,
-            @RequestBody ProposalMilestone milestone) {
-        return ResponseEntity.ok(proposalService.updateMilestone(id, milestone));
-    }
-
-    @DeleteMapping("/milestones/{id}")
-    public ResponseEntity<Void> deleteMilestone(@PathVariable Long id) {
-        proposalService.deleteMilestone(id);
-        return ResponseEntity.noContent().build();
-    }
-
     @GetMapping("/search")
     public ResponseEntity<List<Proposal>> searchProposals(
             @RequestParam(required = false) String status,

@@ -75,36 +75,6 @@ public class ProposalService {
         proposalRepository.deleteById(id);
     }
 
-    // ── CRUD for Milestones ────────────────────────────────────────────────
-
-    public List<ProposalMilestone> getAllMilestones() {
-        return milestoneRepository.findAll();
-    }
-
-    public ProposalMilestone getMilestoneById(Long id) {
-        return milestoneRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Milestone not found"));
-    }
-
-    public ProposalMilestone createMilestone(ProposalMilestone milestone) {
-        return milestoneRepository.save(milestone);
-    }
-
-    public ProposalMilestone updateMilestone(Long id, ProposalMilestone updated) {
-        ProposalMilestone existing = getMilestoneById(id);
-        existing.setTitle(updated.getTitle());
-        existing.setDescription(updated.getDescription());
-        existing.setAmount(updated.getAmount());
-        existing.setStatus(updated.getStatus());
-        existing.setMetadata(updated.getMetadata());
-        return milestoneRepository.save(existing);
-    }
-
-    public void deleteMilestone(Long id) {
-        getMilestoneById(id);
-        milestoneRepository.deleteById(id);
-    }
-
     public List<Proposal> searchByStatusAndDateRange(String status, LocalDateTime startDate, LocalDateTime endDate) {
         return proposalRepository.searchByStatusAndDateRange(status, startDate, endDate);
     }

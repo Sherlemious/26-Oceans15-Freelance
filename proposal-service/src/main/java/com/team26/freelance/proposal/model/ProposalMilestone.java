@@ -42,7 +42,9 @@ public class ProposalMilestone {
     @JoinColumn(name = "proposal_id", nullable = false)
     private Proposal proposal;
 
-    public ProposalMilestone() {}
+    public ProposalMilestone() {
+        this.status = MilestoneStatus.PENDING;
+    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
