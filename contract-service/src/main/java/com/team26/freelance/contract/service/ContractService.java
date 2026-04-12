@@ -4,13 +4,11 @@ import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
-import com.team26.freelance.contract.client.UserClient;
 import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.web.client.HttpClientErrorException;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -36,11 +34,9 @@ import java.util.stream.Collectors;
 public class ContractService {
 
     private final ContractRepository contractRepository;
-    private final UserClient userClient;
 
-    public ContractService(ContractRepository contractRepository, UserClient userClient) {
+    public ContractService(ContractRepository contractRepository) {
         this.contractRepository = contractRepository;
-        this.userClient = userClient;
     }
 
     public List<Contract> getContractHistory(LocalDate startDate, LocalDate endDate, ContractStatus status) {
@@ -196,16 +192,6 @@ public class ContractService {
     }
 
     public Contract getActiveContractForUser(Long userId) {
-        try {
-            userClient.getUserById(userId);
-        } catch (HttpClientErrorException.NotFound e) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-        } catch (Exception e) {
-            // If the service is down or other error, we can still try to get the contract, or fail.
-            // But let's assume it passes if user exists.
-            // We can just log it or ignore for now to allow returning the contract if it exists.
-        }
-
         return contractRepository.findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(userId, ContractStatus.ACTIVE, userId, ContractStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Active contract not found"
