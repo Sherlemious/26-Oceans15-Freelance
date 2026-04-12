@@ -1,5 +1,6 @@
 package com.team26.freelance.proposal.controller;
 
+import com.team26.freelance.proposal.dto.CreateProposalDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateRequest;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
@@ -40,8 +41,8 @@ public class ProposalController {
     }
 
     @PostMapping
-    public ResponseEntity<Proposal> createProposal(@RequestBody Proposal proposal) {
-        return ResponseEntity.status(201).body(proposalService.createProposal(proposal));
+    public ResponseEntity<Proposal> createProposal(@RequestBody CreateProposalDTO request) {
+        return ResponseEntity.status(201).body(proposalService.createProposal(request));
     }
 
     @PutMapping("/{id}")

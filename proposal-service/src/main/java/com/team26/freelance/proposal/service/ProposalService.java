@@ -1,5 +1,6 @@
 package com.team26.freelance.proposal.service;
 
+import com.team26.freelance.proposal.dto.CreateProposalDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.dto.ProposalMilestoneDTO;
@@ -44,7 +45,18 @@ public class ProposalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
     }
 
-    public Proposal createProposal(Proposal proposal) {
+    public Proposal createProposal(CreateProposalDTO request) {
+        if (request.jobId() == null || request.freelancerId() == null || request.coverLetter() == null ||
+                request.bidAmount() == null || request.estimatedDays() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing required fields");
+        }
+        Proposal proposal = new Proposal();
+        proposal.setJobId(request.jobId());
+        proposal.setFreelancerId(request.freelancerId());
+        proposal.setCoverLetter(request.coverLetter());
+        proposal.setBidAmount(request.bidAmount());
+        proposal.setEstimatedDays(request.estimatedDays());
+        proposal.setMetadata(request.metadata());
         return proposalRepository.save(proposal);
     }
 
