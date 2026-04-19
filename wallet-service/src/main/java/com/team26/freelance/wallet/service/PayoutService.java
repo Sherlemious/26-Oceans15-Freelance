@@ -7,6 +7,7 @@ import com.team26.freelance.wallet.dto.PayoutResponseDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.model.DiscountType;
+import com.team26.freelance.wallet.model.PayoutMethod;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutPromo;
 import com.team26.freelance.wallet.model.PayoutStatus;
@@ -67,8 +68,8 @@ public class PayoutService {
                                         "Promo code is inactive");
     }
 
-    LocalDateTime now = LocalDateTime.now();
-    if (!promoCode.getExpiryDate().isAfter(now)) {
+    LocalDate today = LocalDate.now();
+    if (!promoCode.getExpiryDate().isAfter(today)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                         "Promo code is expired");
     }
@@ -91,7 +92,7 @@ public class PayoutService {
     payoutPromo.setPayout(payout);
     payoutPromo.setPromoCode(promoCode);
     payoutPromo.setDiscountApplied(calculateDiscountApplied(payout, promoCode));
-    payoutPromo.setAppliedAt(now);
+    payoutPromo.setAppliedAt(LocalDateTime.now());
     payoutPromoRepository.save(payoutPromo);
     payout.getPayoutPromos().add(payoutPromo);
 
@@ -132,11 +133,14 @@ public class PayoutService {
   @Transactional
   public Payout processContractPayout(Long contractId,
                                       ProcessContractPayoutRequest request) {
-    String contractStatus =
-        payoutRepository.findContractStatusById(contractId)
-            .orElseThrow(()
-                             -> new ResponseStatusException(
-                                 HttpStatus.NOT_FOUND, "Contract not found"));
+    List<Object[]> contractRows = payoutRepository.findContractDataById(contractId);
+    if (contractRows.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
+    }
+    Object[] contractData = contractRows.get(0);
+    String contractStatus = (String) contractData[0];
+    Double agreedAmount = ((Number) contractData[1]).doubleValue();
+    Long freelancerId = ((Number) contractData[2]).longValue();
 
     if (!"COMPLETED".equals(contractStatus)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -152,17 +156,20 @@ public class PayoutService {
         payoutRepository
             .findFirstByContractIdAndStatusOrderByCreatedAtAsc(
                 contractId, PayoutStatus.PENDING)
-            .orElseThrow(()
-                             -> new ResponseStatusException(
-                                 HttpStatus.BAD_REQUEST,
-                                 "Pending payout not found for this contract"));
+            .orElseGet(() -> {
+              Payout p = new Payout();
+              p.setContractId(contractId);
+              p.setFreelancerId(freelancerId);
+              p.setAmount(agreedAmount);
+              p.setMethod(PayoutMethod.BANK_TRANSFER);
+              p.setStatus(PayoutStatus.PENDING);
+              p.setTransactionDetails(new HashMap<>());
+              return payoutRepository.save(p);
+            });
 
-    if (request.getMethod() == null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                                        "Payout method is required");
-    }
+    PayoutMethod method = request != null ? request.getMethod() : null;
+    String accountLastFour = request != null ? request.getAccountLastFour() : null;
 
-    String accountLastFour = request.getAccountLastFour();
     if (accountLastFour != null && !accountLastFour.isBlank() &&
         !accountLastFour.matches("\\d{4}")) {
       throw new ResponseStatusException(
@@ -174,13 +181,15 @@ public class PayoutService {
     if (transactionDetails == null) {
       transactionDetails = new HashMap<>();
     }
-    transactionDetails.put("method", request.getMethod().name());
+    if (method != null) {
+      transactionDetails.put("method", method.name());
+      pendingPayout.setMethod(method);
+    }
     if (accountLastFour != null && !accountLastFour.isBlank()) {
       transactionDetails.put("accountLastFour", accountLastFour);
     }
 
     pendingPayout.setStatus(PayoutStatus.COMPLETED);
-    pendingPayout.setMethod(request.getMethod());
     pendingPayout.setTransactionDetails(transactionDetails);
 
     return payoutRepository.save(pendingPayout);
@@ -205,11 +214,12 @@ public class PayoutService {
   public List<Payout> searchByStatusAndDateRange(String status,
                                                  LocalDate startDate,
                                                  LocalDate endDate) {
-    if (startDate == null || endDate == null) {
-      return payoutRepository.findAll();
-    }
-    LocalDateTime start = startDate.atStartOfDay();
-    LocalDateTime end = endDate.atTime(23, 59, 59);
+    LocalDateTime start = startDate != null
+        ? startDate.atStartOfDay()
+        : LocalDateTime.of(1970, 1, 1, 0, 0);
+    LocalDateTime end = endDate != null
+        ? endDate.atTime(23, 59, 59)
+        : LocalDateTime.of(2100, 12, 31, 23, 59, 59);
     return payoutRepository.searchByStatusAndDateRange(status, start, end);
   }
 
@@ -330,7 +340,7 @@ public class PayoutService {
 
     List<Object[]> rows = promoCodeRepository.findTopUsedPromoCodes(limit);
     List<PromoCodeUsageDTO> result = new ArrayList<>();
-    LocalDateTime now = LocalDateTime.now();
+    LocalDate today = LocalDate.now();
 
     for (Object[] row : rows) {
       PromoCodeUsageDTO dto = new PromoCodeUsageDTO();
@@ -344,18 +354,22 @@ public class PayoutService {
           row[5] == null ? 0.0 : ((Number)row[5]).doubleValue());
       dto.setActive((Boolean)row[6]);
 
-      LocalDateTime expiryDate;
-      if (row[7] instanceof LocalDateTime localDateTime) {
-        expiryDate = localDateTime;
+      LocalDate expiryDate;
+      if (row[7] instanceof LocalDate ld) {
+        expiryDate = ld;
+      } else if (row[7] instanceof java.sql.Date sqlDate) {
+        expiryDate = sqlDate.toLocalDate();
+      } else if (row[7] instanceof LocalDateTime ldt) {
+        expiryDate = ldt.toLocalDate();
       } else if (row[7] instanceof Timestamp timestamp) {
-        expiryDate = timestamp.toLocalDateTime();
+        expiryDate = timestamp.toLocalDateTime().toLocalDate();
       } else {
         throw new ResponseStatusException(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "Unexpected expiry date type returned from database");
       }
 
-      dto.setExpired(expiryDate.isBefore(now));
+      dto.setExpired(!expiryDate.isAfter(today));
 
       result.add(dto);
     }

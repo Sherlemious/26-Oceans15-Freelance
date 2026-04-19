@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -37,7 +37,7 @@ public class PromoCode {
     private Integer currentUses = 0;
 
     @Column(nullable = false)
-    private LocalDateTime expiryDate;
+    private LocalDate expiryDate;
 
     @Column(nullable = false)
     private Boolean active = true;
@@ -101,11 +101,11 @@ public class PromoCode {
         this.currentUses = currentUses;
     }
 
-    public LocalDateTime getExpiryDate() {
+    public LocalDate getExpiryDate() {
         return expiryDate;
     }
 
-    public void setExpiryDate(LocalDateTime expiryDate) {
+    public void setExpiryDate(LocalDate expiryDate) {
         this.expiryDate = expiryDate;
     }
 
