@@ -68,8 +68,8 @@ public class PayoutService {
                                         "Promo code is inactive");
     }
 
-    LocalDate today = LocalDate.now();
-    if (!promoCode.getExpiryDate().isAfter(today)) {
+    LocalDateTime now = LocalDateTime.now();
+    if (!promoCode.getExpiryDate().isAfter(now)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                         "Promo code is expired");
     }
@@ -337,7 +337,7 @@ public class PayoutService {
 
     List<Object[]> rows = promoCodeRepository.findTopUsedPromoCodes(limit);
     List<PromoCodeUsageDTO> result = new ArrayList<>();
-    LocalDate today = LocalDate.now();
+    LocalDateTime now = LocalDateTime.now();
 
     for (Object[] row : rows) {
       PromoCodeUsageDTO dto = new PromoCodeUsageDTO();
@@ -351,22 +351,18 @@ public class PayoutService {
           row[5] == null ? 0.0 : ((Number)row[5]).doubleValue());
       dto.setActive((Boolean)row[6]);
 
-      LocalDate expiryDate;
-      if (row[7] instanceof LocalDate ld) {
-        expiryDate = ld;
-      } else if (row[7] instanceof java.sql.Date sqlDate) {
-        expiryDate = sqlDate.toLocalDate();
-      } else if (row[7] instanceof LocalDateTime ldt) {
-        expiryDate = ldt.toLocalDate();
+      LocalDateTime expiryDate;
+      if (row[7] instanceof LocalDateTime ldt) {
+        expiryDate = ldt;
       } else if (row[7] instanceof Timestamp timestamp) {
-        expiryDate = timestamp.toLocalDateTime().toLocalDate();
+        expiryDate = timestamp.toLocalDateTime();
       } else {
         throw new ResponseStatusException(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "Unexpected expiry date type returned from database");
       }
 
-      dto.setExpired(!expiryDate.isAfter(today));
+      dto.setExpired(!expiryDate.isAfter(now));
 
       result.add(dto);
     }
