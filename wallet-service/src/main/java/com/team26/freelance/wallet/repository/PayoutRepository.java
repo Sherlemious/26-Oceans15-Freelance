@@ -59,9 +59,6 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Payout> findFirstByContractIdAndStatusOrderByCreatedAtAsc(Long contractId, PayoutStatus status);
 
-    @Query(value = "SELECT COUNT(*) FROM users WHERE id = :userId", nativeQuery = true)
-    int countUsersById(@Param("userId") Long userId);
-
     @Query(value = """
             SELECT method, COUNT(*), SUM(amount)
             FROM payouts

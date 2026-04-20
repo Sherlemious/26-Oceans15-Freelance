@@ -314,9 +314,6 @@ public class PayoutService {
   }
 
   public FreelancerPayoutSummaryDTO getFreelancerPayoutSummary(Long freelancerId) {
-    if (payoutRepository.countUsersById(freelancerId) == 0) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-    }
     List<Object[]> rows = payoutRepository.getPayoutSummaryByFreelancer(freelancerId);
     Map<String, Double> methodBreakdown = new LinkedHashMap<>();
     long totalPayouts = 0;
