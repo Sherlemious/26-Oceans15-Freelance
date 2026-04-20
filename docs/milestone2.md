@@ -134,14 +134,15 @@ and not that member only. Same goes for any test case or any check in the entire
 M2 requires you to apply 7 design patterns from Lab 7 at specific, well-defined locations in your
 codebase.
 ## 3.1 The 7 Required Patterns
-# Pattern Category Where Applied
-# 1 Strategy Behavioral S5-F12 payout reversal logic
-# 2 Observer Behavioral MongoDB event logging across all services
-# 3 Chain of Responsibility Behavioral JWT authentication filter chain
-# 4 Builder Creational Dashboard and analytics DTOs
-# 5 Singleton Creational JwtService / ConfigurationManager
-# 6 Factory Creational MongoDB event object creation
-# 7 Adapter Structural NoSQL query result → DTO conversion
+| # | Pattern | Category | Where Applied |
+|---|---------|----------|---------------|
+| 1 | Strategy | Behavioral | S5-F12 payout reversal logic |
+| 2 | Observer | Behavioral | MongoDB event logging across all services |
+| 3 | Chain of Responsibility | Behavioral | JWT authentication filter chain |
+| 4 | Builder | Creational | Dashboard and analytics DTOs |
+| 5 | Singleton | Creational | JwtService / ConfigurationManager |
+| 6 | Factory | Creational | MongoDB event object creation |
+| 7 | Adapter | Structural | NoSQL query result → DTO conversion |
 Distribution: 3 Creational, 1 Structural, 3 Behavioral — balanced across all 3 pattern categories.
 ## 3.2 Strategy Pattern — Payout Reversal Logic (S5-F12)
 Purpose: The S5-F12 milestone-based payout reversal feature has multiple business rules that must each
@@ -494,19 +495,21 @@ left open.
 ### 4.4.1 M1 Feature GET Endpoints That Must Be Cached (Freelance: 27 total)
 The canonical M1 pattern is “F2, F4, F7 are writes, the other 6 are reads,” but Freelance deviates at
 three specific features that are writes despite their F-number:
-Service Feature Verb Why it is a write
-S2 (Job) S2-F8 Verify Job Attachment PUT Modifies JobAttachment.verified
-S3 (Proposal) S3-F8 Add Milestones to Proposal POST Creates new ProposalMilestone rows
-S5 (Wallet) S5-F5 Apply PromoCode to Payout POST Creates PayoutPromo join row and mutates Payout
+| Service | Feature | Verb | Why it is a write |
+|---------|---------|------|-------------------|
+| S2 (Job) | S2-F8 Verify Job Attachment | PUT | Modifies `JobAttachment.verified` |
+| S3 (Proposal) | S3-F8 Add Milestones to Proposal | POST | Creates new `ProposalMilestone` rows |
+| S5 (Wallet) | S5-F5 Apply PromoCode to Payout | POST | Creates `PayoutPromo` join row and mutates `Payout` |
 These are excluded from the cached-reads list and included in the invalidating-writes list (§4.4.4).
 The explicit cached-read enumeration for Freelance is:
-Service Cached GET feature IDs 
-S1 (User) F1, F3, F5, F6, F8, F9 
-S2 (Job) F1, F3, F5, F6, F9 (F8 is a write) 
-S3 (Proposal) F1, F3, F5, F6, F9 (F8 is a write; F3 is a POST estimate—see not 
-S4 (Contract) F1, F3, F5, F6, F8, F9 
-S5 (Wallet) F1, F3, F6, F8, F9 (F5 is a write) 
-Total cached feature endpoints (Freelance) 
+| Service | Cached GET feature IDs |
+|---------|------------------------|
+| S1 (User) | F1, F3, F5, F6, F8, F9 |
+| S2 (Job) | F1, F3, F5, F6, F9 (F8 is a write) |
+| S3 (Proposal) | F1, F3, F5, F6, F9 (F8 is a write; F3 is a POST estimate—see note) |
+| S4 (Contract) | F1, F3, F5, F6, F8, F9 |
+| S5 (Wallet) | F1, F3, F6, F8, F9 (F5 is a write) |
+| **Total cached feature endpoints (Freelance)** | **27** |
 Note on S3-F3 (Get Platform Fee Estimate): In the M1 spec S3-F3 is a POST
 /api/proposals/estimate that computes a platform-fee estimate without persisting. It is semantically
 read-only despite being POST. Cache it by request-body hash (TTL 5 min). If you did not implement
@@ -516,9 +519,10 @@ TTLs by feature type: F1 = 5 min (search), F3 = 10 min (DTO), F5 = 5 min (JSONB 
 ### 4.4.2 CRUD Baseline Endpoints That Must Be Cached
 For every entity, only the get-by-ID endpoint is cached. List endpoints are not cached — they hit
 PostgreSQL on every request.
-Endpoint Cached? TTL
-GET /api/<entity> (list all) No —
-GET /api/<entity>/{id} (get by ID) Yes 15 min
+| Endpoint | Cached? | TTL |
+|----------|---------|-----|
+| `GET /api/<entity>` (list all) | No | — |
+| `GET /api/<entity>/{id}` (get by ID) | Yes | 15 min |
 Freelance entities (10): user, user-skill, job, job-attachment, proposal, proposal-milestone, contract,
 payout, promo-code, payout-promo. 10 GET-by-ID endpoints must be cached.
 ### 4.4.3 Total
@@ -623,8 +627,15 @@ h) Verify TTLs: fetch an S1-F1 search result (5 min TTL), wait 5m+, fetch again 
 auto-evicted and the call recomputes.
 ## 4.5 Design Pattern Retrofits to M1
 The 7 patterns from Section 3 apply to M2 code and to M1 retrofits as follows:
-Pattern Applies to M1? Which M1 Freelance features Notes
-Strategy No — New M2 code only (S5-F12 milestone-based reversal) — do NOT force onto any M1 method Observer Yes (universal) All M1 write endpoints: F2, F4, F7 per service + S2-F8, S3-F8, S5-F5 (Freelance-specific writes) + all CRUD writes State change → notifyObservers → MongoDB event log Chain of Responsibility Yes (universal) All M1 endpoints via the JWT filter chain Inside JwtAuthenticationFilter (see Section 3.4) Builder Yes S1-F3, S1-F6, S1-F8, S1-F9; S2-F3, S2-F6, S2-F9; S3-F3, S3-F6, S3-F9; S4-F3, S4-F6, S4-F8, S4-F9; S5-F3, S5-F6, S5-F8, S5-F9 (DTO-returning features with 5+ fields) Excludes S2-F8 and S3-F8 for Freelance — they return entities, not DTOs Singleton No — New M2 code only (JwtConfigurationManager) Factory Yes (indirect) M1 write endpoints trigger Observer; Observer calls EventFactory EventFactory creates the right MongoEvent subtype Adapter Conditional Any M1 feature that uses Object[] native SQL projection (S1-F3 mandates Object[]; other F3/F6/F9 only if you chose Object[] in M1) If you used JPQL constructor expressions or DTO projections, no Adapter retrofit is required
+| Pattern | Applies to M1? | Which M1 Freelance features | Notes |
+|---------|----------------|-----------------------------|-------|
+| Strategy | No | — | New M2 code only (S5-F12 milestone-based reversal) — do NOT force onto any M1 method |
+| Observer | Yes (universal) | All M1 write endpoints: F2, F4, F7 per service + S2-F8, S3-F8, S5-F5 (Freelance-specific writes) + all CRUD writes | State change → `notifyObservers` → MongoDB event log |
+| Chain of Responsibility | Yes (universal) | All M1 endpoints via the JWT filter chain | Inside `JwtAuthenticationFilter` (see Section 3.4) |
+| Builder | Yes | S1-F3, S1-F6, S1-F8, S1-F9; S2-F3, S2-F6, S2-F9; S3-F3, S3-F6, S3-F9; S4-F3, S4-F6, S4-F8, S4-F9; S5-F3, S5-F6, S5-F8, S5-F9 (DTO-returning features with 5+ fields) | Excludes S2-F8 and S3-F8 for Freelance — they return entities, not DTOs |
+| Singleton | No | — | New M2 code only (`JwtConfigurationManager`) |
+| Factory | Yes (indirect) | M1 write endpoints trigger Observer; Observer calls `EventFactory` | `EventFactory` creates the right `MongoEvent` subtype |
+| Adapter | Conditional | Any M1 feature that uses `Object[]` native SQL projection (S1-F3 mandates `Object[]`; other F3/F6/F9 only if you chose `Object[]` in M1) | If you used JPQL constructor expressions or DTO projections, no Adapter retrofit is required |
 Important: Strategy Pattern is used only in M2 code (S5-F12 milestone-based reversal). Do not force
 it onto any M1 method.
 Composition workflow (Observer + Factory + Adapter):
@@ -738,10 +749,11 @@ path/query userId — no additional PG lookup is required on the hot path.
 ## 5.3 Roles (Additive — Preserve M1 Values)
 The M1 User entity already has a role ENUM with values FREELANCER, CLIENT, and ADMIN. M2 preserves
 these additively — do not rename or remove existing M1 role values.
-Role Permissions
-CLIENT (M1 default) Access all standard endpoints, manage own data, post jobs, review proposals
-FREELANCER (M1) Access all standard endpoints, manage own data, submit proposals, receive payouts
-ADMIN (universal) Everything CLIENT / FREELANCER can do, plus: change any user’s role
+| Role | Permissions |
+|------|-------------|
+| CLIENT (M1 default) | Access all standard endpoints, manage own data, post jobs, review proposals |
+| FREELANCER (M1) | Access all standard endpoints, manage own data, submit proposals, receive payouts |
+| ADMIN (universal) | Everything CLIENT / FREELANCER can do, plus: change any user’s role |
 • Default role on registration: CLIENT (Freelance’s M1 default). The register payload may op tionally include a role value of CLIENT or FREELANCER; if that field is missing, the server must
 default to CLIENT.
 • ADMIN is never assigned on register
@@ -767,22 +779,24 @@ The User entity already has a password field from M1. In M2, you must ensure:
 ## 6.1 Six Databases (Versions Match Task 2 Exactly)
 All teams use the same 6 databases. Docker image versions match Task 2 so students who completed
 Task 2 can reuse their stack without reconfiguration.
-Database Port Docker Image Architectural Role
-PostgreSQL 5432 postgres:17 Primary relational data (from M1). PG 17 mandatory — PG 18 breaks Hibernate
-MongoDB 27017 mongo:latest Activity logs, event history, analytics — used by all services
-Redis 6379 redis:latest Caching layer for read-heavy endpoints — used by all services
-Elasticsearch 9200 elasticsearch:8.19.12 Full-text search across jobs (S2). Pinned version.
-Neo4j 7687 neo4j:latest Recommendation graph from proposal patterns (S3)
-Cassandra 9042 cassandra:latest Time-series contract milestone events (S4)
+| Database | Port | Docker Image | Architectural Role |
+|----------|------|--------------|--------------------|
+| PostgreSQL | 5432 | `postgres:17` | Primary relational data (from M1). PG 17 mandatory — PG 18 breaks Hibernate |
+| MongoDB | 27017 | `mongo:latest` | Activity logs, event history, analytics — used by all services |
+| Redis | 6379 | `redis:latest` | Caching layer for read-heavy endpoints — used by all services |
+| Elasticsearch | 9200 | `elasticsearch:8.19.12` | Full-text search across jobs (S2). Pinned version. |
+| Neo4j | 7687 | `neo4j:latest` | Recommendation graph from proposal patterns (S3) |
+| Cassandra | 9042 | `cassandra:latest` | Time-series contract milestone events (S4) |
 ## 6.2 Memory Limitations (Required)
 Running 6 databases + 5 Spring Boot services strains laptop RAM. Apply these memory limits to avoid
 system freezes:
-Service Memory Limit Rationale
-Redis 256 MB max, allkeys-lru eviction Bounded cache
-Elasticsearch 512 MB JVM heap (ES_JAVA_OPTS=-Xms512m -Xmx512m) Default heap is 4 GB
-Cassandra 512 MB heap (MAX_HEAP_SIZE=512M, HEAP_NEWSIZE=128M) Default is 1–2 GB
-Neo4j 512 MB heap (NEO4J_server_memory_heap_max__size=512m) Default can exceed 1 GB
-PostgreSQL, MongoDB Default Well-behaved at defaults
+| Service | Memory Limit | Rationale |
+|---------|--------------|-----------|
+| Redis | 256 MB max, `allkeys-lru` eviction | Bounded cache |
+| Elasticsearch | 512 MB JVM heap (`ES_JAVA_OPTS=-Xms512m -Xmx512m`) | Default heap is 4 GB |
+| Cassandra | 512 MB heap (`MAX_HEAP_SIZE=512M`, `HEAP_NEWSIZE=128M`) | Default is 1–2 GB |
+| Neo4j | 512 MB heap (`NEO4J_server_memory_heap_max__size=512m`) | Default can exceed 1 GB |
+| PostgreSQL, MongoDB | Default | Well-behaved at defaults |
 Estimated total memory for the stack: PostgreSQL (∼250 MB) + MongoDB (∼400 MB) + Redis
 (256 MB capped) + Cassandra (∼700 MB) + Neo4j (∼600 MB) + Elasticsearch (∼700 MB) + 5 Spring
 Boot apps (5 × 300 MB = 1.5 GB) = ∼4.5 GB for the stack alone.
@@ -944,42 +958,46 @@ classes (not records).
 ### 7.1.1 Common MongoEvent Interface
 All 5 MongoDB event classes below implement a shared interface MongoEvent so that the EventFactory
 (Section 3.7) can return any concrete event typed as MongoEvent:
-Method Return type Purpose
-getId() String MongoDB ObjectId
-getTimestamp() LocalDateTime When the event occurred
-getAction() String The action identifier (e.g., REGISTERED)
-getDetails() Map<String, Object> Additional event context
+| Method | Return type | Purpose |
+|--------|-------------|---------|
+| `getId()` | `String` | MongoDB ObjectId |
+| `getTimestamp()` | `LocalDateTime` | When the event occurred |
+| `getAction()` | `String` | The action identifier (e.g., `REGISTERED`) |
+| `getDetails()` | `Map<String, Object>` | Additional event context |
 Each concrete event class below adds its own service-specific fields on top of this common interface.
 ### 7.1.2 AuthEvent (User Service)
 Collection: auth_events
-Field Type Constraints Notes
-id String auto-generated MongoDB ObjectId
-userId Long not null References User in PG
-action String not null See action values below
-timestamp LocalDateTime not null When the event occurred
-details Map<String, Object> Additional event context
+| Field | Type | Constraints | Notes |
+|-------|------|-------------|-------|
+| `id` | `String` | auto-generated | MongoDB ObjectId |
+| `userId` | `Long` | not null | References User in PG |
+| `action` | `String` | not null | See action values below |
+| `timestamp` | `LocalDateTime` | not null | When the event occurred |
+| `details` | `Map<String, Object>` | | Additional event context |
 action primary values: REGISTERED, LOGGED_IN, ROLE_CHANGED. Non-exhaustive — extend with
 domain-appropriate values when the Observer retrofit (Section 4.5) writes events from M1 user end points, e.g., USER_UPDATED (S1-F2 preferences), USER_DEACTIVATED (S1-F4), PRIMARY_SKILL_SET (S1-
 F7), USER_CREATED / USER_DELETED (CRUD). Use UPPER_SNAKE_CASE.
 ### 7.1.3 JobEvent (Job Service)
 Collection: job_events
-Field Type Constraints Notes
-id String auto-generated MongoDB ObjectId
-jobId Long not null References Job in PG
-action String not null See action values below
-timestamp LocalDateTime not null
-details Map<String, Object> Fields changed, dashboard params, etc.
+| Field | Type | Constraints | Notes |
+|-------|------|-------------|-------|
+| `id` | `String` | auto-generated | MongoDB ObjectId |
+| `jobId` | `Long` | not null | References Job in PG |
+| `action` | `String` | not null | See action values below |
+| `timestamp` | `LocalDateTime` | not null | |
+| `details` | `Map<String, Object>` | | Fields changed, dashboard params, etc. |
 action primary values: INDEXED, DASHBOARD_VIEWED. Non-exhaustive — extend for
 M1 retrofits, e.g., REQUIREMENTS_UPDATED (S2-F2), JOB_CLOSED (S2-F4), JOB_RATED (S2-F7),
 JOB_ATTACHMENT_VERIFIED (S2-F8), JOB_CREATED / JOB_DELETED (CRUD). Use UPPER_SNAKE_CASE.
 ### 7.1.4 ProposalEvent (Proposal Service)
 Collection: proposal_events
-Field Type Constraints Notes
-id String auto-generated MongoDB ObjectId
-proposalId Long not null References Proposal in PG
-action String not null See action values below
-timestamp LocalDateTime not null
-details Map<String, Object>
+| Field | Type | Constraints | Notes |
+|-------|------|-------------|-------|
+| `id` | `String` | auto-generated | MongoDB ObjectId |
+| `proposalId` | `Long` | not null | References Proposal in PG |
+| `action` | `String` | not null | See action values below |
+| `timestamp` | `LocalDateTime` | not null | |
+| `details` | `Map<String, Object>` | | |
 action primary values: ANALYTICS_VIEWED, INTERACTION_RECORDED. Non-exhaustive — extend for
 
 
@@ -988,25 +1006,27 @@ M1 retrofits, e.g., PROPOSAL_ACCEPTED (S3-F2), PROPOSAL_COMPLETED (S3-F4), PROPO
 UPPER_SNAKE_CASE.
 ### 7.1.5 ContractEvent (Contract Service)
 Collection: contract_events
-Field Type Constraints Notes
-id String auto-generated MongoDB ObjectId
-contractId Long not null References Contract in PG
-action String not null See action values below
-timestamp LocalDateTime not null
-details Map<String, Object>
+| Field | Type | Constraints | Notes |
+|-------|------|-------------|-------|
+| `id` | `String` | auto-generated | MongoDB ObjectId |
+| `contractId` | `Long` | not null | References Contract in PG |
+| `action` | `String` | not null | See action values below |
+| `timestamp` | `LocalDateTime` | not null | |
+| `details` | `Map<String, Object>` | | |
 action primary values: MILESTONE_TRACKED, ANALYTICS_VIEWED. Non-exhaustive — extend for M1
 retrofits, e.g., PROGRESS_UPDATED (S4-F2), BATCH_STATUS_UPDATED (S4-F4), OLD_DATA_PURGED (S4-F7),
 CONTRACT_DELETED (CRUD). Use UPPER_SNAKE_CASE.
 ### 7.1.6 PayoutAuditEvent (Wallet Service)
 Collection: payout_audit_trail
-Field Type Constraints Notes
-id String auto-generated MongoDB ObjectId
-payoutId Long not null References Payout in PG
-action String not null See action values below
-timestamp LocalDateTime not null
-method String conditional See method/amount note below
-amount Double conditional See method/amount note below
-details Map<String, Object> Reversal reason, strategy name, etc.
+| Field | Type | Constraints | Notes |
+|-------|------|-------------|-------|
+| `id` | `String` | auto-generated | MongoDB ObjectId |
+| `payoutId` | `Long` | not null | References Payout in PG |
+| `action` | `String` | not null | See action values below |
+| `timestamp` | `LocalDateTime` | not null | |
+| `method` | `String` | conditional | See method/amount note below |
+| `amount` | `Double` | conditional | See method/amount note below |
+| `details` | `Map<String, Object>` | | Reversal reason, strategy name, etc. |
 action primary values: CREATED, COMPLETED, FAILED, REFUNDED, REFUND_DENIED, ANALYTICS_VIEWED.
 Non-exhaustive — extend for M1 retrofits, e.g., PROMO_APPLIED (S5-F5), RETRY_ATTEMPTED (S5-F7),
 PAYOUT_DELETED (CRUD). Use UPPER_SNAKE_CASE.
@@ -1039,54 +1059,60 @@ vanish from the breakdown.
 ## 7.2 Elasticsearch Document (Job Service)
 ### 7.2.1 JobSearchDocument
 Index: jobs
-Field ES Field Type Purpose
-id Keyword Exact match, corresponds to PG id
-title Text (analyzed) Full-text search on job title
-description Text (analyzed) Full-text search on job description
-category Keyword Filtering (WEB_DEV, MOBILE, DESIGN, WRITING)
-budgetMin Double Range filtering
-budgetMax Double Range filtering
-rating Double Range filtering
-status Keyword Filtering (OPEN, IN_PROGRESS, CLOSED — matches M1 Job.status enum)
+| Field | ES Field Type | Purpose |
+|-------|---------------|---------|
+| `id` | Keyword | Exact match, corresponds to PG id |
+| `title` | Text (analyzed) | Full-text search on job title |
+| `description` | Text (analyzed) | Full-text search on job description |
+| `category` | Keyword | Filtering (`WEB_DEV`, `MOBILE`, `DESIGN`, `WRITING`) |
+| `budgetMin` | Double | Range filtering |
+| `budgetMax` | Double | Range filtering |
+| `rating` | Double | Range filtering |
+| `status` | Keyword | Filtering (`OPEN`, `IN_PROGRESS`, `CLOSED` — matches M1 Job.status enum) |
 Note on title and description: Both fields are top-level columns on the M1 Job entity (not
 JSONB keys). S2-F11 reads them directly from the PG jobs table without any JSONB lookup — no
 additive M1 schema change is needed for the search document.
 ## 7.3 Neo4j Entities (Proposal Service)
 ### 7.3.1 FreelancerNode
-Property Type Notes
-userId Long Corresponds to User.id in PG (users with role FREELANCER)
-name String Freelancer’s display name
+| Property | Type | Notes |
+|----------|------|-------|
+| `userId` | `Long` | Corresponds to User.id in PG (users with role `FREELANCER`) |
+| `name` | `String` | Freelancer’s display name |
 ### 7.3.2 JobNode
-Property Type Notes
-jobId Long Corresponds to Job.id in PG
-title String Job title
-category String For filtering recommendations
+| Property | Type | Notes |
+|----------|------|-------|
+| `jobId` | `Long` | Corresponds to Job.id in PG |
+| `title` | `String` | Job title |
+| `category` | `String` | For filtering recommendations |
 ### 7.3.3 PROPOSED_TO Relationship
 Connects a FreelancerNode to a JobNode. Direction: (Freelancer)-[:PROPOSED_TO]->(Job).
-Property Type Notes
-proposalCount Integer Incremented each time freelancer submits a proposal on this job
-lastProposalDate LocalDateTime Updated on each new proposal
+| Property | Type | Notes |
+|----------|------|-------|
+| `proposalCount` | `Integer` | Incremented each time freelancer submits a proposal on this job |
+| `lastProposalDate` | `LocalDateTime` | Updated on each new proposal |
 
 
 ## 7.4 Cassandra Entity (Contract Service)
 ### 7.4.1 ContractMilestoneEvent
 Table: contract_milestone_events
-Column Type Key Notes
-contract_id Long Partition Key Groups all milestone events for one contract
-timestamp Timestamp Clustering (DESC) Orders events newest-first
-milestone_order Integer 1, 2, 3... — matches ProposalMilestone.milestoneOrder from M1
-status String PENDING, IN_PROGRESS, COMPLETED, APPROVED (matches M1 ProposalMilestone.status)
-recorded_by String User who recorded the event (freelancer or client name)
-notes String Optional event notes
+| Column | Type | Key | Notes |
+|--------|------|-----|-------|
+| `contract_id` | `Long` | Partition Key | Groups all milestone events for one contract |
+| `timestamp` | `Timestamp` | Clustering (DESC) | Orders events newest-first |
+| `milestone_order` | `Integer` | | 1, 2, 3... — matches ProposalMilestone.milestoneOrder from M1 |
+| `status` | `String` | | PENDING, IN_PROGRESS, COMPLETED, APPROVED (matches M1 ProposalMilestone.status) |
+| `recorded_by` | `String` | | User who recorded the event (freelancer or client name) |
+| `notes` | `String` | | Optional event notes |
 Queries on this table must include contract_id in the WHERE clause (partition key requirement).
 # 8 Caching Strategy
 All read-heavy endpoints (both new M2 features and existing M1 endpoints) must be cached in Redis.
 ## 8.1 TTL Guidelines
-Data Type TTL Examples
-Dashboards / analytics 10 minutes Revenue dashboard, performance dashboard
-Search results 5 minutes Job search, recommendations
-Activity feeds 5 minutes User activity feed
-Entity detail views 15 minutes Job profile, contract details
+| Data Type | TTL | Examples |
+|-----------|-----|----------|
+| Dashboards / analytics | 10 minutes | Revenue dashboard, performance dashboard |
+| Search results | 5 minutes | Job search, recommendations |
+| Activity feeds | 5 minutes | User activity feed |
+| Entity detail views | 15 minutes | Job profile, contract details |
 ## 8.2 Invalidation
 Write operations (POST, PUT, DELETE) must invalidate any cached data they affect. The canonical
 invalidation enumeration for all M1 write endpoints + CRUD writes + M2 observer writes lives in
