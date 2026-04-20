@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,7 +54,8 @@ class PayoutServiceTest {
         request.setMethod(PayoutMethod.BANK_TRANSFER);
         request.setAccountLastFour("9876");
 
-        when(payoutRepository.findContractStatusById(contractId)).thenReturn(Optional.of("COMPLETED"));
+        when(payoutRepository.findContractDataById(contractId))
+                .thenReturn(List.of(new Object[]{"COMPLETED", 3000.0, 11L}));
         when(payoutRepository.existsByContractIdAndStatus(contractId, PayoutStatus.COMPLETED)).thenReturn(false);
         when(payoutRepository.findFirstByContractIdAndStatusOrderByCreatedAtAsc(contractId, PayoutStatus.PENDING))
                 .thenReturn(Optional.of(pendingPayout));
@@ -78,7 +80,8 @@ class PayoutServiceTest {
         request.setMethod(PayoutMethod.BANK_TRANSFER);
         request.setAccountLastFour("9876");
 
-        when(payoutRepository.findContractStatusById(contractId)).thenReturn(Optional.of("COMPLETED"));
+        when(payoutRepository.findContractDataById(contractId))
+                .thenReturn(List.of(new Object[]{"COMPLETED", 3000.0, 11L}));
         when(payoutRepository.existsByContractIdAndStatus(contractId, PayoutStatus.COMPLETED)).thenReturn(false);
         when(payoutRepository.findFirstByContractIdAndStatusOrderByCreatedAtAsc(contractId, PayoutStatus.PENDING))
                 .thenReturn(Optional.of(pendingPayout));
@@ -97,7 +100,8 @@ class PayoutServiceTest {
         ProcessContractPayoutRequest request = new ProcessContractPayoutRequest();
         request.setMethod(PayoutMethod.PAYPAL);
 
-        when(payoutRepository.findContractStatusById(contractId)).thenReturn(Optional.of("COMPLETED"));
+        when(payoutRepository.findContractDataById(contractId))
+                .thenReturn(List.of(new Object[]{"COMPLETED", 3000.0, 11L}));
         when(payoutRepository.existsByContractIdAndStatus(contractId, PayoutStatus.COMPLETED)).thenReturn(true);
 
         ResponseStatusException exception = assertThrows(
@@ -116,7 +120,8 @@ class PayoutServiceTest {
         ProcessContractPayoutRequest request = new ProcessContractPayoutRequest();
         request.setMethod(PayoutMethod.CRYPTO);
 
-        when(payoutRepository.findContractStatusById(contractId)).thenReturn(Optional.of("ACTIVE"));
+        when(payoutRepository.findContractDataById(contractId))
+                .thenReturn(List.of(new Object[]{"ACTIVE", 3000.0, 11L}));
 
         ResponseStatusException exception = assertThrows(
                 ResponseStatusException.class,

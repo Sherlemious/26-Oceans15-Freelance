@@ -51,8 +51,8 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             """)
     Optional<Payout> findByIdWithPromos(@Param("id") Long id);
 
-    @Query(value = "SELECT status::text FROM contracts WHERE id = :contractId", nativeQuery = true)
-    Optional<String> findContractStatusById(@Param("contractId") Long contractId);
+    @Query(value = "SELECT status::text, agreed_amount, freelancer_id FROM contracts WHERE id = :contractId", nativeQuery = true)
+    List<Object[]> findContractDataById(@Param("contractId") Long contractId);
 
     boolean existsByContractIdAndStatus(Long contractId, PayoutStatus status);
 
