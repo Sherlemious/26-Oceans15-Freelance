@@ -1,6 +1,6 @@
 DO $$
 BEGIN
-    CREATE TYPE payout_method AS ENUM ('BANK_TRANSFER', 'PAYPAL', 'CRYPTO');
+    CREATE TYPE payout_method AS ENUM ('BANK_TRANSFER', 'BANK', 'PAYPAL', 'CRYPTO');
 EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
@@ -19,6 +19,18 @@ BEGIN
     CREATE TYPE discount_type AS ENUM ('PERCENTAGE', 'FIXED');
 EXCEPTION
     WHEN duplicate_object THEN NULL;
+END $$;
+@@
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_enum
+        WHERE enumlabel = 'BANK'
+          AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'payout_method')
+    ) THEN
+        ALTER TYPE payout_method ADD VALUE 'BANK';
+    END IF;
 END $$;
 @@
 
