@@ -1,97 +1,11 @@
-Milestone 2: Freelance Marketplace Platform
-Polyglot Persistence, Authentication, Caching & Design Patterns
-Deadline is Saturday 02/05/2026 at 11:59 PM
+# Architecture of Massively Scalable Applications, Spring 2026
+## Milestone 2: Freelance Marketplace Platform
+**Polyglot Persistence, Authentication, Caching & Design Patterns**  
+**Deadline:** Saturday 02/05/2026 at 11:59 PM
 
-Contents
-1 Overview 4
-2 Git Workflow — Feature Development 5
-3 Design Patterns 7
-3.1 The 7 Required Patterns . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
-3.2 Strategy Pattern — Payout Reversal Logic (S5-F12) . . . . . . . . . . . . . . . . . . . . . 7
-3.3 Observer Pattern — Event Logging . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
-3.4 Chain of Responsibility — JWT Filter Chain . . . . . . . . . . . . . . . . . . . . . . . . . 9
-3.5 Builder Pattern — Dashboard DTOs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10
-3.6 Singleton Pattern — JwtConfigurationManager . . . . . . . . . . . . . . . . . . . . . . . . 11
-3.7 Factory Pattern — Event Creation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
-3.8 Adapter Pattern — NoSQL Result → DTO Conversion . . . . . . . . . . . . . . . . . . . 13
-3.9 Grading Summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
-4 M1 Modifications Required 14
-4.1 User Entity — Password Hashing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
-4.2 User Entity — Role Values (Additive) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14
-4.3 Existing M1 Endpoints — JWT Authentication . . . . . . . . . . . . . . . . . . . . . . . . 15
-4.4 Existing M1 Read Endpoints — Redis Caching (Explicit Enumeration) . . . . . . . . . . . 16
-4.5 Design Pattern Retrofits to M1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
-4.6 Payout.transactionDetails — Additive platformFee Key . . . . . . . . . . . . . . . . . . . 21
-4.7 Summary Checklist . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
-5 Authentication & Authorization 21
-5.1 Overview . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
-5.2 JWT Token . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
-5.3 Roles (Additive — Preserve M1 Values) . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
-5.4 Security Configuration (Per Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
-5.5 Password Handling . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
-6 Database Architecture 23
-6.1 Six Databases (Versions Match Task 2 Exactly) . . . . . . . . . . . . . . . . . . . . . . . . 23
+---
 
-1
-
-6.2 Memory Limitations (Required) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
-6.3 Dependency Model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
-6.4 Docker Compose Additions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24
-6.5 Reference application.yml Fragments . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25
-7 New Entity Models 26
-7.1 MongoDB Document Entities (All Services) . . . . . . . . . . . . . . . . . . . . . . . . . . 26
-7.1.1 Common MongoEvent Interface . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
-7.1.2 AuthEvent (User Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
-7.1.3 JobEvent (Job Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
-7.1.4 ProposalEvent (Proposal Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
-7.1.5 ContractEvent (Contract Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
-7.1.6 PayoutAuditEvent (Wallet Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . 28
-7.2 Elasticsearch Document (Job Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
-7.2.1 JobSearchDocument . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
-7.3 Neo4j Entities (Proposal Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
-7.3.1 FreelancerNode . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
-7.3.2 JobNode . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
-7.3.3 PROPOSED_TO Relationship . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
-7.4 Cassandra Entity (Contract Service) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
-7.4.1 ContractMilestoneEvent . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
-8 Caching Strategy 30
-8.1 TTL Guidelines . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
-8.2 Invalidation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
-9 Cross-Cutting Requirements 30
-9.1 CC-1 — JWT on All Endpoints . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
-9.2 CC-2 — Role Management . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
-9.3 CC-3 — Redis Caching on M1 Endpoints . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
-9.4 CC-4 — Design Pattern Implementation . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
-9.5 CC-5 — Docker Compose with 6 Databases . . . . . . . . . . . . . . . . . . . . . . . . . . 32
-9.6 CC-6 — Application Configuration (application.yml) . . . . . . . . . . . . . . . . . . . . . 33
-10 Features 33
-10.1 User Service Features (port 8081) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
-10.1.1 [S1-F10] Register User . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
-10.1.2 [S1-F11] Login . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
-10.1.3 [S1-F12] Get User Activity Feed . . . . . . . . . . . . . . . . . . . . . . . . . . . . 35
-10.2 Job Service Features (port 8082) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36
-10.2.1 [S2-F10] Full-Text Job Search . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36
-10.2.2 [S2-F11] Index Job for Search . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
-10.2.3 [S2-F12] Get Job Market Dashboard . . . . . . . . . . . . . . . . . . . . . . . . . . 38
-
-2
-
-10.3 Proposal Service Features (port 8083) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
-10.3.1 [S3-F10] Get Proposal Analytics Dashboard . . . . . . . . . . . . . . . . . . . . . . 39
-10.3.2 [S3-F11] Record Freelancer-Job Interaction . . . . . . . . . . . . . . . . . . . . . . 39
-10.3.3 [S3-F12] Get Recommended Jobs for Freelancer . . . . . . . . . . . . . . . . . . . . 40
-10.4 Contract Service Features (port 8084) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 41
-10.4.1 [S4-F10] Get Contract Analytics Dashboard . . . . . . . . . . . . . . . . . . . . . . 41
-10.4.2 [S4-F11] Record Contract Milestone Event . . . . . . . . . . . . . . . . . . . . . . . 42
-10.4.3 [S4-F12] Get Contract Milestone Timeline . . . . . . . . . . . . . . . . . . . . . . . 43
-10.5 Wallet Service Features (port 8085) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
-10.5.1 [S5-F10] Get Platform Fee Analytics by Job Category . . . . . . . . . . . . . . . . 44
-10.5.2 [S5-F11] Get Payout Method Breakdown . . . . . . . . . . . . . . . . . . . . . . . . 45
-10.5.3 [S5-F12] Process Milestone-Based Payout Reversal . . . . . . . . . . . . . . . . . . 46
-
-3
-
-1 Overview
+# 1 Overview
 This milestone is worth 15% of your final grade. You will extend the Freelance Marketplace Platform
 you built in Milestone 1 by adding authentication, five NoSQL databases, caching, and design
 patterns. Your existing 5 services, PostgreSQL database, and 45 features remain intact but require
@@ -133,14 +47,13 @@ b) Additive platformFee key in Payout.transactionDetails JSONB (see Section 4.6)
 F4 is updated to write this key on new Payouts; existing pre-M2 Payouts without the key default
 to 0.10 * amount (10% fallback) inside S5-F10’s aggregation.
 
-4
 
 All existing M1 seed rows, tests, and fixtures continue to work after you apply the M1 modifications in
 Section 4.
 Config format (properties → yml): M1 used application.properties per service. In M2 you must
 migrate each service’s configuration to application.yml. The auto-grader expects YAML format for
 M2. Reference fragments are provided in Section 6.5.
-2 Git Workflow — Feature Development
+# 2 Git Workflow — Feature Development
 The same workflow from Milestone 1 continues. Feature IDs are now F10–F12 per service:
 a) Start from main: git checkout main && git pull origin main
 b) Create feature branch: git checkout -b feat/<service>/S{n}-F{m}/<YOUR-STUDENT-ID>
@@ -172,7 +85,6 @@ Examples:
 • feat/proposal/S3-F11/55-8080 — new feature (M2)
 • feat/m1/MOD-3/55-8080 — M1 amendment
 
-5
 
 • feat/cc/CC-5/55-8080 — cross-cutting requirement
 • fix/wallet/payout-amount-rounding/55-8080 — bug fix
@@ -212,27 +124,26 @@ one. Use a kebab-case slug only for ad-hoc fixes or refactors with no predefined
 • Where a design pattern (DP-1..DP-7) is implemented across multiple branches, cite the DP ID in
 each commit message (e.g., “implements DP-2 Observer”).
 
-6
 
 Important: Any team member who has no commits in the repository, or whose commits cannot be
 matched to any feature branch, will receive a ZERO as a result.
 Important Note: If any membered missed any of the git checks (like pushed some change directly on
 the main and not creating a PR for it) or any other thing, it will get reflected on everyone in the team
 and not that member only. Same goes for any test case or any check in the entire project.
-3 Design Patterns
+# 3 Design Patterns
 M2 requires you to apply 7 design patterns from Lab 7 at specific, well-defined locations in your
 codebase.
-3.1 The 7 Required Patterns
+## 3.1 The 7 Required Patterns
 # Pattern Category Where Applied
-1 Strategy Behavioral S5-F12 payout reversal logic
-2 Observer Behavioral MongoDB event logging across all services
-3 Chain of Responsibility Behavioral JWT authentication filter chain
-4 Builder Creational Dashboard and analytics DTOs
-5 Singleton Creational JwtService / ConfigurationManager
-6 Factory Creational MongoDB event object creation
-7 Adapter Structural NoSQL query result → DTO conversion
+# 1 Strategy Behavioral S5-F12 payout reversal logic
+# 2 Observer Behavioral MongoDB event logging across all services
+# 3 Chain of Responsibility Behavioral JWT authentication filter chain
+# 4 Builder Creational Dashboard and analytics DTOs
+# 5 Singleton Creational JwtService / ConfigurationManager
+# 6 Factory Creational MongoDB event object creation
+# 7 Adapter Structural NoSQL query result → DTO conversion
 Distribution: 3 Creational, 1 Structural, 3 Behavioral — balanced across all 3 pattern categories.
-3.2 Strategy Pattern — Payout Reversal Logic (S5-F12)
+## 3.2 Strategy Pattern — Payout Reversal Logic (S5-F12)
 Purpose: The S5-F12 milestone-based payout reversal feature has multiple business rules that must each
 be encapsulated as a separate strategy (full payout reversal when the contract is terminated, milestone only reversal when only specific milestones are disputed, no-reversal when the 30-day reversal window
 has expired). Replace if-else chains in the service with a Strategy selector.
@@ -254,7 +165,6 @@ Test scenario:
 a) Via reflection, assert that the class RefundStrategy exists and is an interface with exactly one
 abstract method whose name is calculateRefund.
 
-7
 
 b) Via reflection, assert that FullPayoutReversalStrategy, MilestoneReversalStrategy, and
 NoReversalStrategy all exist and implement RefundStrategy.
@@ -268,7 +178,7 @@ f) Call S5-F12 with a payout older than 30 days → returns 400, audit trail rec
 NoReversalStrategy.
 g) Inspect the wallet-service source: the refund service method must not contain if (reversalScope
 == FULL) or equivalent branching.
-3.3 Observer Pattern — Event Logging
+## 3.3 Observer Pattern — Event Logging
 Purpose: When entity state changes (user registers, proposal accepted, payout refunded, etc.), events
 must be logged to MongoDB. Observer decouples logging from business logic.
 Structure:
@@ -295,7 +205,6 @@ Where applied:
 • Also applied to your M1 write endpoints (see Section 4)
 Test scenario:
 
-8
 
 a) Via reflection, assert that EntityObserver exists as an interface with an onEvent(String,
 Object) method.
@@ -309,7 +218,7 @@ e) Log in as that user → verify a LOGGED_IN document is added.
 f) Trigger an M1 write (e.g., PUT /api/users/{id}/preferences from S1-F2) → verify the corre sponding event document is written to MongoDB (confirms the retrofit path).
 g) Unregister all observers from a service in a unit test and repeat the write → no MongoDB event
 should appear (proves the logging path goes through the observer chain, not a direct Mongo call).
-3.4 Chain of Responsibility — JWT Filter Chain
+## 3.4 Chain of Responsibility — JWT Filter Chain
 Purpose: JWT authentication has multiple sequential steps (extract token, verify signature, load user,
 check role). Each step is a separate handler in a chain.
 Structure:
@@ -337,7 +246,6 @@ handle(...) methods.
 b) Via reflection, assert at least 3 concrete subclasses of AuthHandler exist (e.g.,
 TokenExtractionHandler, SignatureValidationHandler, UserLoaderHandler, and option ally RoleAuthorizationHandler).
 
-9
 
 c) Call a protected M1 endpoint (e.g., GET /api/users/1) with Authorization header absent →
 returns 401 (TokenExtractionHandler failed).
@@ -349,7 +257,7 @@ g) Call the same endpoint with an ADMIN token → succeeds (chain passes through
 h) Inspect JwtAuthenticationFilter.doFilterInternal() source: the grader parses it and confirms
 that the method body invokes the head of the AuthHandler chain rather than duplicating the
 extraction/validation/authorization logic inline.
-3.5 Builder Pattern — Dashboard DTOs
+## 3.5 Builder Pattern — Dashboard DTOs
 Purpose: Dashboard and analytics DTOs have 5–10+ fields. Builder improves readability and allows
 optional fields.
 Structure:
@@ -376,7 +284,6 @@ DTO
 • S4-F3, S4-F6, S4-F8, S4-F9: Builder required
 • S5-F3, S5-F6, S5-F8, S5-F9: Builder required
 
-10
 
 Test scenario:
 a) Via reflection, iterate every DTO class returned by an M2 dashboard feature: assert each has an
@@ -389,7 +296,7 @@ d) Call M1 S1-F3 GET /api/users/{id}/contract-summary → verify it still return
 fields (proves the retrofit did not break M1 behavior).
 e) Compile-time or static analysis check: confirm S2-F8 and S3-F8 do not use Builder (they return
 entities, not DTOs).
-3.6 Singleton Pattern — JwtConfigurationManager
+## 3.6 Singleton Pattern — JwtConfigurationManager
 Purpose: A class holding shared, immutable JWT configuration (secret key, expiration, algorithm)
 should have exactly one instance.
 Structure:
@@ -417,7 +324,6 @@ Test scenario:
 a) Via reflection, assert JwtConfigurationManager exists and has exactly one constructor declared
 with private access.
 
-11
 
 b) Via reflection, assert getInstance() is a public static method returning
 JwtConfigurationManager.
@@ -429,7 +335,7 @@ any other Spring stereotype.
 f) In an integration test, verify that JwtService (a Spring bean) correctly reads the configured secret
 via JwtConfigurationManager.getInstance() — issue and validate a token and confirm the flow
 works.
-3.7 Factory Pattern — Event Creation
+## 3.7 Factory Pattern — Event Creation
 Purpose: MongoDB events have different types across services (AuthEvent, JobEvent, ProposalEvent,
 ContractEvent, PayoutAuditEvent). A EventFactory creates the right concrete event type based on
 input.
@@ -460,9 +366,8 @@ EventFactory.createEvent(AUTH, ...) would produce (proves services go through th
 h) Source-scan check: verify no service class contains new AuthEvent(...), new JobEvent(...), etc.
 — all event construction must go through the factory.
 
-12
 
-3.8 Adapter Pattern — NoSQL Result → DTO Conversion
+## 3.8 Adapter Pattern — NoSQL Result → DTO Conversion
 Purpose: Results from different NoSQL databases have different raw shapes (MongoDB Document,
 Elasticsearch SearchHit, Neo4j Record, Cassandra Row). Adapters convert each raw source to the
 specific DTO the service returns.
@@ -498,19 +403,18 @@ is correct.
 f) For any other in-scope M1 F3/F6/F9 feature that the team chose to implement with Object[]:
 check the corresponding adapter exists. Features implemented via JPQL constructor expressions
 or DTO projections are exempt from this check.
-3.9 Grading Summary
+## 3.9 Grading Summary
 Each pattern contributes roughly equally to the design patterns portion of the M2 grade. The grader
 performs:
 • Static analysis — reflective inspection of class structure (interfaces, methods, constructors)
 • Behavioral verification — integration tests that exercise the patterns indirectly through M2
 features
 
-13
 
-4 M1 Modifications Required
+# 4 M1 Modifications Required
 Before you can build M2 features, you must modify your existing M1 codebase in specific ways.
 These modifications are prerequisites — M2 features and cross-cutting requirements depend on them.
-4.1 User Entity — Password Hashing
+## 4.1 User Entity — Password Hashing
 Your M1 User entity already has a password field. In M1 it was stored as plaintext (or loosely). In M2:
 • All new user registrations must hash passwords with BCrypt before saving
 • Existing M1 test users/seeds should be re-created with hashed passwords (or hash them on first
@@ -528,7 +432,7 @@ the password field must be absent or explicitly null. Same for any other endpoin
 User (e.g., S1-F1 search, S1-F3 summary).
 f) Re-seed the database using the seed mechanism → assert every seeded user’s password column is
 a BCrypt hash, not plaintext.
-4.2 User Entity — Role Values (Additive)
+## 4.2 User Entity — Role Values (Additive)
 Your M1 User entity already has a role ENUM with values FREELANCER, CLIENT, and ADMIN. Do not
 remove or rename existing M1 role values. M2 modifies this only additively:
 • Keep FREELANCER, CLIENT, and ADMIN as they are
@@ -544,7 +448,6 @@ is the default for M2 features.
 • ADMIN-only endpoints: Require role == ADMIN. Only the role management endpoint uses
 this.
 
-14
 
 Test scenario:
 a) Query PostgreSQL metadata (information_schema.columns or the Postgres enum pg_enum) to
@@ -562,7 +465,7 @@ h) With the ADMIN token, call PUT /api/users/{id}/role with body {"role":"FREELA
 200, the target user’s role changes.
 i) With a CLIENT token, call any regular M2 feature (e.g., S2-F10 search) → succeeds (USER-level
 endpoints accept every role).
-4.3 Existing M1 Endpoints — JWT Authentication
+## 4.3 Existing M1 Endpoints — JWT Authentication
 All existing M1 endpoints (45 feature endpoints + CRUD endpoints on all entities) must now require a
 valid JWT token, except:
 • POST /api/auth/register (new in M2)
@@ -584,12 +487,11 @@ g) Health check endpoints (e.g., GET /actuator/health) return 200 without a toke
 h) Confirm by grepping the test results that all 45 M1 feature tests + CRUD tests pass under M2
 auth.
 
-15
 
-4.4 Existing M1 Read Endpoints — Redis Caching (Explicit Enumeration)
+## 4.4 Existing M1 Read Endpoints — Redis Caching (Explicit Enumeration)
 All M1 read-heavy endpoints must be cached in Redis. Below is the complete enumeration — nothing is
 left open.
-4.4.1 M1 Feature GET Endpoints That Must Be Cached (Freelance: 27 total)
+### 4.4.1 M1 Feature GET Endpoints That Must Be Cached (Freelance: 27 total)
 The canonical M1 pattern is “F2, F4, F7 are writes, the other 6 are reads,” but Freelance deviates at
 three specific features that are writes despite their F-number:
 Service Feature Verb Why it is a write
@@ -611,7 +513,7 @@ read-only despite being POST. Cache it by request-body hash (TTL 5 min). If you 
 S3-F3 as a POST, follow the M1 spec verb for your service.
 TTLs by feature type: F1 = 5 min (search), F3 = 10 min (DTO), F5 = 5 min (JSONB query), F6 =
 10 min (report), F8 = 15 min (relationship DTO), F9 = 10 min (combined).
-4.4.2 CRUD Baseline Endpoints That Must Be Cached
+### 4.4.2 CRUD Baseline Endpoints That Must Be Cached
 For every entity, only the get-by-ID endpoint is cached. List endpoints are not cached — they hit
 PostgreSQL on every request.
 Endpoint Cached? TTL
@@ -619,13 +521,12 @@ GET /api/<entity> (list all) No —
 GET /api/<entity>/{id} (get by ID) Yes 15 min
 Freelance entities (10): user, user-skill, job, job-attachment, proposal, proposal-milestone, contract,
 payout, promo-code, payout-promo. 10 GET-by-ID endpoints must be cached.
-4.4.3 Total
-27 M1 feature endpoints + 10 M1 CRUD GET-by-ID endpoints = 37 M1 endpoints must
+### 4.4.3 Total
+# 27 M1 feature endpoints + 10 M1 CRUD GET-by-ID endpoints = 37 M1 endpoints must
 be cached for Freelance. Plus the M2 feature GET endpoints.
 
-16
 
-4.4.4 Endpoints That Must Invalidate Caches (Writes)
+### 4.4.4 Endpoints That Must Invalidate Caches (Writes)
 Writes invalidate the detail cache of the specifically affected entity ID, plus feature-result caches whose
 output includes that entity. Since list endpoints are not cached, there is no list cache to invalidate.
 Freelance M1 feature writes (18 total):
@@ -661,7 +562,6 @@ same NoSQL store. The PG-write rules above do not cover these paths, so add thes
 • S4-F11 (POST /api/contracts/{id}/milestones/track) writes a new milestone row to Cas sandra and emits a MILESTONE_TRACKED event to MongoDB contract_events — must inval idate contract-service::S4-F12::{contractId} (the cached milestone timeline for that con tract, 5 min TTL) so S4-F12 reflects the new milestone event immediately. Must also invalidate
 contract-service::S4-F10::* (the contract analytics dashboard may aggregate over milestone event counts).
 
-17
 
 • S3-F11 (POST /api/proposals/{proposalId}/record-interaction) writes a new
 PROPOSED_TO relationship (or increments an existing one) in Neo4j — must invalidate
@@ -689,10 +589,10 @@ call is always a miss and the cache never serves a hit. Exclude both ANALYTICS_V
 DASHBOARD_VIEWED from the invalidation trigger in the Observer (match on the action field before
 invalidating).
 These M2 invalidation rules compose with the M1 rules above; implement both.
-4.4.5 Cache Key Convention
+### 4.4.5 Cache Key Convention
 • Entity detail: <service>::<entity>::<id> (e.g., user-service::user::42)
 • Feature result: <service>::<featureId>::<param-hash> (e.g., user-service::S1-F3::42)
-4.4.6 Cache Invalidation Strategy (Wildcard Deletion)
+### 4.4.6 Cache Invalidation Strategy (Wildcard Deletion)
 Computing the exact set of feature-result caches affected by an entity change is infeasible without cache
 tags or reverse indexes. Use wildcard key deletion instead:
 • When entity X with id N changes, delete the key <service>::X::N (entity detail).
@@ -704,7 +604,6 @@ Use the Redis SCAN + DEL combination or KEYS-UNLINK (for small caches) to implem
 Test scenario (entire §4.4 caching retrofit):
 a) For each of the 27 cached M1 feature GET endpoints listed in §4.4.1: call it twice with iden tical parameters and a valid token. Inspect Redis between calls (e.g., via redis-cli KEYS
 
-18
 
 ’user-service::*’) and assert a matching key exists. Measure the second call’s latency — it
 must be less than the first (cache hit).
@@ -722,7 +621,7 @@ g) Disable Redis (e.g., stop the container) and retry a cached endpoint → it s
 from PG (soft-dependency graceful degradation).
 h) Verify TTLs: fetch an S1-F1 search result (5 min TTL), wait 5m+, fetch again → cache was
 auto-evicted and the call recomputes.
-4.5 Design Pattern Retrofits to M1
+## 4.5 Design Pattern Retrofits to M1
 The 7 patterns from Section 3 apply to M2 code and to M1 retrofits as follows:
 Pattern Applies to M1? Which M1 Freelance features Notes
 Strategy No — New M2 code only (S5-F12 milestone-based reversal) — do NOT force onto any M1 method Observer Yes (universal) All M1 write endpoints: F2, F4, F7 per service + S2-F8, S3-F8, S5-F5 (Freelance-specific writes) + all CRUD writes State change → notifyObservers → MongoDB event log Chain of Responsibility Yes (universal) All M1 endpoints via the JWT filter chain Inside JwtAuthenticationFilter (see Section 3.4) Builder Yes S1-F3, S1-F6, S1-F8, S1-F9; S2-F3, S2-F6, S2-F9; S3-F3, S3-F6, S3-F9; S4-F3, S4-F6, S4-F8, S4-F9; S5-F3, S5-F6, S5-F8, S5-F9 (DTO-returning features with 5+ fields) Excludes S2-F8 and S3-F8 for Freelance — they return entities, not DTOs Singleton No — New M2 code only (JwtConfigurationManager) Factory Yes (indirect) M1 write endpoints trigger Observer; Observer calls EventFactory EventFactory creates the right MongoEvent subtype Adapter Conditional Any M1 feature that uses Object[] native SQL projection (S1-F3 mandates Object[]; other F3/F6/F9 only if you chose Object[] in M1) If you used JPQL constructor expressions or DTO projections, no Adapter retrofit is required
@@ -746,7 +645,6 @@ DTOs) — it does not participate in the write-side composition above.
 Wallet Service payout_audit_trail population (important): The payout_audit_trail collec tion powers M2 S5-F11 (GET /api/payouts/analytics/methods). Without writes to this collection,
 S5-F11 returns empty results. Therefore:
 
-19
 
 • M1 S5-F4 (Process Payout for Contract) must write two events to payout_audit_trail: a
 CREATED event when the Payout row is first inserted, and a COMPLETED event when the payout
@@ -788,9 +686,8 @@ UserContractSummaryDTO via an Adapter class (not inline mapping in the service).
 j) Verify that Strategy is NOT used anywhere in M1 service classes (grep for RefundStrategy,
 Strategy outside the wallet service’s S5-F12 package).
 
-20
 
-4.6 Payout.transactionDetails — Additive platformFee Key
+## 4.6 Payout.transactionDetails — Additive platformFee Key
 M2 S5-F10 (Platform Fee Analytics by Job Category) requires the Payout’s platform fee to be separable
 from the net payout amount. M1’s Payout.transactionDetails JSONB schema is {gatewayResponse,
 accountLastFour, receiptUrl, failureReason} — it does not include a platformFee key.
@@ -804,7 +701,7 @@ configuration if the team implements one.
 Fallback for pre-M2 rows: Existing M1 Payout rows created before this modification will not have a
 platformFee key. Any feature reading the key (e.g., S5-F10) must treat a missing or null platformFee as
 0.10 * payouts.amount (10% of total). This keeps pre-M2 data usable without a DB backfill migration.
-4.7 Summary Checklist
+## 4.7 Summary Checklist
 Before starting M2 features, ensure your M1 codebase:
 □ Password hashing (BCrypt) applied to registration and seed data
 □ ADMIN role present; CLIENT preserved as default; FREELANCER preserved
@@ -817,15 +714,14 @@ Before starting M2 features, ensure your M1 codebase:
 □ M1 Object[] native SQL results (F3/F6/F9) use Adapter pattern
 □ M1 S5-F4 writes platformFee to Payout.transactionDetails JSONB — see Section 4.6
 □ All existing M1 tests still pass
-5 Authentication & Authorization
-5.1 Overview
+# 5 Authentication & Authorization
+## 5.1 Overview
 The User Service (S1) becomes the authentication provider. It exposes register and login endpoints that
 return JWT tokens. All other services validate tokens independently using a shared secret key — no
 inter-service calls are needed for authentication.
 
-21
 
-5.2 JWT Token
+## 5.2 JWT Token
 • Algorithm: HMAC-SHA256
 • Secret: A shared key configured in each service’s application.yml (e.g., jwt.secret). The shared
 secret must be at least 32 bytes (256 bits) of entropy when decoded — JJWT’s HS256 signer
@@ -839,7 +735,7 @@ User.id (as a custom uid claim), the user’s role (as a role claim), issued-at 
 path/query userId — no additional PG lookup is required on the hot path.
 • Header format: Authorization: Bearer <token>
 • Expiration: Configurable (e.g., 24 hours)
-5.3 Roles (Additive — Preserve M1 Values)
+## 5.3 Roles (Additive — Preserve M1 Values)
 The M1 User entity already has a role ENUM with values FREELANCER, CLIENT, and ADMIN. M2 preserves
 these additively — do not rename or remove existing M1 role values.
 Role Permissions
@@ -852,7 +748,7 @@ default to CLIENT.
 • Only an ADMIN can change another user’s role via PUT /api/users/{id}/role
 • The JWT token’s role claim contains the user’s actual role value
 • Seed at least one ADMIN user so role management can be tested
-5.4 Security Configuration (Per Service)
+## 5.4 Security Configuration (Per Service)
 Each of the 5 services must have:
 • A security configuration with a JWT filter that intercepts every request
 • Stateless session management (no server-side sessions)
@@ -861,15 +757,14 @@ Each of the 5 services must have:
 checks
 • All other endpoints require a valid JWT token
 
-22
 
-5.5 Password Handling
+## 5.5 Password Handling
 The User entity already has a password field from M1. In M2, you must ensure:
 • Passwords are hashed with BCrypt before being stored
 • The plaintext password is never stored or returned in API responses
 • Login verifies the provided password against the stored hash
-6 Database Architecture
-6.1 Six Databases (Versions Match Task 2 Exactly)
+# 6 Database Architecture
+## 6.1 Six Databases (Versions Match Task 2 Exactly)
 All teams use the same 6 databases. Docker image versions match Task 2 so students who completed
 Task 2 can reuse their stack without reconfiguration.
 Database Port Docker Image Architectural Role
@@ -879,7 +774,7 @@ Redis 6379 redis:latest Caching layer for read-heavy endpoints — used by all s
 Elasticsearch 9200 elasticsearch:8.19.12 Full-text search across jobs (S2). Pinned version.
 Neo4j 7687 neo4j:latest Recommendation graph from proposal patterns (S3)
 Cassandra 9042 cassandra:latest Time-series contract milestone events (S4)
-6.2 Memory Limitations (Required)
+## 6.2 Memory Limitations (Required)
 Running 6 databases + 5 Spring Boot services strains laptop RAM. Apply these memory limits to avoid
 system freezes:
 Service Memory Limit Rationale
@@ -891,16 +786,15 @@ PostgreSQL, MongoDB Default Well-behaved at defaults
 Estimated total memory for the stack: PostgreSQL (∼250 MB) + MongoDB (∼400 MB) + Redis
 (256 MB capped) + Cassandra (∼700 MB) + Neo4j (∼600 MB) + Elasticsearch (∼700 MB) + 5 Spring
 Boot apps (5 × 300 MB = 1.5 GB) = ∼4.5 GB for the stack alone.
-6.3 Dependency Model
+## 6.3 Dependency Model
 Following the pattern from Lab 5 and Task 2:
 • PostgreSQL: Hard dependency — the service will not start without it
 • MongoDB, Redis, Elasticsearch, Neo4j, Cassandra: Soft dependencies — if any of these are
 unavailable, the features that depend on them should degrade gracefully (try-catch), but the service
 should still start and serve PostgreSQL-based endpoints
 
-23
 
-6.4 Docker Compose Additions
+## 6.4 Docker Compose Additions
 Add these containers to your existing docker-compose.yaml alongside PostgreSQL and the 5 application
 services:
 mongo:
@@ -958,7 +852,6 @@ NEO4J_AUTH: neo4j/neo4jpass
 NEO4J_server_memory_heap_max__size: 512m
 NEO4J_server_memory_heap_initial__size: 256m
 
-24
 
 volumes:
 - neo4j-data:/data
@@ -992,7 +885,7 @@ mongo-data:
 es-data:
 neo4j-data:
 cassandra-data:
-6.5 Reference application.yml Fragments
+## 6.5 Reference application.yml Fragments
 Each of your 5 services needs the connection properties for every database it uses. Note: M1 used
 application.properties. In M2 you should migrate to application.yml (YAML format is what the
 auto-grader expects).
@@ -1012,7 +905,6 @@ host: redis
 port: 6379
 password: redispass
 
-25
 
 jwt:
 secret: "<Base64-encoded shared secret across all 5 services>"
@@ -1041,16 +933,15 @@ port: 9042
 local-datacenter: datacenter1
 keyspace-name: freelanceks
 schema-action: CREATE_IF_NOT_EXISTS
-7 New Entity Models
+# 7 New Entity Models
 Your existing PostgreSQL entities from M1 remain unchanged except for the password handling described
 in Section 4.1 and Section 5.5. This section defines the new entities for the NoSQL databases.
-7.1 MongoDB Document Entities (All Services)
+## 7.1 MongoDB Document Entities (All Services)
 Each service defines one MongoDB document class for its activity/event log. MongoDB entities must be
 classes (not records).
 
-26
 
-7.1.1 Common MongoEvent Interface
+### 7.1.1 Common MongoEvent Interface
 All 5 MongoDB event classes below implement a shared interface MongoEvent so that the EventFactory
 (Section 3.7) can return any concrete event typed as MongoEvent:
 Method Return type Purpose
@@ -1059,7 +950,7 @@ getTimestamp() LocalDateTime When the event occurred
 getAction() String The action identifier (e.g., REGISTERED)
 getDetails() Map<String, Object> Additional event context
 Each concrete event class below adds its own service-specific fields on top of this common interface.
-7.1.2 AuthEvent (User Service)
+### 7.1.2 AuthEvent (User Service)
 Collection: auth_events
 Field Type Constraints Notes
 id String auto-generated MongoDB ObjectId
@@ -1070,7 +961,7 @@ details Map<String, Object> Additional event context
 action primary values: REGISTERED, LOGGED_IN, ROLE_CHANGED. Non-exhaustive — extend with
 domain-appropriate values when the Observer retrofit (Section 4.5) writes events from M1 user end points, e.g., USER_UPDATED (S1-F2 preferences), USER_DEACTIVATED (S1-F4), PRIMARY_SKILL_SET (S1-
 F7), USER_CREATED / USER_DELETED (CRUD). Use UPPER_SNAKE_CASE.
-7.1.3 JobEvent (Job Service)
+### 7.1.3 JobEvent (Job Service)
 Collection: job_events
 Field Type Constraints Notes
 id String auto-generated MongoDB ObjectId
@@ -1081,7 +972,7 @@ details Map<String, Object> Fields changed, dashboard params, etc.
 action primary values: INDEXED, DASHBOARD_VIEWED. Non-exhaustive — extend for
 M1 retrofits, e.g., REQUIREMENTS_UPDATED (S2-F2), JOB_CLOSED (S2-F4), JOB_RATED (S2-F7),
 JOB_ATTACHMENT_VERIFIED (S2-F8), JOB_CREATED / JOB_DELETED (CRUD). Use UPPER_SNAKE_CASE.
-7.1.4 ProposalEvent (Proposal Service)
+### 7.1.4 ProposalEvent (Proposal Service)
 Collection: proposal_events
 Field Type Constraints Notes
 id String auto-generated MongoDB ObjectId
@@ -1091,12 +982,11 @@ timestamp LocalDateTime not null
 details Map<String, Object>
 action primary values: ANALYTICS_VIEWED, INTERACTION_RECORDED. Non-exhaustive — extend for
 
-27
 
 M1 retrofits, e.g., PROPOSAL_ACCEPTED (S3-F2), PROPOSAL_COMPLETED (S3-F4), PROPOSAL_WITHDRAWN
 (S3-F7), MILESTONES_ADDED (S3-F8), PROPOSAL_CREATED / PROPOSAL_DELETED (CRUD). Use
 UPPER_SNAKE_CASE.
-7.1.5 ContractEvent (Contract Service)
+### 7.1.5 ContractEvent (Contract Service)
 Collection: contract_events
 Field Type Constraints Notes
 id String auto-generated MongoDB ObjectId
@@ -1107,7 +997,7 @@ details Map<String, Object>
 action primary values: MILESTONE_TRACKED, ANALYTICS_VIEWED. Non-exhaustive — extend for M1
 retrofits, e.g., PROGRESS_UPDATED (S4-F2), BATCH_STATUS_UPDATED (S4-F4), OLD_DATA_PURGED (S4-F7),
 CONTRACT_DELETED (CRUD). Use UPPER_SNAKE_CASE.
-7.1.6 PayoutAuditEvent (Wallet Service)
+### 7.1.6 PayoutAuditEvent (Wallet Service)
 Collection: payout_audit_trail
 Field Type Constraints Notes
 id String auto-generated MongoDB ObjectId
@@ -1137,7 +1027,6 @@ reversal window has expired). The event records the denial reason and strategy n
 invoked, regardless of whether the response is served from cache. Used to track analytics access
 patterns.
 
-28
 
 method and amount field requirement: The fields method and amount are required (not null)
 on every event whose action is a payout-shaped action, i.e., action ∈ {CREATED, COMPLETED,
@@ -1147,8 +1036,8 @@ ANALYTICS_VIEWED (an analytics view is not tied to a specific Payout row’s met
 (Payout Method Breakdown) relies on this: it groups and sums only events whose method and amount
 are populated, so a CREATED/COMPLETED/FAILED event written without method would silently
 vanish from the breakdown.
-7.2 Elasticsearch Document (Job Service)
-7.2.1 JobSearchDocument
+## 7.2 Elasticsearch Document (Job Service)
+### 7.2.1 JobSearchDocument
 Index: jobs
 Field ES Field Type Purpose
 id Keyword Exact match, corresponds to PG id
@@ -1162,26 +1051,25 @@ status Keyword Filtering (OPEN, IN_PROGRESS, CLOSED — matches M1 Job.status en
 Note on title and description: Both fields are top-level columns on the M1 Job entity (not
 JSONB keys). S2-F11 reads them directly from the PG jobs table without any JSONB lookup — no
 additive M1 schema change is needed for the search document.
-7.3 Neo4j Entities (Proposal Service)
-7.3.1 FreelancerNode
+## 7.3 Neo4j Entities (Proposal Service)
+### 7.3.1 FreelancerNode
 Property Type Notes
 userId Long Corresponds to User.id in PG (users with role FREELANCER)
 name String Freelancer’s display name
-7.3.2 JobNode
+### 7.3.2 JobNode
 Property Type Notes
 jobId Long Corresponds to Job.id in PG
 title String Job title
 category String For filtering recommendations
-7.3.3 PROPOSED_TO Relationship
+### 7.3.3 PROPOSED_TO Relationship
 Connects a FreelancerNode to a JobNode. Direction: (Freelancer)-[:PROPOSED_TO]->(Job).
 Property Type Notes
 proposalCount Integer Incremented each time freelancer submits a proposal on this job
 lastProposalDate LocalDateTime Updated on each new proposal
 
-29
 
-7.4 Cassandra Entity (Contract Service)
-7.4.1 ContractMilestoneEvent
+## 7.4 Cassandra Entity (Contract Service)
+### 7.4.1 ContractMilestoneEvent
 Table: contract_milestone_events
 Column Type Key Notes
 contract_id Long Partition Key Groups all milestone events for one contract
@@ -1191,15 +1079,15 @@ status String PENDING, IN_PROGRESS, COMPLETED, APPROVED (matches M1 ProposalMile
 recorded_by String User who recorded the event (freelancer or client name)
 notes String Optional event notes
 Queries on this table must include contract_id in the WHERE clause (partition key requirement).
-8 Caching Strategy
+# 8 Caching Strategy
 All read-heavy endpoints (both new M2 features and existing M1 endpoints) must be cached in Redis.
-8.1 TTL Guidelines
+## 8.1 TTL Guidelines
 Data Type TTL Examples
 Dashboards / analytics 10 minutes Revenue dashboard, performance dashboard
 Search results 5 minutes Job search, recommendations
 Activity feeds 5 minutes User activity feed
 Entity detail views 15 minutes Job profile, contract details
-8.2 Invalidation
+## 8.2 Invalidation
 Write operations (POST, PUT, DELETE) must invalidate any cached data they affect. The canonical
 invalidation enumeration for all M1 write endpoints + CRUD writes + M2 observer writes lives in
 Section 4.4.4 and uses the wildcard-deletion strategy described in Section 4.4.6. Features that mention
@@ -1209,16 +1097,15 @@ invalidation (e.g., S5-F12 step h) refer to those rules. In brief:
 • M2 analytics events written by Observer retrofit (see Section 4.4.4 M2-writes subsection) also in validate the matching dashboard caches.
 • Over-invalidation (clearing a few cache keys that did not strictly need to be cleared) is acceptable
 — correctness beats cache-hit optimality at M2.
-9 Cross-Cutting Requirements
+# 9 Cross-Cutting Requirements
 These requirements apply globally and are not counted as numbered features. Each requirement has a
 dedicated test scenario below.
-9.1 CC-1 — JWT on All Endpoints
+## 9.1 CC-1 — JWT on All Endpoints
 Requirement: Every endpoint (including your M1 endpoints) must require a valid JWT token in the
 Authorization header, except POST /api/auth/register, POST /api/auth/login, and health checks.
 Missing or invalid token returns 401. Insufficient role returns 403.
 Test scenario:
 
-30
 
 a) Enumerate every endpoint in all 5 services by scanning controllers. For each: call
 without Authorization header → expect 401 unless the endpoint is /api/auth/register,
@@ -1229,7 +1116,7 @@ d) Call any protected endpoint with an expired token → 401.
 e) Call PUT /api/users/{id}/role with a valid CLIENT token → 403.
 f) Count the protected vs public endpoints. Freelance should have exactly 3 public endpoints (register,
 login, health). Anything else public is a grading failure.
-9.2 CC-2 — Role Management
+## 9.2 CC-2 — Role Management
 Requirement: Implement PUT /api/users/{id}/role as an ADMIN-only endpoint that changes a
 user’s role. Must log a ROLE_CHANGED event to auth_events.
 Request body: {"role": "ADMIN"} (or "CLIENT" or "FREELANCER").
@@ -1260,7 +1147,6 @@ c) Verify the auth_events collection has a ROLE_CHANGED event with details conta
 new roles.
 d) Verify the cached user detail (user-service::user::{clientId}) was removed from Redis.
 
-31
 
 e) Verify cached keys under user-service::S1-F12::{clientId}::* were removed from Redis after
 the ROLE_CHANGED write propagated through the Observer chain (§4.4.4 NoSQL-writer invalida tion).
@@ -1268,7 +1154,7 @@ f) Log in as a different CLIENT and call PUT /api/users/1/role → 403.
 g) Call PUT /api/users/999/role with ADMIN token → 404.
 h) Call with body {"role":"BANANA"} → 400.
 i) Call without Authorization → 401.
-9.3 CC-3 — Redis Caching on M1 Endpoints
+## 9.3 CC-3 — Redis Caching on M1 Endpoints
 Requirement: Your M1 feature GET endpoints (27 for Freelance — see Section 4.4.1) and CRUD GET
 /api/<entity>/{id} endpoints (10 for Freelance) must be cached per Section 4.4. List endpoints are
 not cached.
@@ -1279,11 +1165,11 @@ b) For every M1 write endpoint (the 18 feature writes + 30 CRUD writes): trigger
 query Redis and verify the affected detail cache key is gone and relevant feature-result caches are
 invalidated.
 c) Confirm GET /api/<entity> (list) endpoints produce NO cache entry.
-9.4 CC-4 — Design Pattern Implementation
+## 9.4 CC-4 — Design Pattern Implementation
 Requirement: The 7 design patterns defined in Section 3 must be implemented at their specified
 locations.
 Test scenario: See each pattern’s own test scenario in Section 3.2 through 3.8.
-9.5 CC-5 — Docker Compose with 6 Databases
+## 9.5 CC-5 — Docker Compose with 6 Databases
 Requirement: Your docker-compose.yaml must include all 6 database containers (PostgreSQL, Mon goDB, Redis, Elasticsearch, Neo4j, Cassandra) with versions matching Task 2 alongside your 5 application
 services.
 Test scenario:
@@ -1299,9 +1185,8 @@ e) Run docker compose up -d → all 6 databases reach healthy state within 120 s
 f) All 5 application services start successfully and connect to their databases.
 g) Total stack memory usage (docker stats) stays under 5 GB.
 
-32
 
-9.6 CC-6 — Application Configuration (application.yml)
+## 9.6 CC-6 — Application Configuration (application.yml)
 Requirement: Each service’s application.yml must include connection settings for the databases it
 uses, plus the shared JWT secret and expiration. Must be YAML format, not properties.
 Test scenario:
@@ -1315,7 +1200,7 @@ e) Proposal-service: assert spring.data.neo4j.uri is present.
 f) Contract-service: assert spring.cassandra.contact-points and keyspace-name are present.
 g) Boot each service in isolation with other services down → must start as long as PostgreSQL is up
 (hard dep). NoSQL unavailability must not prevent startup.
-10 Features
+# 10 Features
 Milestone 2 adds 15 new features (3 per service). Feature numbering continues from M1 (which used
 F1–F9), so M2 features are F10–F12 per service.
 Every M2 feature touches at least 2 databases. Each feature specification lists which databases are
@@ -1323,8 +1208,8 @@ involved, whether authentication is required, and the caching behavior.
 Important Note: Do not forget to apply the Layered architecture (having repository, service
 and controller) as the test case will test that each feature is implemented according to the
 layered architecture as explained to you in the Labs.
-10.1 User Service Features (port 8081)
-10.1.1 [S1-F10] Register User
+## 10.1 User Service Features (port 8081)
+### 10.1.1 [S1-F10] Register User
 Branch: feat/user/S1-F10/<ID>
 Endpoint: POST /api/auth/register
 Auth: None (public endpoint)
@@ -1343,7 +1228,6 @@ Response:
 "expiresIn": 86400000
 }
 
-33
 
 Behavior:
 a) Validate that name, email, password, and phone are not blank –throws 400 if any field is
@@ -1372,7 +1256,7 @@ d) POST /api/auth/register with the same email → 409.
 e) POST /api/auth/register with the same phone (but different email) → 409.
 f) POST /api/auth/register with blank email or blank phone → 400.
 g) Verify the stored password is not the plaintext password (it should be a BCrypt hash).
-10.1.2 [S1-F11] Login
+### 10.1.2 [S1-F11] Login
 Branch: feat/user/S1-F11/<ID>
 Endpoint: POST /api/auth/login
 Auth: None (public endpoint)
@@ -1388,7 +1272,6 @@ Response:
 "expiresIn": 86400000
 }
 
-34
 
 Behavior:
 a) Find user by email in PostgreSQL –throws 401 if user not found.
@@ -1409,7 +1292,7 @@ c) POST /api/auth/login with non-existent email → 401 (not 404 — this is del
 account enumeration).
 d) Use the returned token to access a protected endpoint (e.g., GET /api/users/1) → should succeed.
 Access the same endpoint without a token → 401.
-10.1.3 [S1-F12] Get User Activity Feed
+### 10.1.3 [S1-F12] Get User Activity Feed
 Branch: feat/user/S1-F12/<ID>
 Endpoint: GET /api/users/{id}/activity?page={page}&size={size}
 Auth: Required (USER)
@@ -1435,7 +1318,6 @@ Response: Paginated list of activity events:
 Behavior:
 a) Validate the JWT token –throws 401 if missing or invalid.
 
-35
 
 b) Ownership check: Verify the authenticated caller’s uid claim from the JWT equals the path
 {id}, OR the caller’s role claim is ADMIN –throws 403 if the caller is neither the target user
@@ -1465,8 +1347,8 @@ e) GET /api/users/{id}/activity without Authorization header → 401.
 f) GET /api/users/999/activity with an ADMIN token → 404 (ADMIN passes ownership, user not
 found).
 g) Verify pagination: create multiple events, request with page=0&size=1 (with matching-owner to ken) → should return 1 event with correct total count.
-10.2 Job Service Features (port 8082)
-10.2.1 [S2-F10] Full-Text Job Search
+## 10.2 Job Service Features (port 8082)
+### 10.2.1 [S2-F10] Full-Text Job Search
 Branch: feat/job/S2-F10/<ID>
 Endpoint:
 GET /api/jobs/search/full-text?
@@ -1479,7 +1361,6 @@ searches PostgreSQL by status and budget range and is unchanged; M2’s new /ful
 searches Elasticsearch on title and description. Both endpoints must coexist.
 Behavior:
 
-36
 
 a) Validate the JWT token –throws 401 if missing or invalid.
 b) Search jobs using full-text search on the query parameter, matching against the job’s title and
@@ -1499,7 +1380,7 @@ c) Search with query=react&status=OPEN → should return only OPEN react jobs.
 d) Search with query=react&minBudget=1000 → should return only jobs with budget range overlap ping 1000+.
 e) Search with query=nonexistent → empty list.
 f) Search without token → 401.
-10.2.2 [S2-F11] Index Job for Search
+### 10.2.2 [S2-F11] Index Job for Search
 Branch: feat/job/S2-F11/<ID>
 Endpoint: POST /api/jobs/{id}/index
 Auth: Required (USER)
@@ -1522,7 +1403,6 @@ create/update a job via CRUD and then search for it without calling this endpoin
 a delete, searching for the deleted job must return no match.
 f) Return status code 200 indicating successful indexing.
 
-37
 
 Test scenario:
 a) Create a job via CRUD with title=“React Native app” and description=“build a
@@ -1533,7 +1413,7 @@ c) Update a job’s title via CRUD (without calling /index), then search with th
 find the updated job (auto-indexing verification).
 d) Delete a job via CRUD, then search for it → should return no match (auto-remove verification).
 e) Index without token → 401.
-10.2.3 [S2-F12] Get Job Market Dashboard
+### 10.2.3 [S2-F12] Get Job Market Dashboard
 Branch: feat/job/S2-F12/<ID>
 Endpoint: GET /api/jobs/{id}/dashboard
 Auth: Required (USER)
@@ -1562,10 +1442,9 @@ b) GET /api/jobs/999/dashboard → 404.
 c) Job with no proposals → totalProposals=0, acceptedProposals=0, averageBidAmount=0.
 d) Without token → 401.
 
-38
 
-10.3 Proposal Service Features (port 8083)
-10.3.1 [S3-F10] Get Proposal Analytics Dashboard
+## 10.3 Proposal Service Features (port 8083)
+### 10.3.1 [S3-F10] Get Proposal Analytics Dashboard
 Branch: feat/proposal/S3-F10/<ID>
 Endpoint: GET /api/proposals/analytics/dashboard?startDate={date}&endDate={date}
 Auth: Required (USER)
@@ -1600,14 +1479,13 @@ WITHDRAWN:2, SUBMITTED:2}.
 b) Query with dates where no proposals exist → all values 0.
 c) startDate=2026-04-01&endDate=2026-03-01 → 400.
 d) Without token → 401.
-10.3.2 [S3-F11] Record Freelancer-Job Interaction
+### 10.3.2 [S3-F11] Record Freelancer-Job Interaction
 Branch: feat/proposal/S3-F11/<ID>
 Endpoint: POST /api/proposals/{proposalId}/record-interaction
 Auth: Required (USER)
 Databases: Neo4j, PostgreSQL, MongoDB
 Behavior:
 
-39
 
 a) Validate the JWT token –throws 401 if missing or invalid.
 b) Find the proposal by ID in PostgreSQL –throws 404 if proposal not found.
@@ -1646,13 +1524,12 @@ c) Create a second SUBMITTED proposal P2 from the same freelancer on the same jo
 d) Call with a WITHDRAWN (not submitted) proposal → 400.
 e) Call with non-existent proposal ID → 404.
 f) Without token → 401.
-10.3.3 [S3-F12] Get Recommended Jobs for Freelancer
+### 10.3.3 [S3-F12] Get Recommended Jobs for Freelancer
 Branch: feat/proposal/S3-F12/<ID>
 Endpoint: GET /api/proposals/recommendations?freelancerId={id}&limit={n}
 Auth: Required (USER)
 Databases: Neo4j, PostgreSQL, Redis
 
-40
 
 Response: List of JobRecommendationDTO: jobId, title, category, score (how many similar free lancers proposed to this job).
 Behavior:
@@ -1682,8 +1559,8 @@ c) Get recommendations for A with an ADMIN token → 200 (ADMIN bypass).
 d) Get recommendations for a freelancer with no recorded interactions (own token) → empty list.
 e) freelancerId=999 with ADMIN token → 404.
 f) Without token → 401.
-10.4 Contract Service Features (port 8084)
-10.4.1 [S4-F10] Get Contract Analytics Dashboard
+## 10.4 Contract Service Features (port 8084)
+### 10.4.1 [S4-F10] Get Contract Analytics Dashboard
 Branch: feat/contract/S4-F10/<ID>
 Endpoint: GET /api/contracts/analytics?startDate={date}&endDate={date}
 Auth: Required (USER)
@@ -1693,7 +1570,6 @@ completionRate, averageContractDurationDays, contractsByStatus (map of status to
 Behavior:
 a) Validate the JWT token –throws 401 if missing or invalid.
 
-41
 
 b) Validate date range –throws 400 if startDate is after endDate. Both startDate and endDate
 are LocalDate values on the wire; internally expand the filter window to the fully-closed range
@@ -1725,7 +1601,7 @@ b) Dates with no contracts → totalContracts=0, averageContractValue=0, complet
 contractsByStatus.
 c) Invalid date range → 400.
 d) Without token → 401.
-10.4.2 [S4-F11] Record Contract Milestone Event
+### 10.4.2 [S4-F11] Record Contract Milestone Event
 Branch: feat/contract/S4-F11/<ID>
 Endpoint: POST /api/contracts/{id}/milestones/track
 Auth: Required (USER)
@@ -1738,7 +1614,6 @@ Request body:
 "notes": "Design phase deliverables approved by client"
 }
 
-42
 
 Behavior:
 a) Validate the JWT token –throws 401 if missing or invalid.
@@ -1763,7 +1638,7 @@ b) Record another event with status=IN_PROGRESS, milestoneOrder=1 → 201. Query
 c) POST /api/contracts/999/milestones/track → 404.
 d) Call with status=“BANANA” → 400.
 e) Without token → 401.
-10.4.3 [S4-F12] Get Contract Milestone Timeline
+### 10.4.3 [S4-F12] Get Contract Milestone Timeline
 Branch: feat/contract/S4-F12/<ID>
 Endpoint: GET /api/contracts/{id}/milestones/timeline?startTime={datetime}&endTime={datetime}
 Auth: Required (USER)
@@ -1782,14 +1657,13 @@ a) Create a contract. Record 3 milestone events: PENDING at 14:00, IN_PROGRESS a
 COMPLETED at 14:30. GET /api/contracts/{id}/milestones/timeline → should return 3
 events with COMPLETED first.
 
-43
 
 b) Query with startTime=14:10&endTime=14:20 → should return only the IN_PROGRESS event.
 c) GET /api/contracts/999/milestones/timeline → 404.
 d) Contract with no milestone events → empty list.
 e) Without token → 401.
-10.5 Wallet Service Features (port 8085)
-10.5.1 [S5-F10] Get Platform Fee Analytics by Job Category
+## 10.5 Wallet Service Features (port 8085)
+### 10.5.1 [S5-F10] Get Platform Fee Analytics by Job Category
 Branch: feat/wallet/S5-F10/<ID>
 Endpoint: GET /api/payouts/analytics/category?startDate={date}&endDate={date}
 Auth: Required (USER)
@@ -1826,7 +1700,6 @@ h) Return the breakdown with status code 200. Return an empty list if no data ex
 range.
 Test scenario:
 
-44
 
 a) Create jobs: J1 (WEB_DEV), J2 (MOBILE), J3 (WEB_DEV). Create contracts and payouts:
 3 payouts on WEB_DEV jobs totaling 6000 (with platform fees 600), 2 payouts on MOBILE
@@ -1835,7 +1708,7 @@ platformFee=400, total=4000, count=2.
 b) Date range with no payouts → empty list.
 c) Invalid date range → 400.
 d) Without token → 401.
-10.5.2 [S5-F11] Get Payout Method Breakdown
+### 10.5.2 [S5-F11] Get Payout Method Breakdown
 Branch: feat/wallet/S5-F11/<ID>
 Endpoint: GET /api/payouts/analytics/methods?startDate={date}&endDate={date}
 Auth: Required (USER)
@@ -1872,9 +1745,8 @@ b) Date range with no events → empty list.
 c) Invalid date range → 400.
 d) Without token → 401.
 
-45
 
-10.5.3 [S5-F12] Process Milestone-Based Payout Reversal
+### 10.5.3 [S5-F12] Process Milestone-Based Payout Reversal
 Branch: feat/wallet/S5-F12/<ID>
 Endpoint: POST /api/payouts/{id}/reverse-milestone
 Auth: Required (USER)
@@ -1917,7 +1789,6 @@ reason, original amount, reversal amount, and reversal scope.
 i) Invalidate wallet-service::S5-F10::*, wallet-service::S5-F11::*, and
 wallet-service::payout::{id} (per §4.4.4 NoSQL-writer + PG-writer rules). Over invalidation is acceptable per §8.2.
 
-46
 
 j) Return the updated payout with status code 200.
 Test scenario:
@@ -1937,4 +1808,3 @@ e) Attempt to reverse an already REFUNDED payout → 400.
 f) POST /api/payouts/999/reverse-milestone → 404.
 g) Without token → 401.
 
-47
