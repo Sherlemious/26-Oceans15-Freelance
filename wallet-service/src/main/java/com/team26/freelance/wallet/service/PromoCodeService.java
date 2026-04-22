@@ -26,7 +26,10 @@ public class PromoCodeService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PromoCode not found"));
     }
 
+    @Transactional
     public PromoCode create(PromoCode promoCode) {
+        promoCode.setId(null);
+        promoCode.setCurrentUses(0);
         return promoCodeRepository.save(promoCode);
     }
 
