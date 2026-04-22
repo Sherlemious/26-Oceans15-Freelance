@@ -45,6 +45,7 @@ public class PromoCodeService {
         return promoCodeRepository.save(existing);
     }
 
+    @Transactional
     public void delete(Long id) {
         getById(id);
         promoCodeRepository.deleteById(id);
