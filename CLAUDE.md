@@ -102,5 +102,27 @@ Queries against these fields use PostgreSQL's `@>` operator and `jsonb_build_obj
 
 ## Git Workflow
 
-- Never add `Co-Authored-By: Claude` lines to commits.
-- Branch naming follows feature/chore conventions visible in recent history.
+Never add `Co-Authored-By: Claude` lines to commits.
+
+**Branch naming** (mandatory — auto-grader enforces):
+```
+feat/<service>/<feature-ID>/<studentId>
+```
+Example: `feat/user/S1-F1/55-8078`
+
+Docker setup branch: `feat/docker/<studentId>`
+
+**Commit message format** (mandatory — auto-grader enforces):
+```
+feat(<service-name>): <description> (<studentId>)
+```
+Examples:
+- `feat(user-service): add User entity model (55-8078)`
+- `fix(proposal-service): fix null handling in search query (55-8078)`
+
+The only exception is the initial project setup commit: `init: project setup by (Name_ID)`.
+
+**PR & merge rules:**
+- Every feature goes through a PR; at least 1 teammate must review and approve.
+- Always merge with a **regular merge commit** (not squash). The merge commit message embeds the branch name, which the auto-grader uses to assign features to members.
+- **Do NOT delete feature branches** after merging — the auto-grader looks them up by name.
