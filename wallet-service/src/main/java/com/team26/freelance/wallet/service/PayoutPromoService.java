@@ -56,6 +56,7 @@ public class PayoutPromoService {
         return new PayoutPromoDTO(pp);
     }
 
+    @Transactional
     public void delete(Long id) {
         payoutPromoRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PayoutPromo not found"));
