@@ -35,3 +35,16 @@ desktop.ini
 
 # Docker volumes (local)
 pgdata/
+
+# Root JavaScript files only
+/*.js
+
+# IDEs and more
+
+.claude
+.vscode
+.gemini
+.cursor
+.codex
+.opencode
+.mcp.json
