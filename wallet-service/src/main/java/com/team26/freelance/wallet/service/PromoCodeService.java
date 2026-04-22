@@ -5,6 +5,7 @@ import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -29,6 +30,7 @@ public class PromoCodeService {
         return promoCodeRepository.save(promoCode);
     }
 
+    @Transactional
     public PromoCode update(Long id, PromoCode updated) {
         PromoCode existing = getById(id);
         existing.setCode(updated.getCode());
