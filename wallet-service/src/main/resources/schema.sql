@@ -24,18 +24,6 @@ END $$;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum
-        WHERE enumlabel = 'BANK'
-          AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'payout_method')
-    ) THEN
-        ALTER TYPE payout_method ADD VALUE 'BANK';
-    END IF;
-END $$;
-@@
-
-DO $$
-BEGIN
     IF to_regclass('public.payouts') IS NOT NULL THEN
         IF EXISTS (
             SELECT 1
