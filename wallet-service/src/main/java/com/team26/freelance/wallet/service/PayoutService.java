@@ -165,7 +165,7 @@ public class PayoutService {
               p.setMethod(PayoutMethod.BANK_TRANSFER);
               p.setStatus(PayoutStatus.PENDING);
               p.setTransactionDetails(new HashMap<>());
-              return payoutRepository.save(p);
+              return p;
             });
 
     PayoutMethod method = request != null ? request.getMethod() : null;
