@@ -4,6 +4,7 @@ import com.team26.freelance.wallet.dto.PromoCodeRequestDTO;
 import com.team26.freelance.wallet.dto.PromoCodeResponseDTO;
 import com.team26.freelance.wallet.model.PromoCode;
 import com.team26.freelance.wallet.service.PromoCodeService;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
@@ -39,13 +40,13 @@ public class PromoCodeController {
     }
 
     @PostMapping
-    public ResponseEntity<PromoCodeResponseDTO> create(@RequestBody PromoCodeRequestDTO request) {
+    public ResponseEntity<PromoCodeResponseDTO> create(@Valid @RequestBody PromoCodeRequestDTO request) {
         PromoCode promoCode = mapToEntity(request);
         return ResponseEntity.status(201).body(new PromoCodeResponseDTO(promoCodeService.create(promoCode)));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PromoCodeResponseDTO> update(@PathVariable Long id, @RequestBody PromoCodeRequestDTO request) {
+    public ResponseEntity<PromoCodeResponseDTO> update(@PathVariable Long id, @Valid @RequestBody PromoCodeRequestDTO request) {
         PromoCode promoCode = mapToEntity(request);
         return ResponseEntity.ok(new PromoCodeResponseDTO(promoCodeService.update(id, promoCode)));
     }

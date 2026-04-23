@@ -1,15 +1,25 @@
 package com.team26.freelance.wallet.dto;
 
 import com.team26.freelance.wallet.model.DiscountType;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.LocalDateTime;
 import java.util.Map;
 
 public class PromoCodeRequestDTO {
 
+    @NotBlank
     private String code;
+    @NotNull
     private DiscountType discountType;
+    @NotNull
+    @Positive
     private Double discountValue;
+    @NotNull
+    @Positive
     private Integer maxUses;
+    @NotNull
     private LocalDateTime expiryDate;
     private Boolean active;
     private Map<String, Object> metadata;
