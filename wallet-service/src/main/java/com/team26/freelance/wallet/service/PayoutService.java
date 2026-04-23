@@ -143,6 +143,11 @@ public class PayoutService {
     Double agreedAmount = contractData.getAgreedAmount();
     Long freelancerId = contractData.getFreelancerId();
 
+    if (agreedAmount == null || freelancerId == null) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                        "Contract data is incomplete for payout processing");
+    }
+
     if (!"COMPLETED".equals(contractStatus)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                                         "Contract must be COMPLETED");
