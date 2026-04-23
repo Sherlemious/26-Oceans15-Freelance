@@ -168,7 +168,7 @@ public class PayoutService {
               return p;
             });
 
-    PayoutMethod method = request != null ? request.getMethod() : null;
+    PayoutMethod method = normalizePayoutMethod(request != null ? request.getMethod() : null);
     String accountLastFour = request != null ? request.getAccountLastFour() : null;
 
     if (accountLastFour != null && !accountLastFour.isBlank() &&
@@ -238,6 +238,13 @@ public class PayoutService {
     payout.getTransactionDetails().put("refundedAt",
                                        LocalDateTime.now().toString());
     return payoutRepository.save(payout);
+  }
+
+  private PayoutMethod normalizePayoutMethod(PayoutMethod method) {
+    if (method == PayoutMethod.BANK) {
+      return PayoutMethod.BANK_TRANSFER;
+    }
+    return method;
   }
 
   @Transactional
