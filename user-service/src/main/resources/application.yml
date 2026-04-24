@@ -33,5 +33,5 @@ spring:
       password: ${SPRING_REDIS_PASSWORD:redispass}
 
 jwt:
-  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckpXVEF1dGhlbnRpY2F0aW9u}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400000}
