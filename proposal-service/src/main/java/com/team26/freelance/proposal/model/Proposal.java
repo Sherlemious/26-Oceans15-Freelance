@@ -56,30 +56,97 @@ public class Proposal {
     @PrePersist
     protected void onCreate() {
         this.submittedAt = LocalDateTime.now();
+        this.status = ProposalStatus.SUBMITTED;
     }
 
-    public Proposal() {}
+    public Proposal() {
+    }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getJobId() { return jobId; }
-    public void setJobId(Long jobId) { this.jobId = jobId; }
-    public Long getFreelancerId() { return freelancerId; }
-    public void setFreelancerId(Long freelancerId) { this.freelancerId = freelancerId; }
-    public String getCoverLetter() { return coverLetter; }
-    public void setCoverLetter(String coverLetter) { this.coverLetter = coverLetter; }
-    public Double getBidAmount() { return bidAmount; }
-    public void setBidAmount(Double bidAmount) { this.bidAmount = bidAmount; }
-    public Integer getEstimatedDays() { return estimatedDays; }
-    public void setEstimatedDays(Integer estimatedDays) { this.estimatedDays = estimatedDays; }
-    public ProposalStatus getStatus() { return status; }
-    public void setStatus(ProposalStatus status) { this.status = status; }
-    public Map<String, Object> getMetadata() { return metadata; }
-    public void setMetadata(Map<String, Object> metadata) { this.metadata = metadata; }
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
-    public LocalDateTime getAcceptedAt() { return acceptedAt; }
-    public void setAcceptedAt(LocalDateTime acceptedAt) { this.acceptedAt = acceptedAt; }
-    public List<ProposalMilestone> getProposalMilestones() { return proposalMilestones; }
-    public void setProposalMilestones(List<ProposalMilestone> proposalMilestones) { this.proposalMilestones = proposalMilestones; }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(Long jobId) {
+        this.jobId = jobId;
+    }
+
+    public Long getFreelancerId() {
+        return freelancerId;
+    }
+
+    public void setFreelancerId(Long freelancerId) {
+        this.freelancerId = freelancerId;
+    }
+
+    public String getCoverLetter() {
+        return coverLetter;
+    }
+
+    public void setCoverLetter(String coverLetter) {
+        this.coverLetter = coverLetter;
+    }
+
+    public Double getBidAmount() {
+        return bidAmount;
+    }
+
+    public void setBidAmount(Double bidAmount) {
+        this.bidAmount = bidAmount;
+    }
+
+    public Integer getEstimatedDays() {
+        return estimatedDays;
+    }
+
+    public void setEstimatedDays(Integer estimatedDays) {
+        this.estimatedDays = estimatedDays;
+    }
+
+    public ProposalStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ProposalStatus status) {
+        this.status = status;
+    }
+
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
+
+    public LocalDateTime getSubmittedAt() {
+        return submittedAt;
+    }
+
+    public void setSubmittedAt(LocalDateTime submittedAt) {
+        this.submittedAt = submittedAt;
+    }
+
+    public LocalDateTime getAcceptedAt() {
+        return acceptedAt;
+    }
+
+    public void setAcceptedAt(LocalDateTime acceptedAt) {
+        this.acceptedAt = acceptedAt;
+    }
+
+    public List<ProposalMilestone> getProposalMilestones() {
+        return proposalMilestones;
+    }
+
+    public void setProposalMilestones(List<ProposalMilestone> proposalMilestones) {
+        this.proposalMilestones = proposalMilestones;
+    }
 }

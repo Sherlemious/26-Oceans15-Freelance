@@ -1,25 +1,15 @@
 package com.team26.freelance.proposal.dto;
 
-import java.util.Objects;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 public record AddMilestoneToProposalItemDTO(
+		@NotBlank(message = "title is required")
 		String title,
+		@NotBlank(message = "description is required")
 		String description,
-		Double amount
-) {
-	public AddMilestoneToProposalItemDTO {
-		Objects.requireNonNull(title, "title is required");
-		Objects.requireNonNull(description, "description is required");
-		Objects.requireNonNull(amount, "amount is required");
-
-		if (title.isBlank()) {
-			throw new IllegalArgumentException("title must not be blank");
-		}
-		if (description.isBlank()) {
-			throw new IllegalArgumentException("description must not be blank");
-		}
-		if (amount <= 0) {
-			throw new IllegalArgumentException("amount must be greater than 0");
-		}
-	}
+		@NotNull(message = "amount is required")
+		@Positive(message = "amount must be greater than 0")
+		Double amount) {
 }
