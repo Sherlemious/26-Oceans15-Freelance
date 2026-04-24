@@ -46,14 +46,14 @@ public class ProposalMilestoneController {
         return ResponseEntity.status(201).body(proposalMilestoneService.createMilestone(id, milestone));
     }
 
-    @PutMapping("/milestones/{id}")
-    public ResponseEntity<ProposalMilestone> updateMilestone(@PathVariable Long id,
+    @PutMapping("/{id}")
+    public ResponseEntity<ProposalMilestone> updateMilestone(@NonNull @PathVariable Long id,
             @RequestBody ProposalMilestone milestone) {
         return ResponseEntity.ok(proposalMilestoneService.updateMilestone(id, milestone));
     }
 
-    @DeleteMapping("/milestones/{id}")
-    public ResponseEntity<Void> deleteMilestone(@PathVariable Long id) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteMilestone(@NonNull @PathVariable Long id) {
         proposalMilestoneService.deleteMilestone(id);
         return ResponseEntity.noContent().build();
     }

@@ -19,12 +19,13 @@ public class ProposalMilestoneService {
     private ProposalService proposalService;
     private ProposalMilestoneRepository proposalMilestoneRepository;
 
-    public ProposalMilestoneService(ProposalMilestoneRepository milestoneRepository, ProposalService proposalService, ProposalMilestoneRepository proposalMilestoneRepository) {
+    public ProposalMilestoneService(ProposalMilestoneRepository milestoneRepository, ProposalService proposalService,
+            ProposalMilestoneRepository proposalMilestoneRepository) {
         this.milestoneRepository = milestoneRepository;
         this.proposalService = proposalService;
         this.proposalMilestoneRepository = proposalMilestoneRepository;
     }
-    
+
     // ── CRUD for Milestones ────────────────────────────────────────────────
 
     public List<ProposalMilestone> getAllMilestones() {
@@ -49,7 +50,7 @@ public class ProposalMilestoneService {
         return milestoneRepository.save(proposalMilestone);
     }
 
-    public ProposalMilestone updateMilestone(Long id, ProposalMilestone updated) {
+    public ProposalMilestone updateMilestone(@NonNull Long id, ProposalMilestone updated) {
         ProposalMilestone existing = getMilestoneById(id);
         existing.setTitle(updated.getTitle());
         existing.setDescription(updated.getDescription());
@@ -59,7 +60,7 @@ public class ProposalMilestoneService {
         return milestoneRepository.save(existing);
     }
 
-    public void deleteMilestone(Long id) {
+    public void deleteMilestone(@NonNull Long id) {
         getMilestoneById(id);
         milestoneRepository.deleteById(id);
     }

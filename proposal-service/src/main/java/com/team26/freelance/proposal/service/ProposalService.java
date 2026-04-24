@@ -41,7 +41,7 @@ public class ProposalService {
         return proposalRepository.findAll();
     }
 
-    public Proposal getProposalById(Long id) {
+    public Proposal getProposalById(@NonNull Long id) {
         return proposalRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
     }
@@ -57,18 +57,19 @@ public class ProposalService {
         return proposalRepository.save(proposal);
     }
 
-    public Proposal updateProposal(Long id, UpdateProposalDTO updated) {
+    public Proposal updateProposal(@NonNull Long id, UpdateProposalDTO updated) {
         Proposal existing = getProposalById(id);
         existing.setCoverLetter(updated.coverLetter());
         existing.setBidAmount(updated.bidAmount());
         existing.setEstimatedDays(updated.estimatedDays());
         existing.setStatus(updated.status());
         existing.setMetadata(updated.metadata());
+        existing.setProposalMilestones(updated.milestones());
         return proposalRepository.save(existing);
     }
 
-    public void deleteProposal(Long id) {
-        getProposalById(id); // throws 404 if missing
+    public void deleteProposal(@NonNull Long id) {
+        getProposalById(id);
         proposalRepository.deleteById(id);
     }
 
@@ -77,7 +78,7 @@ public class ProposalService {
     }
 
     @Transactional
-    public Proposal acceptProposal(Long proposalId) {
+    public Proposal acceptProposal(@NonNull Long proposalId) {
         Proposal proposal = proposalRepository.findById(proposalId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
@@ -131,7 +132,7 @@ public class ProposalService {
     }
 
     @Transactional
-    public Proposal completeProposalContract(Long proposalId) {
+    public Proposal completeProposalContract(@NonNull Long proposalId) {
         Proposal proposal = proposalRepository.findById(proposalId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
@@ -177,7 +178,7 @@ public class ProposalService {
     }
 
     @Transactional
-    public Proposal addMilestoneToProposal(Long proposalId, List<ProposalMilestone> milestones) {
+    public Proposal addMilestoneToProposal(@NonNull Long proposalId, List<ProposalMilestone> milestones) {
         Proposal proposal = getProposalById(proposalId);
 
         if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
