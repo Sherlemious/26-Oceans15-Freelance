@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -28,6 +29,7 @@ public class ProposalService {
 
     private final ProposalRepository proposalRepository;
     private final ProposalMilestoneRepository milestoneRepository;
+    private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
 
     public ProposalService(ProposalRepository proposalRepository,
             ProposalMilestoneRepository milestoneRepository) {
@@ -62,9 +64,12 @@ public class ProposalService {
         existing.setCoverLetter(updated.coverLetter());
         existing.setBidAmount(updated.bidAmount());
         existing.setEstimatedDays(updated.estimatedDays());
-        existing.setStatus(updated.status());
-        existing.setMetadata(updated.metadata());
-        existing.setProposalMilestones(updated.milestones());
+        if (updated.status() != null) {
+            existing.setStatus(updated.status());
+        }
+        if (updated.metadata() != null) {
+            existing.setMetadata(updated.metadata());
+        }
         return proposalRepository.save(existing);
     }
 
@@ -73,8 +78,28 @@ public class ProposalService {
         proposalRepository.deleteById(id);
     }
 
-    public List<Proposal> searchByStatusAndDateRange(String status, LocalDateTime startDate, LocalDateTime endDate) {
-        return proposalRepository.searchByStatusAndDateRange(status, startDate, endDate);
+    public List<Proposal> searchByStatusAndDateRange(String status, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime start = null;
+        LocalDateTime end = null;
+
+        if (startDate != null && endDate != null) {
+            if (startDate.isAfter(endDate)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date must be before end date");
+            }
+            start = startDate.atStartOfDay();
+            end = endDate.atTime(23, 59, 59);
+        }
+        return status == null ? proposalRepository.searchByDateRange(start, end)
+                : startDate == null && endDate == null ? proposalRepository.searchByStatus(status)
+                        : proposalRepository.searchByStatusAndDateRange(status, start, end);
+    }
+
+    private void validateFreelancer(Long freelancerId) {
+        String role = proposalRepository.findFreelancerRole(freelancerId);
+        if (role == null || !role.equalsIgnoreCase("FREELANCER")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid freelancer ID or user is not a freelancer");
+        }
     }
 
     @Transactional
@@ -82,19 +107,19 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findById(proposalId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
+        if (proposal.getStatus() == ProposalStatus.ACCEPTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Proposal is already accepted");
+        }
+        
         if (proposal.getStatus() != ProposalStatus.SUBMITTED
                 && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
         }
 
-        String role = proposalRepository.findFreelancerRole(proposal.getFreelancerId());
-        if (role == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer user not found");
-        }
-        if (!role.equals("FREELANCER")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not a FREELANCER");
-        }
+        // TODO S3-F5: Add freelancer validation to ensure only valid freelancers can have their proposals accepted
+        // this.validateFreelancer(proposal.getFreelancerId());
 
         proposal.setStatus(ProposalStatus.ACCEPTED);
         proposal.setAcceptedAt(LocalDateTime.now());
@@ -104,20 +129,16 @@ public class ProposalService {
         return proposalRepository.save(proposal);
     }
 
-    public FeeEstimateDTO estimateFee(double bidAmount, int estimatedDays) {
-        if (bidAmount <= 0 || estimatedDays <= 0) {
+    public FeeEstimateDTO estimateFee(double bidAmount, int competingProposals) {
+        if (bidAmount <= 0 || competingProposals < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "bidAmount and estimatedDays must be positive");
+                    "bidAmount must be positive and competingProposals must be zero or positive");
         }
 
-        double lower = bidAmount * 0.8;
-        double upper = bidAmount * 1.2;
-        int similarCount = proposalRepository.countActiveSimilarProposals(lower, upper);
-
         double feePercentage;
-        if (similarCount <= 5) {
+        if (competingProposals <= 5) {
             feePercentage = 20.0;
-        } else if (similarCount <= 15) {
+        } else if (competingProposals <= 15) {
             feePercentage = 15.0;
         } else {
             feePercentage = 10.0;
@@ -125,7 +146,7 @@ public class ProposalService {
 
         double platformFee = bidAmount * feePercentage / 100;
         double freelancerPayout = bidAmount - platformFee;
-        double estimatedDailyRate = freelancerPayout / estimatedDays;
+        double estimatedDailyRate = freelancerPayout;
 
         return new FeeEstimateDTO(bidAmount, platformFee, freelancerPayout,
                 feePercentage, estimatedDailyRate);
@@ -274,7 +295,13 @@ public class ProposalService {
 
         if (normalizedKey == null || normalizedKey.isBlank() ||
                 normalizedValue == null || normalizedValue.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Metadata key and value must not be blank");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Metadata key and value must not be blank");
+        }
+
+        if (!normalizedKey.matches(VALID_KEY_REGEX)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid metadata key");
         }
 
         return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);

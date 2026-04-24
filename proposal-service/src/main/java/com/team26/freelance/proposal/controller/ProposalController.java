@@ -10,6 +10,8 @@ import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
@@ -38,7 +40,7 @@ public class ProposalController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Proposal> getProposalById(@PathVariable Long id) {
+    public ResponseEntity<Proposal> getProposalById(@NonNull @PathVariable Long id) {
         return ResponseEntity.ok(proposalService.getProposalById(id));
     }
 
@@ -48,13 +50,13 @@ public class ProposalController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Proposal> updateProposal(@PathVariable Long id,
+    public ResponseEntity<Proposal> updateProposal(@NonNull @PathVariable Long id,
             @Valid @RequestBody UpdateProposalDTO proposal) {
         return ResponseEntity.ok(proposalService.updateProposal(id, proposal));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProposal(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProposal(@NonNull @PathVariable Long id) {
         proposalService.deleteProposal(id);
         return ResponseEntity.noContent().build();
     }
@@ -62,29 +64,27 @@ public class ProposalController {
     @GetMapping("/search")
     public ResponseEntity<List<Proposal>> searchProposals(
             @RequestParam(required = false) String status,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.atTime(23, 59, 59);
-        return ResponseEntity.ok(proposalService.searchByStatusAndDateRange(status, start, end));
+        return ResponseEntity.ok(proposalService.searchByStatusAndDateRange(status, startDate, endDate));
     }
 
     @PutMapping("/{proposalId}/accept")
-    public ResponseEntity<Proposal> acceptProposal(@PathVariable Long proposalId) {
+    public ResponseEntity<Proposal> acceptProposal(@NonNull @PathVariable Long proposalId) {
         return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
     }
 
     @PostMapping("/estimate")
     public ResponseEntity<FeeEstimateDTO> estimateFee(@Valid @RequestBody FeeEstimateRequest request) {
         return ResponseEntity.ok(proposalService.estimateFee(
-                request.getBidAmount(), request.getEstimatedDays()));
+                request.getBidAmount(), request.getCompetingProposals()));
     }
 
     // ── S3-F4: Complete Proposal's Contract ─────────────────────────────────
 
     @PutMapping("/{id}/complete")
-    public ResponseEntity<Proposal> completeProposalContract(@PathVariable Long id) {
+    public ResponseEntity<Proposal> completeProposalContract(@NonNull @PathVariable Long id) {
         Proposal completedProposal = proposalService.completeProposalContract(id);
         return ResponseEntity.ok(completedProposal);
     }
@@ -96,14 +96,14 @@ public class ProposalController {
     }
 
     @PostMapping("/{proposalId}/milestones")
-    public ResponseEntity<Proposal> addMilestonesToProposal(@PathVariable Long proposalId,
+    public ResponseEntity<Proposal> addMilestonesToProposal(@NonNull @PathVariable Long proposalId,
             @RequestBody List<ProposalMilestone> milestones) {
         Proposal updatedProposal = proposalService.addMilestoneToProposal(proposalId, milestones);
         return ResponseEntity.ok(updatedProposal);
     }
 
     @GetMapping("/{proposalId}/details")
-    public ResponseEntity<ProposalDetailsDTO> getProposalDetails(@PathVariable Long proposalId) {
+    public ResponseEntity<ProposalDetailsDTO> getProposalDetails(@NonNull @PathVariable Long proposalId) {
         return ResponseEntity.ok(proposalService.getProposalDetails(proposalId));
     }
 
@@ -111,8 +111,8 @@ public class ProposalController {
 
     @GetMapping("/metadata/search")
     public ResponseEntity<List<Proposal>> searchByMetadata(
-            @RequestParam String key,
-            @RequestParam String value) {
+            @NotBlank @RequestParam(required = true) String key,
+            @NotBlank @RequestParam(required = true) String value) {
 
         List<Proposal> results = proposalService.filterProposalsByMetadata(key, value);
         return ResponseEntity.ok(results);
