@@ -4,16 +4,21 @@ import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
 import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
+import com.team26.freelance.wallet.dto.PayoutReversalResultDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.model.DiscountType;
 import com.team26.freelance.wallet.model.Payout;
+import com.team26.freelance.wallet.model.PayoutAuditEvent;
 import com.team26.freelance.wallet.model.PayoutPromo;
 import com.team26.freelance.wallet.model.PayoutStatus;
 import com.team26.freelance.wallet.model.PromoCode;
+import com.team26.freelance.wallet.repository.PayoutAuditEventRepository;
 import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
+import com.team26.freelance.wallet.strategy.PayoutReversalContext;
+import com.team26.freelance.wallet.strategy.PayoutReversalResult;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -34,13 +39,16 @@ public class PayoutService {
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
   private final PayoutPromoRepository payoutPromoRepository;
+  private final PayoutAuditEventRepository auditEventRepository;
 
   public PayoutService(PayoutRepository payoutRepository,
                        PromoCodeRepository promoCodeRepository,
-                       PayoutPromoRepository payoutPromoRepository) {
+                       PayoutPromoRepository payoutPromoRepository,
+                       PayoutAuditEventRepository auditEventRepository) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
+    this.auditEventRepository = auditEventRepository;
   }
 
   @Transactional
@@ -320,6 +328,39 @@ public class PayoutService {
       totalAmount += sum;
     }
     return new FreelancerPayoutSummaryDTO(freelancerId, totalPayouts, totalAmount, methodBreakdown);
+  }
+
+  @Transactional
+  public PayoutReversalResultDTO reversePayout(Long id) {
+    Payout payout = payoutRepository.findById(id).orElseThrow(
+        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
+
+    PayoutReversalContext context = new PayoutReversalContext();
+    PayoutReversalResult result = context.executeStrategy(payout);
+
+    if (result.isApproved()) {
+      payout.setStatus(PayoutStatus.REFUNDED);
+      Map<String, Object> details = payout.getTransactionDetails();
+      if (details == null) {
+        details = new HashMap<>();
+      }
+      details.put("refundedAt", LocalDateTime.now().toString());
+      details.put("strategyApplied", result.getStrategyApplied());
+      details.put("amountReturned", result.getAmountReturned());
+      payout.setTransactionDetails(details);
+      payoutRepository.save(payout);
+    }
+
+    PayoutAuditEvent event = new PayoutAuditEvent();
+    event.setPayoutId(payout.getId());
+    event.setEventType(result.isApproved() ? "REFUNDED" : "REFUND_DENIED");
+    event.setAmountReturned(result.getAmountReturned());
+    event.setStrategyApplied(result.getStrategyApplied());
+    event.setReason(result.getReason());
+    event.setTimestamp(LocalDateTime.now());
+    auditEventRepository.save(event);
+
+    return new PayoutReversalResultDTO(payout, result);
   }
 
   public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {
