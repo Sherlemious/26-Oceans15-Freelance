@@ -17,9 +17,12 @@ public class PartialRefundStrategy implements PayoutReversalStrategy {
     }
 
     private double resolvePlatformFee(Payout payout) {
-        Object stored = payout.getTransactionDetails().get("platformFee");
-        if (stored instanceof Number number) {
-            return number.doubleValue();
+        var details = payout.getTransactionDetails();
+        if (details != null) {
+            Object stored = details.get("platformFee");
+            if (stored instanceof Number number) {
+                return number.doubleValue();
+            }
         }
         return payout.getAmount() * 0.10;
     }
