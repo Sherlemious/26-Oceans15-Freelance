@@ -9,16 +9,15 @@ import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.model.DiscountType;
 import com.team26.freelance.wallet.model.Payout;
-import com.team26.freelance.wallet.model.PayoutAuditEvent;
 import com.team26.freelance.wallet.model.PayoutPromo;
 import com.team26.freelance.wallet.model.PayoutStatus;
 import com.team26.freelance.wallet.model.PromoCode;
-import com.team26.freelance.wallet.repository.PayoutAuditEventRepository;
 import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import com.team26.freelance.wallet.strategy.PayoutReversalContext;
 import com.team26.freelance.wallet.strategy.PayoutReversalResult;
+import org.springframework.context.ApplicationEventPublisher;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -39,16 +38,19 @@ public class PayoutService {
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
   private final PayoutPromoRepository payoutPromoRepository;
-  private final PayoutAuditEventRepository auditEventRepository;
+  private final PayoutReversalContext payoutReversalContext;
+  private final ApplicationEventPublisher eventPublisher;
 
   public PayoutService(PayoutRepository payoutRepository,
                        PromoCodeRepository promoCodeRepository,
                        PayoutPromoRepository payoutPromoRepository,
-                       PayoutAuditEventRepository auditEventRepository) {
+                       PayoutReversalContext payoutReversalContext,
+                       ApplicationEventPublisher eventPublisher) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
-    this.auditEventRepository = auditEventRepository;
+    this.payoutReversalContext = payoutReversalContext;
+    this.eventPublisher = eventPublisher;
   }
 
   @Transactional
@@ -332,11 +334,10 @@ public class PayoutService {
 
   @Transactional
   public PayoutReversalResultDTO reversePayout(Long id) {
-    Payout payout = payoutRepository.findById(id).orElseThrow(
+    Payout payout = payoutRepository.findByIdWithPromos(id).orElseThrow(
         () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
 
-    PayoutReversalContext context = new PayoutReversalContext();
-    PayoutReversalResult result = context.executeStrategy(payout);
+    PayoutReversalResult result = payoutReversalContext.executeStrategy(payout);
 
     if (result.isApproved()) {
       payout.setStatus(PayoutStatus.REFUNDED);
@@ -351,14 +352,14 @@ public class PayoutService {
       payoutRepository.save(payout);
     }
 
-    PayoutAuditEvent event = new PayoutAuditEvent();
-    event.setPayoutId(payout.getId());
-    event.setEventType(result.isApproved() ? "REFUNDED" : "REFUND_DENIED");
-    event.setAmountReturned(result.getAmountReturned());
-    event.setStrategyApplied(result.getStrategyApplied());
-    event.setReason(result.getReason());
-    event.setTimestamp(LocalDateTime.now());
-    auditEventRepository.save(event);
+    eventPublisher.publishEvent(new PayoutAuditPendingEvent(
+        payout.getId(),
+        result.isApproved() ? "REFUNDED" : "REFUND_DENIED",
+        result.getAmountReturned(),
+        result.getStrategyApplied(),
+        result.getReason(),
+        LocalDateTime.now()
+    ));
 
     return new PayoutReversalResultDTO(payout, result);
   }

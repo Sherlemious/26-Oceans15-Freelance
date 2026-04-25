@@ -7,7 +7,9 @@ import com.team26.freelance.wallet.model.PayoutStatus;
 import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
+import com.team26.freelance.wallet.strategy.PayoutReversalContext;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -37,11 +39,18 @@ class PayoutServiceTest {
     @Mock
     private PayoutPromoRepository payoutPromoRepository;
 
+    @Mock
+    private PayoutReversalContext payoutReversalContext;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private PayoutService payoutService;
 
     @BeforeEach
     void setUp() {
-        payoutService = new PayoutService(payoutRepository, promoCodeRepository, payoutPromoRepository);
+        payoutService = new PayoutService(payoutRepository, promoCodeRepository, payoutPromoRepository,
+                payoutReversalContext, eventPublisher);
     }
 
     @Test

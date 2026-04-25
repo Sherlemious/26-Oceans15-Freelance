@@ -2,10 +2,12 @@ package com.team26.freelance.wallet.strategy;
 
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutStatus;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
+@Component
 public class PayoutReversalContext {
 
     public PayoutReversalResult executeStrategy(Payout payout) {
