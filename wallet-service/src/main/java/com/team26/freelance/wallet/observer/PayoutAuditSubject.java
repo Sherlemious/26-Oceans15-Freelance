@@ -1,22 +1,19 @@
 package com.team26.freelance.wallet.observer;
 
 import com.team26.freelance.wallet.model.PayoutAuditEvent;
-import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
 public class PayoutAuditSubject {
 
-    private final List<EntityObserver<PayoutAuditEvent>> observers = new ArrayList<>();
+    private final List<EntityObserver<PayoutAuditEvent>> observers;
 
-    public void registerObserver(EntityObserver<PayoutAuditEvent> observer) {
-        observers.add(observer);
+    public PayoutAuditSubject(List<EntityObserver<PayoutAuditEvent>> observers) {
+        this.observers = List.copyOf(observers);
     }
 
     public void notifyObservers(PayoutAuditEvent event) {
-        for (EntityObserver<PayoutAuditEvent> observer : observers) {
-            observer.onEvent(event);
-        }
+        observers.forEach(observer -> observer.onEvent(event));
     }
 }

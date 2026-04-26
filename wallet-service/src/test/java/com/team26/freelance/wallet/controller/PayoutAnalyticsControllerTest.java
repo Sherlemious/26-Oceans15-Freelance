@@ -2,6 +2,7 @@ package com.team26.freelance.wallet.controller;
 
 import com.team26.freelance.wallet.dto.PayoutMethodBreakdownDTO;
 import com.team26.freelance.wallet.service.PayoutAnalyticsService;
+import com.team26.freelance.wallet.service.WalletJwtService;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -23,21 +24,24 @@ class PayoutAnalyticsControllerTest {
     @Mock
     private PayoutAnalyticsService payoutAnalyticsService;
 
+    @Mock
+    private WalletJwtService walletJwtService;
+
     @Test
     void getMethodBreakdownShouldRequireBearerToken() {
-        PayoutAnalyticsController controller = new PayoutAnalyticsController(payoutAnalyticsService);
+        PayoutAnalyticsController controller = new PayoutAnalyticsController(payoutAnalyticsService, walletJwtService);
 
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> controller.getMethodBreakdown(null)
-        );
+        whenUnauthorized(null);
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> controller.getMethodBreakdown(null));
 
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
     }
 
     @Test
     void getMethodBreakdownShouldReturnAnalyticsWhenAuthorized() {
-        PayoutAnalyticsController controller = new PayoutAnalyticsController(payoutAnalyticsService);
+        PayoutAnalyticsController controller = new PayoutAnalyticsController(payoutAnalyticsService, walletJwtService);
         List<PayoutMethodBreakdownDTO> breakdown = List.of(
                 new PayoutMethodBreakdownDTO("BANK_TRANSFER", BigDecimal.TEN, 1, BigDecimal.TEN, 100.0)
         );
@@ -46,6 +50,12 @@ class PayoutAnalyticsControllerTest {
         ResponseEntity<List<PayoutMethodBreakdownDTO>> response = controller.getMethodBreakdown("Bearer token");
 
         assertEquals(breakdown, response.getBody());
+        verify(walletJwtService).validateAuthorizationHeader("Bearer token");
         verify(payoutAnalyticsService).getMethodBreakdown();
+    }
+
+    private void whenUnauthorized(String authorization) {
+        org.mockito.Mockito.doThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid bearer token"))
+                .when(walletJwtService).validateAuthorizationHeader(authorization);
     }
 }

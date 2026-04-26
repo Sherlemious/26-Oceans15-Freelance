@@ -48,15 +48,14 @@ public class PayoutAnalyticsService {
     }
 
     public List<PayoutMethodBreakdownDTO> getMethodBreakdown() {
+        payoutAuditService.recordAnalyticsViewed();
         List<PayoutMethodBreakdownDTO> cached = readCachedBreakdown();
         if (cached != null) {
-            payoutAuditService.recordAnalyticsViewed();
             return cached;
         }
 
         List<PayoutMethodBreakdownDTO> result = aggregateMethodBreakdown();
         writeCachedBreakdown(result);
-        payoutAuditService.recordAnalyticsViewed();
         return result;
     }
 
@@ -86,14 +85,19 @@ public class PayoutAnalyticsService {
         try {
             Aggregation aggregation = Aggregation.newAggregation(
                 Aggregation.match(Criteria.where("eventType").in(LIFECYCLE_EVENTS)
-                    .and("payoutMethod").ne(null)),
-                Aggregation.group("payoutMethod")
-                    .sum("amount").as("totalAmount")
-                    .count().as("count")
-                    .sum(ConditionalOperators.when(Criteria.where("eventType").is(PayoutAuditEventType.COMPLETED.name()))
+                    .and("payoutMethod").exists(true).ne(null)
+                    .and("payoutId").exists(true).ne(null)),
+                Aggregation.group("payoutId")
+                    .first("payoutMethod").as("payoutMethod")
+                    .first("amount").as("amount")
+                    .max(ConditionalOperators.when(Criteria.where("eventType").is(PayoutAuditEventType.COMPLETED.name()))
                         .then(1)
                         .otherwise(0))
                     .as("completedCount"),
+                Aggregation.group("payoutMethod")
+                    .sum("amount").as("totalAmount")
+                    .count().as("count")
+                    .sum("completedCount").as("completedCount"),
                 Aggregation.project("totalAmount", "count", "completedCount")
                     .and("_id").as("payoutMethod")
                     .andExclude("_id")

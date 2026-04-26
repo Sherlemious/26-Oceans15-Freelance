@@ -4,7 +4,6 @@ import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutAuditEvent;
 import com.team26.freelance.wallet.model.PayoutAuditEventType;
 import com.team26.freelance.wallet.model.PayoutMethod;
-import com.team26.freelance.wallet.observer.MongoPayoutAuditObserver;
 import com.team26.freelance.wallet.observer.PayoutAuditSubject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,16 +24,13 @@ class PayoutAuditServiceTest {
     private PayoutAuditSubject payoutAuditSubject;
 
     @Mock
-    private MongoPayoutAuditObserver mongoPayoutAuditObserver;
-
-    @Mock
     private PayoutAnalyticsCacheService cacheService;
 
     private PayoutAuditService payoutAuditService;
 
     @BeforeEach
     void setUp() {
-        payoutAuditService = new PayoutAuditService(payoutAuditSubject, mongoPayoutAuditObserver, cacheService);
+        payoutAuditService = new PayoutAuditService(payoutAuditSubject, cacheService);
     }
 
     @Test

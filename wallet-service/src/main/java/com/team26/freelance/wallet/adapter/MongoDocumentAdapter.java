@@ -36,7 +36,7 @@ public class MongoDocumentAdapter {
             return decimal;
         }
         if (value instanceof Number number) {
-            return BigDecimal.valueOf(number.doubleValue());
+            return new BigDecimal(number.toString());
         }
         return new BigDecimal(value.toString());
     }
