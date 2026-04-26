@@ -22,13 +22,16 @@ public class AuthService {
     private final UserRepository userRepository;
     private final AuthEventRepository authEventRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     public AuthService(UserRepository userRepository,
                        AuthEventRepository authEventRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService) {
         this.userRepository = userRepository;
         this.authEventRepository = authEventRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     public AuthResponseDTO register(RegisterRequestDTO request) {
@@ -61,6 +64,8 @@ public class AuthService {
                 Map.of("email", savedUser.getEmail())
         ));
 
-        return new AuthResponseDTO("token", 86400000L);
+        String token = jwtService.generateToken(savedUser);
+
+        return new AuthResponseDTO(token, jwtService.getExpiration());
     }
 }
