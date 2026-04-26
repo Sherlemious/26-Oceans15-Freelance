@@ -17,7 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class WalletJwtServiceTest {
 
     private static final String SECRET = "test-secret";
-    private final WalletJwtService walletJwtService = new WalletJwtService(SECRET, new ObjectMapper());
+    private static final String ISSUER = "freelance-platform";
+    private static final String AUDIENCE = "wallet-service";
+    private final WalletJwtService walletJwtService = new WalletJwtService(SECRET, ISSUER, AUDIENCE, new ObjectMapper());
 
     @Test
     void validateAuthorizationHeaderShouldAcceptValidHs256Jwt() {
@@ -42,9 +44,41 @@ class WalletJwtServiceTest {
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
     }
 
+    @Test
+    void validateAuthorizationHeaderShouldRejectMissingExpiration() {
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> walletJwtService.validateAuthorizationHeader("Bearer " + tokenWithPayload("{\"sub\":\"55-1744\",\"iss\":\"" + ISSUER + "\",\"aud\":\"" + AUDIENCE + "\"}")));
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    }
+
+    @Test
+    void validateAuthorizationHeaderShouldRejectWrongIssuer() {
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> walletJwtService.validateAuthorizationHeader("Bearer " + tokenWithClaims(Instant.now().plusSeconds(60).getEpochSecond(), "other", AUDIENCE)));
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    }
+
+    @Test
+    void validateAuthorizationHeaderShouldRejectWrongAudience() {
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> walletJwtService.validateAuthorizationHeader("Bearer " + tokenWithClaims(Instant.now().plusSeconds(60).getEpochSecond(), ISSUER, "other-service")));
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    }
+
     private String tokenWithExp(long exp) {
+        return tokenWithClaims(exp, ISSUER, AUDIENCE);
+    }
+
+    private String tokenWithClaims(long exp, String issuer, String audience) {
+        return tokenWithPayload("{\"sub\":\"55-1744\",\"exp\":" + exp + ",\"iss\":\"" + issuer + "\",\"aud\":\"" + audience + "\"}");
+    }
+
+    private String tokenWithPayload(String payloadJson) {
         String header = encode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-        String payload = encode("{\"sub\":\"55-1744\",\"exp\":" + exp + "}");
+        String payload = encode(payloadJson);
         String unsignedToken = header + "." + payload;
         return unsignedToken + "." + sign(unsignedToken);
     }

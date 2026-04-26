@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -17,11 +18,17 @@ import org.springframework.web.server.ResponseStatusException;
 public class WalletJwtService {
 
     private final String jwtSecret;
+    private final String expectedIssuer;
+    private final String expectedAudience;
     private final ObjectMapper objectMapper;
 
     public WalletJwtService(@Value("${wallet.jwt.secret}") String jwtSecret,
+                            @Value("${wallet.jwt.issuer}") String expectedIssuer,
+                            @Value("${wallet.jwt.audience}") String expectedAudience,
                             ObjectMapper objectMapper) {
         this.jwtSecret = jwtSecret;
+        this.expectedIssuer = expectedIssuer;
+        this.expectedAudience = expectedAudience;
         this.objectMapper = objectMapper;
     }
 
@@ -52,7 +59,10 @@ public class WalletJwtService {
 
             Map<String, Object> claims = readJsonPart(parts[1]);
             Object exp = claims.get("exp");
-            if (exp instanceof Number number && number.longValue() < Instant.now().getEpochSecond()) {
+            if (!(exp instanceof Number number) || number.longValue() < Instant.now().getEpochSecond()) {
+                throw unauthorized();
+            }
+            if (!expectedIssuer.equals(claims.get("iss")) || !hasExpectedAudience(claims.get("aud"))) {
                 throw unauthorized();
             }
         } catch (ResponseStatusException ex) {
@@ -69,6 +79,16 @@ public class WalletJwtService {
         } catch (Exception ex) {
             throw unauthorized();
         }
+    }
+
+    private boolean hasExpectedAudience(Object aud) {
+        if (aud instanceof String audience) {
+            return expectedAudience.equals(audience);
+        }
+        if (aud instanceof List<?> audiences) {
+            return audiences.stream().anyMatch(expectedAudience::equals);
+        }
+        return false;
     }
 
     private String sign(String unsignedToken) {

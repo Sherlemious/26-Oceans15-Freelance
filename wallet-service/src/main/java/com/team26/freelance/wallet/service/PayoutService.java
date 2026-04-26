@@ -135,6 +135,7 @@ public class PayoutService {
                                            "Payout not found"));
   }
 
+  @Transactional
   public Payout createPayout(Payout payout) {
     Payout saved = payoutRepository.save(payout);
     payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.CREATED, "Payout created");
@@ -200,6 +201,7 @@ public class PayoutService {
     return saved;
   }
 
+  @Transactional
   public Payout updatePayout(Long id, Payout updated) {
     Payout existing = getPayoutById(id);
     PayoutStatus previousStatus = existing.getStatus();
