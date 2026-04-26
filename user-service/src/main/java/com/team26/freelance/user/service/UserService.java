@@ -11,7 +11,10 @@ import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,6 +31,9 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
 
+    @Autowired
+    private PasswordEncoder encoder;
+
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
 
@@ -37,6 +43,11 @@ public class UserService {
     }
 
     public UserResponseDTO create(User user) {
+        if (user.getEmail() == null || user.getPassword() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email or password is required");
+        }
+
+        user.setPassword(encoder.encode(user.getPassword()));
         return new UserResponseDTO(userRepository.save(user));
     }
 
@@ -96,7 +107,7 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         existing.setName(updated.getName());
         existing.setEmail(updated.getEmail());
-        existing.setPassword(updated.getPassword());
+        existing.setPassword(encoder.encode(updated.getPassword()));
         existing.setPhone(updated.getPhone());
         existing.setRole(updated.getRole());
         existing.setStatus(updated.getStatus());
