@@ -13,6 +13,10 @@ import java.time.LocalDateTime;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
+    boolean existsByEmail(String email);
+
+    boolean existsByPhone(String phone);
+
     @Query("""
             SELECT u FROM User u
             WHERE (:name IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :name, '%')))
