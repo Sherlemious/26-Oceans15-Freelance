@@ -33,7 +33,9 @@ spring:
       password: ${SPRING_REDIS_PASSWORD}
 
 jwt:
-  secret: ${JWT_SECRET:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
-  expiration: ${JWT_EXPIRATION:86400000}
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
 
 #make sure env vars are passed at docker compose i think // note for sawy these fallbacks were for testing so change them 
+# jwt secret  MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+#expiration 86400000
