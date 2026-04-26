@@ -18,7 +18,7 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-      
+      /*  testing 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -36,5 +36,5 @@ public class SecurityConfig {
 
     // don't forget to make sure the routes are protected for later (YASSIN W TARIK MALKOOSH DA3WA)
   
-    
+    */
 }
