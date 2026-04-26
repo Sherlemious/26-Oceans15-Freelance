@@ -1,5 +1,6 @@
 package com.team26.freelance.job.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import jakarta.persistence.*;
@@ -14,8 +15,9 @@ import java.util.Map;
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity
 @Table(name = "jobs")
-public class Job {
+public class Job implements java.io.Serializable {
 
+    private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -57,9 +59,10 @@ public class Job {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
-    
-    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
+
+
+    @OneToMany(mappedBy = "job", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<JobAttachment> jobAttachments = new ArrayList<>();
 
     @PrePersist
