@@ -1,0 +1,16 @@
+com\team26\freelance\contract\dto\FreelancerPerformanceDTO.class
+com\team26\freelance\contract\service\dto\ContractStatusUpdateRequest.class
+com\team26\freelance\contract\service\ContractPurgeService.class
+com\team26\freelance\contract\repository\FreelancerPerformanceProjection.class
+com\team26\freelance\contract\controller\StalledContractController.class
+com\team26\freelance\contract\model\ContractStatus.class
+com\team26\freelance\contract\controller\FreelancerController.class
+com\team26\freelance\contract\service\StalledContractService.class
+com\team26\freelance\contract\model\Contract.class
+com\team26\freelance\contract\repository\ContractRepository.class
+com\team26\freelance\contract\controller\ContractController.class
+com\team26\freelance\contract\dto\StalledContractDTO.class
+com\team26\freelance\contract\service\ContractService.class
+com\team26\freelance\contract\ContractApplication.class
+com\team26\freelance\contract\service\FreelancerPerformanceService.class
+com\team26\freelance\contract\controller\HealthController.class

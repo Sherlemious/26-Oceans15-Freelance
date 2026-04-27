@@ -189,6 +189,14 @@ public class PayoutService {
       transactionDetails.put("accountLastFour", accountLastFour);
     }
 
+    if (pendingPayout.getAmount() != null) {
+      double platformFee = BigDecimal.valueOf(pendingPayout.getAmount())
+          .multiply(BigDecimal.valueOf(0.10))
+          .setScale(2, java.math.RoundingMode.HALF_UP)
+          .doubleValue();
+      transactionDetails.put("platformFee", platformFee);
+    }
+
     pendingPayout.setStatus(PayoutStatus.COMPLETED);
     pendingPayout.setMethod(request.getMethod());
     pendingPayout.setTransactionDetails(transactionDetails);
