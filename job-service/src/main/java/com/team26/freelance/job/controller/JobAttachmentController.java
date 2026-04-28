@@ -3,6 +3,7 @@ package com.team26.freelance.job.controller;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.service.JobAttachmentService;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,6 +35,7 @@ public class JobAttachmentController {
     }
 
     @GetMapping("/{attachmentId}")
+    @Cacheable(value = "job-attachments", key = "'job-service::job-attachments::' + #jobId")
     public JobAttachment getAttachmentById(
             @PathVariable Long attachmentId,
             @PathVariable Long jobId
