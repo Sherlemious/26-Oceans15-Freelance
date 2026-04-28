@@ -1,11 +1,6 @@
 package com.team26.freelance.proposal.controller;
 
-import com.team26.freelance.proposal.dto.CreateProposalDTO;
-import com.team26.freelance.proposal.dto.FeeEstimateDTO;
-import com.team26.freelance.proposal.dto.FeeEstimateRequest;
-import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
-import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
-import com.team26.freelance.proposal.dto.UpdateProposalDTO;
+import com.team26.freelance.proposal.dto.*;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
@@ -131,6 +126,15 @@ public class ProposalController {
 
         ProposalAnalyticsDTO report = proposalService.getProposalAnalytics(start, end);
         return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/analytics/dashboard")
+    public ResponseEntity<ProposalAnalyticsDashboardDTO> getAnalyticsDashboard(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        return ResponseEntity.ok(
+                proposalService.getProposalAnalyticsDashboard(startDate, endDate));
     }
 
 }

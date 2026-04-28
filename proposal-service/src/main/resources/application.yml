@@ -43,7 +43,7 @@ jwt:
 
 cache:
   ttl:
-    proposals: ${CACHE_TTL_DETAIL}
-    search: ${CACHE_TTL_SEARCH}
-    analytics: ${CACHE_TTL_DASHBOARD}
-    activity: ${CACHE_TTL_ACTIVITY}
+    proposals: ${CACHE_TTL_DETAIL:900}
+    search: ${CACHE_TTL_SEARCH:300}
+    analytics: ${CACHE_TTL_DASHBOARD:600}
+    activity: ${CACHE_TTL_ACTIVITY:300}
