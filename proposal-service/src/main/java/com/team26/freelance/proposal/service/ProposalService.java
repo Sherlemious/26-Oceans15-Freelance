@@ -378,8 +378,9 @@ public class ProposalService {
             // Redis soft dependency — continue if unavailable
         }
 
-        // Aggregate stats from PostgresSQL
-        Object[] stats = proposalRepository.getAggregateStats(start, end);
+        // Aggregate stats from PostgreSQL
+        List<Object[]> statsList = proposalRepository.getAggregateStats(start, end);
+        Object[] stats = statsList.isEmpty() ? new Object[4] : statsList.get(0);
         long total = stats[0] != null ? ((Number) stats[0]).longValue() : 0L;
         double avgBid = stats[1] != null ? ((Number) stats[1]).doubleValue() : 0.0;
         double avgDays = stats[2] != null ? ((Number) stats[2]).doubleValue() : 0.0;

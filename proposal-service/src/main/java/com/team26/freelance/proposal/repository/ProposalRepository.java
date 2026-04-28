@@ -144,19 +144,18 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         );
 
         @Query(value = """
-                        SELECT 
+                       SELECT 
                         COUNT(*) as total,
                         AVG(bid_amount) as avgBid,
                         AVG(estimated_days) as avgDays,
                         SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END) as accepted
-                        FROM proposals
-                        WHERE submitted_at BETWEEN :startDate AND :endDate
-                        """, nativeQuery = true)
-        Object[] getAggregateStats(
+                       FROM proposals
+                       WHERE submitted_at BETWEEN :startDate AND :endDate
+                       """, nativeQuery = true)
+        List<Object[]> getAggregateStats(
                 @Param("startDate") LocalDateTime startDate,
                 @Param("endDate") LocalDateTime endDate
         );
-
         @Query(value = """
                        SELECT COUNT(*) FROM proposals
                        WHERE submitted_at >= :since
