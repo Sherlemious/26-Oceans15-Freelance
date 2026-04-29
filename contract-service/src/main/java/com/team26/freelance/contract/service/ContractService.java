@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.service;
 
+import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
@@ -39,7 +40,7 @@ public class ContractService {
         this.contractRepository = contractRepository;
     }
 
-    public List<Contract> getContractHistory(LocalDate startDate, LocalDate endDate, ContractStatus status) {
+    public List<ContractDateRangeDTO> getContractHistory(LocalDate startDate, LocalDate endDate, ContractStatus status) {
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate must not be after endDate");
         }
@@ -47,11 +48,28 @@ public class ContractService {
         LocalDateTime startDateTime = startDate.atStartOfDay();
         LocalDateTime endDateTime = endDate.atTime(LocalTime.MAX);
 
+        List<Contract> contracts;
         if (status != null) {
-            return contractRepository.findByCreatedAtBetweenAndStatusOrderByCreatedAtAsc(startDateTime, endDateTime, status);
+            contracts = contractRepository.findByCreatedAtBetweenAndStatusOrderByCreatedAtAsc(startDateTime, endDateTime, status);
+        } else {
+            contracts = contractRepository.findByCreatedAtBetweenOrderByCreatedAtAsc(startDateTime, endDateTime);
         }
 
-        return contractRepository.findByCreatedAtBetweenOrderByCreatedAtAsc(startDateTime, endDateTime);
+        return contracts.stream()
+                .map(c -> ContractDateRangeDTO.builder()
+                        .id(c.getId())
+                        .jobId(c.getJobId())
+                        .freelancerId(c.getFreelancerId())
+                        .clientId(c.getClientId())
+                        .proposalId(c.getProposalId())
+                        .agreedAmount(c.getAgreedAmount())
+                        .status(c.getStatus())
+                        .startDate(c.getStartDate())
+                        .endDate(c.getEndDate())
+                        .metadata(c.getMetadata())
+                        .createdAt(c.getCreatedAt())
+                        .build())
+                .toList();
     }
 
     public List<Contract> searchByMetadata(String key, String operator, String value) {
@@ -63,8 +81,7 @@ public class ContractService {
             } catch (NumberFormatException e) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Value must be numeric for operator: " + normalizedOperator
-                );
+                        "Value must be numeric for operator: " + normalizedOperator);
             }
         }
 
@@ -74,11 +91,10 @@ public class ContractService {
             case "lt" -> contractRepository.findByMetadataLessThan(key, value);
             default -> throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "operator must be one of: eq, gt, lt"
-            );
+                    "operator must be one of: eq, gt, lt");
         };
     }
-    
+
     @Transactional
     public Contract update(Long id, Contract contractDetails) {
         Contract contract = getContractById(id);
@@ -88,22 +104,30 @@ public class ContractService {
             if (!validStatus) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Invalid status transition for contract " + contract.getId() + ": " + contract.getStatus() + " -> " + contractDetails.getStatus()
-                );
+                        "Invalid status transition for contract " + contract.getId() + ": " + contract.getStatus()
+                                + " -> " + contractDetails.getStatus());
             }
             contract.setStatus(contractDetails.getStatus());
         }
-        
-        if (contractDetails.getJobId() != null) contract.setJobId(contractDetails.getJobId());
-        if (contractDetails.getFreelancerId() != null) contract.setFreelancerId(contractDetails.getFreelancerId());
-        if (contractDetails.getClientId() != null) contract.setClientId(contractDetails.getClientId());
-        if (contractDetails.getProposalId() != null) contract.setProposalId(contractDetails.getProposalId());
-        if (contractDetails.getAgreedAmount() != null) contract.setAgreedAmount(contractDetails.getAgreedAmount());
-        
-        if (contractDetails.getStartDate() != null) contract.setStartDate(contractDetails.getStartDate());
-        if (contractDetails.getEndDate() != null) contract.setEndDate(contractDetails.getEndDate());
-        if (contractDetails.getMetadata() != null) contract.setMetadata(contractDetails.getMetadata());
-        
+
+        if (contractDetails.getJobId() != null)
+            contract.setJobId(contractDetails.getJobId());
+        if (contractDetails.getFreelancerId() != null)
+            contract.setFreelancerId(contractDetails.getFreelancerId());
+        if (contractDetails.getClientId() != null)
+            contract.setClientId(contractDetails.getClientId());
+        if (contractDetails.getProposalId() != null)
+            contract.setProposalId(contractDetails.getProposalId());
+        if (contractDetails.getAgreedAmount() != null)
+            contract.setAgreedAmount(contractDetails.getAgreedAmount());
+
+        if (contractDetails.getStartDate() != null)
+            contract.setStartDate(contractDetails.getStartDate());
+        if (contractDetails.getEndDate() != null)
+            contract.setEndDate(contractDetails.getEndDate());
+        if (contractDetails.getMetadata() != null)
+            contract.setMetadata(contractDetails.getMetadata());
+
         return contractRepository.save(contract);
     }
 
@@ -115,7 +139,8 @@ public class ContractService {
     @Transactional
     public int updateStatusesRaw(Map<String, Object> request) {
         Object idsObj = request.get("ids");
-        if (idsObj == null) idsObj = request.get("contractIds");
+        if (idsObj == null)
+            idsObj = request.get("contractIds");
         if (idsObj == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing ids in request");
         }
@@ -138,10 +163,14 @@ public class ContractService {
         }
 
         Object statusObj = request.get("status");
-        if (statusObj == null) statusObj = request.get("newStatus");
-        if (statusObj == null) statusObj = request.get("targetStatus");
-        if (statusObj == null) statusObj = request.get("toStatus");
-        if (statusObj == null) statusObj = request.get("contractStatus");
+        if (statusObj == null)
+            statusObj = request.get("newStatus");
+        if (statusObj == null)
+            statusObj = request.get("targetStatus");
+        if (statusObj == null)
+            statusObj = request.get("toStatus");
+        if (statusObj == null)
+            statusObj = request.get("contractStatus");
 
         String s = statusObj != null ? statusObj.toString().toUpperCase() : null;
 
@@ -151,7 +180,8 @@ public class ContractService {
 
             ContractStatus targetStatus;
             try {
-                if (s == null) throw new NullPointerException();
+                if (s == null)
+                    throw new NullPointerException();
                 targetStatus = ContractStatus.valueOf(s);
             } catch (IllegalArgumentException | NullPointerException e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status");
@@ -162,8 +192,8 @@ public class ContractService {
             if (!valid) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "Invalid status transition for contract " + contract.getId() + ": " + contract.getStatus() + " -> " + targetStatus
-                );
+                        "Invalid status transition for contract " + contract.getId() + ": " + contract.getStatus()
+                                + " -> " + targetStatus);
             }
 
             contract.setStatus(targetStatus);
@@ -187,15 +217,15 @@ public class ContractService {
     public Contract getContractById(Long id) {
         return contractRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Contract not found"
-                ));
+                        HttpStatus.NOT_FOUND, "Contract not found"));
     }
 
     public Contract getActiveContractForUser(Long userId) {
-        return contractRepository.findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(userId, ContractStatus.ACTIVE, userId, ContractStatus.ACTIVE)
+        return contractRepository
+                .findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(userId, ContractStatus.ACTIVE,
+                        userId, ContractStatus.ACTIVE)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Active contract not found"
-                ));
+                        HttpStatus.NOT_FOUND, "Active contract not found"));
     }
 
     @Transactional
@@ -214,8 +244,8 @@ public class ContractService {
     }
 
     public List<ContractSummaryDTO> findContractsByBudgetRangeWithFreelancerInfo(Double minAmount,
-                                                                                 Double maxAmount,
-                                                                                 String status) {
+            Double maxAmount,
+            String status) {
         List<Object[]> rows = contractRepository.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount);
         List<ContractSummaryDTO> contractSummaries = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
@@ -245,7 +275,7 @@ public class ContractService {
                     endDate = LocalDateTime.parse(row[6].toString());
                 }
             }
-            
+
             long durationDays = 0;
             if (startDate != null) {
                 durationDays = ChronoUnit.DAYS.between(startDate, endDate);
@@ -257,19 +287,18 @@ public class ContractService {
                     (String) row[2],
                     ((Number) row[3]).doubleValue(),
                     row[4] != null ? row[4].toString() : null,
-                    durationDays
-            );
+                    durationDays);
             contractSummaries.add(contractSummary);
         }
 
         return contractSummaries;
     }
+
     @Transactional
     public Contract updateContractProgress(Long contractId, Map<String, Object> incomingMetadata) {
         Contract contract = contractRepository.findById(contractId)
                 .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Contract not found"
-                ));
+                        HttpStatus.NOT_FOUND, "Contract not found"));
 
         Map<String, Object> existingMetadata = contract.getMetadata();
         Map<String, Object> newMetadata = new HashMap<>();
