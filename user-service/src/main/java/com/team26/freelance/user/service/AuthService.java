@@ -6,9 +6,11 @@ import com.team26.freelance.user.model.AuthEvent;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
+import com.team26.freelance.user.config.CacheEvictionService;
 import com.team26.freelance.user.repository.AuthEventRepository;
 import com.team26.freelance.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,18 +26,22 @@ public class AuthService {
     private final AuthEventRepository authEventRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final CacheEvictionService cacheEvictionService;
 
     public AuthService(UserRepository userRepository,
                        AuthEventRepository authEventRepository,
                        PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+                       JwtService jwtService,
+                       CacheEvictionService cacheEvictionService) {
         this.userRepository = userRepository;
         this.authEventRepository = authEventRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.cacheEvictionService = cacheEvictionService;
     }
 
     @Transactional
+    @CacheEvict(value = {"user", "user-profile", "user-search", "top-freelancers", "user-language", "user-contract-summary", "user-activity", "user-skill"}, allEntries = true)
     public AuthResponseDTO register(RegisterRequestDTO request) {
         if (request == null
                 || request.getName() == null || request.getName().isBlank()
@@ -65,6 +71,8 @@ public class AuthService {
                 LocalDateTime.now(),
                 Map.of("email", savedUser.getEmail())
         ));
+
+        cacheEvictionService.evictUserActivityFeed(savedUser.getId());
 
         String token = jwtService.generateToken(savedUser);
 

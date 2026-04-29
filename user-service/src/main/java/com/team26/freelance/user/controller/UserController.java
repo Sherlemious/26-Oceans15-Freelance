@@ -2,6 +2,7 @@ package com.team26.freelance.user.controller;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team26.freelance.user.config.CacheEvictionService;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
@@ -17,6 +18,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -45,17 +48,20 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final CacheEvictionService cacheEvictionService;
     private final MongoTemplate mongoTemplate;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final byte[] jwtSecret;
 
     public UserController(UserService userService,
+                          CacheEvictionService cacheEvictionService,
                           MongoTemplate mongoTemplate,
                           StringRedisTemplate redisTemplate,
                           ObjectMapper objectMapper,
                           @Value("${jwt.secret}") String jwtSecret) {
         this.userService = userService;
+        this.cacheEvictionService = cacheEvictionService;
         this.mongoTemplate = mongoTemplate;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
@@ -63,17 +69,20 @@ public class UserController {
     }
 
     @PostMapping
+    @CacheEvict(value = {"user", "user-profile", "user-search", "top-freelancers", "user-language", "user-contract-summary", "user-activity", "user-skill"}, allEntries = true)
     public ResponseEntity<UserResponseDTO> create(@RequestBody User user) {
-        
+        cacheEvictionService.evictByPattern("user-service::S1-F12::*");
         return ResponseEntity.ok(userService.create(user));
     }
 
     @GetMapping("/{id}")
+    @Cacheable(value = "user", key = "'user-service::user::' + #id")
     public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(userService.findById(id));
     }
 
     @GetMapping("/{id}/profile")
+    @Cacheable(value = "user-profile", key = "'user-service::S1-F8::' + #id")
     public ResponseEntity<UserProfileDTO> getProfile(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserProfile(id));
     }
@@ -84,6 +93,7 @@ public class UserController {
     }
 
     @GetMapping("/search")
+    @Cacheable(value = "user-search", key = "'user-service::S1-F1::' + (#name != null ? #name : 'null') + ':' + (#email != null ? #email : 'null') + ':' + (#role != null ? #role : 'null')")
     public ResponseEntity<List<UserResponseDTO>> searchUsers(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String email,
@@ -92,23 +102,31 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @CacheEvict(value = {"user", "user-profile", "user-search", "top-freelancers", "user-language", "user-contract-summary", "user-activity"}, allEntries = true)
     public ResponseEntity<UserResponseDTO> update(@PathVariable Long id, @RequestBody User user) {
+        cacheEvictionService.evictUserActivityFeed(id);
         return ResponseEntity.ok(userService.update(id, user));
     }
 
     @DeleteMapping("/{id}")
+    @CacheEvict(value = {"user", "user-profile", "user-search", "top-freelancers", "user-language", "user-contract-summary", "user-activity"}, allEntries = true)
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        cacheEvictionService.evictUserActivityFeed(id);
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}/deactivate")
+    @CacheEvict(value = {"user", "user-profile", "user-search", "top-freelancers", "user-language", "user-contract-summary", "user-activity"}, allEntries = true)
     public ResponseEntity<UserResponseDTO> deactivate(@PathVariable Long id) {
+        cacheEvictionService.evictUserActivityFeed(id);
         return ResponseEntity.ok(userService.deactivate(id));
     }
 
     @PutMapping("/{userId}/skills/{skillId}/primary")
+    @CacheEvict(value = {"user", "user-profile", "user-search", "top-freelancers", "user-language", "user-contract-summary", "user-activity", "user-skill"}, allEntries = true)
     public ResponseEntity<UserResponseDTO> setPrimarySkill(@PathVariable Long userId, @PathVariable Long skillId) {
+        cacheEvictionService.evictUserActivityFeed(userId);
         return ResponseEntity.ok(userService.setPrimarySkill(userId, skillId));
     }
 
@@ -120,6 +138,7 @@ public class UserController {
     }
 
     @GetMapping("/reports/top-freelancers")
+    @Cacheable(value = "top-freelancers", key = "'user-service::S1-F6::' + #startDate + ':' + #endDate + ':' + #limit")
     public ResponseEntity<List<TopFreelancerDTO>> topFreelancers(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -128,17 +147,21 @@ public class UserController {
     }
 
     @GetMapping("/preferences/language")
+    @Cacheable(value = "user-language", key = "'user-service::S1-F9::' + #lang + ':' + #minContracts")
     public ResponseEntity<List<UserResponseDTO>> findByLanguageWithMinContracts(
             @RequestParam String lang,
             @RequestParam int minContracts) {
         return ResponseEntity.ok(userService.findByLanguageWithMinCompletedContracts(lang, minContracts));
     }
     @PutMapping("/{id}/preferences")
+    @CacheEvict(value = {"user", "user-profile", "user-search", "top-freelancers", "user-language", "user-contract-summary", "user-activity"}, allEntries = true)
     public ResponseEntity<UserResponseDTO> updatePreferences(@PathVariable Long id, @RequestBody Map<String, Object> preferences) {
+        cacheEvictionService.evictUserActivityFeed(id);
         return ResponseEntity.ok(userService.updatePreferences(id, preferences));
     }
 
     @GetMapping("/{id}/contract-summary")
+    @Cacheable(value = "user-contract-summary", key = "'user-service::S1-F3::' + #id")
     public ResponseEntity<UserContractSummaryDTO> getContractSummary(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUserContractSummary(id));
     }
