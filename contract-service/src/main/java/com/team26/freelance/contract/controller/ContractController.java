@@ -1,9 +1,11 @@
 package com.team26.freelance.contract.controller;
 
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
+import com.team26.freelance.contract.dto.ContractAnalyticsDashboardDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
+import com.team26.freelance.contract.service.ContractAnalyticsService;
 import com.team26.freelance.contract.service.ContractService;
 import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -20,9 +22,11 @@ import java.util.Map;
 public class ContractController {
 
     private final ContractService contractService;
+    private final ContractAnalyticsService contractAnalyticsService;
 
-    public ContractController(ContractService contractService) {
+    public ContractController(ContractService contractService, ContractAnalyticsService contractAnalyticsService) {
         this.contractService = contractService;
+        this.contractAnalyticsService = contractAnalyticsService;
     }
 
     @GetMapping("/history")
@@ -40,6 +44,11 @@ public class ContractController {
             @RequestParam String operator,
             @RequestParam String value) {
         return ResponseEntity.ok(contractService.searchByMetadata(key, operator, value));
+    }
+
+    @GetMapping("/analytics/dashboard")
+    public ResponseEntity<ContractAnalyticsDashboardDTO> getAnalyticsDashboard() {
+        return ResponseEntity.ok(contractAnalyticsService.getDashboard());
     }
 
     @PutMapping("/{id}")

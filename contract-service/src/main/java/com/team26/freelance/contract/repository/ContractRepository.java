@@ -49,6 +49,23 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
 	@Query(value = "SELECT * FROM contracts WHERE CAST(metadata->>:key AS numeric) < CAST(:value AS numeric)", nativeQuery = true)
 	List<Contract> findByMetadataLessThan(@Param("key") String key, @Param("value") String value);
+
+    @Query(value = """
+        SELECT
+            COUNT(*) AS "totalContracts",
+            CAST(COALESCE(AVG(agreed_amount), 0) AS double precision) AS "averageContractBudget",
+            COUNT(*) FILTER (WHERE CAST(status AS VARCHAR) = 'COMPLETED') AS "completedContracts",
+            COUNT(*) FILTER (WHERE CAST(status AS VARCHAR) = 'COMPLETED' AND end_date >= :cutoff) AS "contractsCompletedLast30Days"
+        FROM contracts
+    """, nativeQuery = true)
+    ContractAnalyticsAggregateProjection getContractAnalyticsAggregate(@Param("cutoff") LocalDateTime cutoff);
+
+    @Query(value = """
+        SELECT CAST(status AS VARCHAR) AS status, COUNT(*) AS "contractCount"
+        FROM contracts
+        GROUP BY status
+    """, nativeQuery = true)
+    List<ContractStatusCountProjection> countContractsByStatus();
   
   @Query(value = "SELECT COUNT(*) FROM users WHERE id = :freelancerId", nativeQuery = true)
   long countUserById(@Param("freelancerId") Long freelancerId);
