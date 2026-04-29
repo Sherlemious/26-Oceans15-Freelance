@@ -15,7 +15,7 @@
     <artifactId>wallet-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>wallet-service</name>
-    <description>Wallet Service â€” Payment processing, refunds, revenue (port 8085)</description>
+    <description>Wallet Service — Payment processing, refunds, revenue (port 8085)</description>
 
     <properties>
         <java.version>25</java.version>
