@@ -10,9 +10,12 @@ import java.time.LocalDateTime;
 public class ContractPurgeService {
 
     private final ContractRepository contractRepository;
+    private final ContractAnalyticsCacheService contractAnalyticsCacheService;
 
-    public ContractPurgeService(ContractRepository contractRepository) {
+    public ContractPurgeService(ContractRepository contractRepository,
+            ContractAnalyticsCacheService contractAnalyticsCacheService) {
         this.contractRepository = contractRepository;
+        this.contractAnalyticsCacheService = contractAnalyticsCacheService;
     }
 
     @Transactional
@@ -21,6 +24,10 @@ public class ContractPurgeService {
             throw new IllegalArgumentException("olderThanDays must be a positive number");
         }
         LocalDateTime cutoff = LocalDateTime.now().minusDays(olderThanDays);
-        return contractRepository.deleteOldContracts(cutoff);
+        long deleted = contractRepository.deleteOldContracts(cutoff);
+        if (deleted > 0) {
+            contractAnalyticsCacheService.evictDashboard();
+        }
+        return deleted;
     }
 }

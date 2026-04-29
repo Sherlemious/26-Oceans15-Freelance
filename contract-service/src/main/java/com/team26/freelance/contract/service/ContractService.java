@@ -35,9 +35,12 @@ import java.util.stream.Collectors;
 public class ContractService {
 
     private final ContractRepository contractRepository;
+    private final ContractAnalyticsCacheService contractAnalyticsCacheService;
 
-    public ContractService(ContractRepository contractRepository) {
+    public ContractService(ContractRepository contractRepository,
+            ContractAnalyticsCacheService contractAnalyticsCacheService) {
         this.contractRepository = contractRepository;
+        this.contractAnalyticsCacheService = contractAnalyticsCacheService;
     }
 
     public List<ContractDateRangeDTO> getContractHistory(LocalDate startDate, LocalDate endDate, ContractStatus status) {
@@ -128,12 +131,15 @@ public class ContractService {
         if (contractDetails.getMetadata() != null)
             contract.setMetadata(contractDetails.getMetadata());
 
-        return contractRepository.save(contract);
+        Contract savedContract = contractRepository.save(contract);
+        contractAnalyticsCacheService.evictDashboard();
+        return savedContract;
     }
 
     public void delete(Long id) {
         Contract contract = getContractById(id);
         contractRepository.delete(contract);
+        contractAnalyticsCacheService.evictDashboard();
     }
 
     @Transactional
@@ -207,6 +213,7 @@ public class ContractService {
         }
 
         contractRepository.saveAll(toSave);
+        contractAnalyticsCacheService.evictDashboard();
         return toSave.size();
     }
 
@@ -240,7 +247,9 @@ public class ContractService {
         if (contract.getCreatedAt() == null) {
             contract.setCreatedAt(LocalDateTime.now());
         }
-        return contractRepository.save(contract);
+        Contract savedContract = contractRepository.save(contract);
+        contractAnalyticsCacheService.evictDashboard();
+        return savedContract;
     }
 
     public List<ContractSummaryDTO> findContractsByBudgetRangeWithFreelancerInfo(Double minAmount,
@@ -310,7 +319,9 @@ public class ContractService {
         }
         contract.setMetadata(newMetadata);
 
-        return contractRepository.save(contract);
+        Contract savedContract = contractRepository.save(contract);
+        contractAnalyticsCacheService.evictDashboard();
+        return savedContract;
     }
 
 }
