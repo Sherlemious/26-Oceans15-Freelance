@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
 
 @RestController
 @RequestMapping("/api/payouts")
@@ -42,6 +43,11 @@ public class PayoutController {
   public ResponseEntity<Payout> getPayoutById(@PathVariable Long id) {
     return ResponseEntity.ok(payoutService.getPayoutById(id));
   }
+
+    @GetMapping("/analytics/category")
+    public ResponseEntity<List<CategoryRevenueDTO>> getPlatformFeeAnalyticsByCategory() {
+      return ResponseEntity.ok(payoutService.getPlatformFeeAnalyticsByCategory());
+    }
 
   @PostMapping
   public ResponseEntity<Payout> createPayout(@RequestBody Payout payout) {

@@ -17,6 +17,9 @@ import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import com.team26.freelance.wallet.strategy.PayoutReversalContext;
 import com.team26.freelance.wallet.strategy.PayoutReversalResult;
+import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
+import com.team26.freelance.wallet.model.PayoutAuditEvent;
+import com.team26.freelance.wallet.repository.PayoutAuditEventRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -40,17 +43,23 @@ public class PayoutService {
   private final PayoutPromoRepository payoutPromoRepository;
   private final PayoutReversalContext payoutReversalContext;
   private final ApplicationEventPublisher eventPublisher;
+  private final PlatformFeeAnalyticsService platformFeeAnalyticsService;
+  private final PayoutAuditEventRepository payoutAuditEventRepository;
 
   public PayoutService(PayoutRepository payoutRepository,
                        PromoCodeRepository promoCodeRepository,
                        PayoutPromoRepository payoutPromoRepository,
                        PayoutReversalContext payoutReversalContext,
-                       ApplicationEventPublisher eventPublisher) {
+                       ApplicationEventPublisher eventPublisher,
+                       PlatformFeeAnalyticsService platformFeeAnalyticsService,
+                       PayoutAuditEventRepository payoutAuditEventRepository) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
     this.payoutReversalContext = payoutReversalContext;
     this.eventPublisher = eventPublisher;
+    this.platformFeeAnalyticsService = platformFeeAnalyticsService;
+    this.payoutAuditEventRepository = payoutAuditEventRepository;
   }
 
   @Transactional
@@ -403,5 +412,18 @@ public class PayoutService {
     }
 
     return result;
+  }
+
+  public List<CategoryRevenueDTO> getPlatformFeeAnalyticsByCategory() {
+    PayoutAuditEvent auditEvent = new PayoutAuditEvent();
+    auditEvent.setPayoutId(null);
+    auditEvent.setEventType("ANALYTICS_VIEWED");
+    auditEvent.setAmountReturned(null);
+    auditEvent.setStrategyApplied(null);
+    auditEvent.setReason("Platform fee analytics viewed");
+    auditEvent.setTimestamp(LocalDateTime.now());
+    payoutAuditEventRepository.save(auditEvent);
+
+    return platformFeeAnalyticsService.getPlatformFeeAnalyticsAllTime();
   }
 }

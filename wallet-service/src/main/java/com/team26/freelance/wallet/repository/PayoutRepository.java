@@ -3,6 +3,7 @@ package com.team26.freelance.wallet.repository;
 import com.team26.freelance.wallet.dto.RevenueReportProjection;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutStatus;
+import com.team26.freelance.wallet.dto.CategoryRevenueProjection;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -69,4 +70,40 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             GROUP BY method
             """, nativeQuery = true)
     List<Object[]> getPayoutSummaryByFreelancer(@Param("freelancerId") Long freelancerId);
+
+    @Query(value = """
+        SELECT
+            j.category::text AS "jobCategory",
+            COALESCE(SUM(COALESCE((p.transaction_details ->> 'platformFee')::numeric, p.amount * 0.10)), 0) AS "totalFees",
+            COALESCE(AVG(COALESCE((p.transaction_details ->> 'platformFee')::numeric, p.amount * 0.10)), 0) AS "averageFee",
+            COUNT(*) AS "payoutCount"
+        FROM payouts p
+        JOIN contracts c ON p.contract_id = c.id
+        JOIN jobs j ON c.job_id = j.id
+        WHERE p.status = 'COMPLETED'
+          AND p.created_at >= :startDate
+          AND p.created_at < :endExclusive
+        GROUP BY j.category
+        ORDER BY "totalFees" DESC
+        """, nativeQuery = true)
+    List<CategoryRevenueProjection> getPlatformFeeAnalyticsByCategory(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endExclusive") LocalDateTime endExclusive
+    );
+
+
+    @Query(value = """
+        SELECT
+            j.category::text AS "jobCategory",
+            COALESCE(SUM(COALESCE((p.transaction_details ->> 'platformFee')::numeric, p.amount * 0.10)), 0) AS "totalFees",
+            COALESCE(AVG(COALESCE((p.transaction_details ->> 'platformFee')::numeric, p.amount * 0.10)), 0) AS "averageFee",
+            COUNT(*) AS "payoutCount"
+        FROM payouts p
+        JOIN contracts c ON p.contract_id = c.id
+        JOIN jobs j ON c.job_id = j.id
+        WHERE p.status = 'COMPLETED'
+        GROUP BY j.category
+        ORDER BY "totalFees" DESC
+        """, nativeQuery = true)
+    List<CategoryRevenueProjection> getPlatformFeeAnalyticsByCategoryAllTime();
 }
