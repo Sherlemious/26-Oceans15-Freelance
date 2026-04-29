@@ -1,6 +1,7 @@
 package com.team26.freelance.job.controller;
 
-import com.team26.freelance.job.config.CacheEvictionService;
+import com.team26.freelance.job.dto.JobDashboardDTO;
+import com.team26.freelance.job.service.CacheEvictionService;
 import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
@@ -147,5 +148,13 @@ public class JobController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/dashboard")
+    @Cacheable(value = "job-dashboard", key = "'job-service::S2-F12::' + #id")
+    public ResponseEntity<JobDashboardDTO> getJobDashboard(@PathVariable Long id) {
+        // TODO: Replace with actual user ID from JWT once authentication is ready
+        Long mockUserId = 1L;
+        return ResponseEntity.ok(jobService.getJobDashboard(id, mockUserId));
     }
 }

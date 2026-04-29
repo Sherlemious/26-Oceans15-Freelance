@@ -1,4 +1,4 @@
-package com.team26.freelance.job.config;
+package com.team26.freelance.job.service;
 
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;

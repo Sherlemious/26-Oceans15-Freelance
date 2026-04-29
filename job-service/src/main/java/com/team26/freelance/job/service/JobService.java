@@ -1,12 +1,15 @@
 package com.team26.freelance.job.service;
 
 import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
+import com.team26.freelance.job.dto.JobDashboardDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
+import com.team26.freelance.job.model.mongo.JobEvent;
 import com.team26.freelance.job.repository.JobRepository;
+import com.team26.freelance.job.repository.mongo.JobEventRepository;
 import org.springframework.http.HttpStatus;
 
 import org.springframework.stereotype.Service;
@@ -24,10 +27,13 @@ public class JobService {
 
     private final JobRepository jobRepository;
     private final JobSearchService jobSearchService;
+    private final JobEventRepository jobEventRepository;
 
-    public JobService(JobRepository jobRepository, JobSearchService jobSearchService) {
+
+    public JobService(JobRepository jobRepository, JobSearchService jobSearchService, JobEventRepository jobEventRepository) {
         this.jobRepository = jobRepository;
         this.jobSearchService = jobSearchService;
+        this.jobEventRepository = jobEventRepository;
     }
 
     public Job createJob(Job job) {
@@ -130,7 +136,7 @@ public class JobService {
         // 1. Find job — 404 if not found
         Job job = getJobById(jobId);
 
-        
+
 
         // 2. Validate contract — 404 if not found, 400 if wrong job or not COMPLETED
         validateContractForJob(jobId, contractId);
@@ -209,7 +215,7 @@ public class JobService {
 }
 
 
-    
+
     public JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
         getJobById(jobId);
 
@@ -244,5 +250,27 @@ public class JobService {
                 ((Number) result[4]).doubleValue(),
                 ((Number) result[5]).doubleValue()
         );
+    }
+
+    public JobDashboardDTO getJobDashboard(Long jobId, Long userId) {
+        Job job = getJobById(jobId);
+
+        Long totalProposals = jobRepository.countTotalProposalsByJobId(jobId);
+        Long acceptedProposals = jobRepository.countAcceptedProposalsByJobId(jobId);
+        Double averageBidAmount = jobRepository.getAverageBidAmountByJobId(jobId);
+        Long activeAttachments = jobRepository.countActiveAttachmentsByJobId(jobId);
+
+        JobEvent event = new JobEvent(jobId, "DASHBOARD_VIEWED", null);
+        jobEventRepository.save(event);
+
+        return new JobDashboardDTO.Builder()
+                .jobId(jobId)
+                .title(job.getTitle())
+                .totalProposals(totalProposals)
+                .acceptedProposals(acceptedProposals)
+                .averageBidAmount(averageBidAmount)
+                .activeAttachments(activeAttachments)
+                .rating(job.getRating())
+                .build();
     }
 }
