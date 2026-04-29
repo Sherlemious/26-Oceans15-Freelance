@@ -4,13 +4,14 @@ import com.team26.freelance.job.config.CacheEvictionService;
 import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
-import org.springframework.cache.CacheManager;
+import com.team26.freelance.job.service.JobSearchService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.service.JobService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
@@ -26,9 +27,11 @@ public class JobController {
 
     private final JobService jobService;
     private final CacheEvictionService cacheEvictionService;
-    public JobController(JobService jobService, CacheEvictionService cacheEvictionService) {
+    private final JobSearchService jobSearchService;
+    public JobController(JobService jobService, CacheEvictionService cacheEvictionService, JobSearchService jobSearchService) {
         this.jobService = jobService;
         this.cacheEvictionService = cacheEvictionService;
+        this.jobSearchService = jobSearchService;
     }
 
     @PostMapping
@@ -134,5 +137,15 @@ public class JobController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return jobService.getProposalSummary(id, startDate, endDate);
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @PostMapping("/{id}/index")
+    public ResponseEntity<Void> indexJob(@PathVariable Long id) {
+        boolean indexed = jobSearchService.indexJob(id, "explicit");
+        if (!indexed) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.ok().build();
     }
 }
