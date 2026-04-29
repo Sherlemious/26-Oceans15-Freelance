@@ -18,7 +18,60 @@ public class FreelancerPerformanceDTO {
         this.totalEarnings = totalEarnings;
     }
 
-    // Getters
+    // ── Builder ──────────────────────────────────────────────────────────────
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static final class Builder {
+        private Long freelancerId;
+        private long totalContracts;
+        private double averageContractValue;
+        private double completionRate;
+        private double averageDurationDays;
+        private double totalEarnings;
+
+        private Builder() {}
+
+        public Builder freelancerId(Long freelancerId) {
+            this.freelancerId = freelancerId;
+            return this;
+        }
+
+        public Builder totalContracts(long totalContracts) {
+            this.totalContracts = totalContracts;
+            return this;
+        }
+
+        public Builder averageContractValue(double averageContractValue) {
+            this.averageContractValue = averageContractValue;
+            return this;
+        }
+
+        public Builder completionRate(double completionRate) {
+            this.completionRate = completionRate;
+            return this;
+        }
+
+        public Builder averageDurationDays(double averageDurationDays) {
+            this.averageDurationDays = averageDurationDays;
+            return this;
+        }
+
+        public Builder totalEarnings(double totalEarnings) {
+            this.totalEarnings = totalEarnings;
+            return this;
+        }
+
+        public FreelancerPerformanceDTO build() {
+            return new FreelancerPerformanceDTO(freelancerId, totalContracts, averageContractValue,
+                    completionRate, averageDurationDays, totalEarnings);
+        }
+    }
+
+    // ── Getters ──────────────────────────────────────────────────────────────
+
     public Long getFreelancerId() { return freelancerId; }
     public long getTotalContracts() { return totalContracts; }
     public double getAverageContractValue() { return averageContractValue; }
