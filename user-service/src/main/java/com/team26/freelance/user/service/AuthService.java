@@ -1,6 +1,7 @@
 package com.team26.freelance.user.service;
 
 import com.team26.freelance.user.dto.AuthResponseDTO;
+import com.team26.freelance.user.dto.LoginRequestDTO;
 import com.team26.freelance.user.dto.RegisterRequestDTO;
 import com.team26.freelance.user.model.AuthEvent;
 import com.team26.freelance.user.model.Role;
@@ -26,9 +27,9 @@ public class AuthService {
     private final JwtService jwtService;
 
     public AuthService(UserRepository userRepository,
-                       AuthEventRepository authEventRepository,
-                       PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+            AuthEventRepository authEventRepository,
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService) {
         this.userRepository = userRepository;
         this.authEventRepository = authEventRepository;
         this.passwordEncoder = passwordEncoder;
@@ -63,11 +64,32 @@ public class AuthService {
                 savedUser.getId(),
                 "REGISTERED",
                 LocalDateTime.now(),
-                Map.of("email", savedUser.getEmail())
-        ));
+                Map.of("email", savedUser.getEmail())));
 
         String token = jwtService.generateToken(savedUser);
 
-        return new AuthResponseDTO(token, jwtService.getExpiration());
+        return new AuthResponseDTO(token, savedUser.getId(), savedUser.getRole());
+    }
+
+    public AuthResponseDTO login(LoginRequestDTO req) {
+        User user = userRepository
+                .findByEmail(req.email())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
+                        "Invalid credentials"));
+        if (!passwordEncoder.matches(
+                req.password(), user.getPassword())) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid credentials");
+        }
+        authEventRepository.save(new AuthEvent(
+            user.getId(),
+            "LOGGED_IN",
+            LocalDateTime.now(),
+            Map.of("email", user.getEmail())));
+
+        String token = jwtService.generateToken(user);
+        return new AuthResponseDTO(token, user.getId(), user.getRole());
     }
 }
