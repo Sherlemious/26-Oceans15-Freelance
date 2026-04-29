@@ -201,34 +201,34 @@ services:
       cassandra:
         condition: service_healthy
 
-#  wallet-service:
-#    build: ./wallet-service
-#    ports:
-#      - "8085:8080"
-#    environment:
-#      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
-#      SPRING_DATASOURCE_USERNAME: postgres
-#      SPRING_DATASOURCE_PASSWORD: postgres
-#      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
-#      SPRING_DATA_REDIS_HOST: redis
-#      SPRING_DATA_REDIS_PORT: 6379
-#      SPRING_CASSANDRA_CONTACT_POINTS: cassandra
-#      SPRING_CASSANDRA_PORT: 9042
-#      SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
-#      SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
-#    depends_on:
-#      postgres:
-#        condition: service_healthy
-#      mongodb:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#      elasticsearch:
-#        condition: service_healthy
-#      neo4j:
-#        condition: service_healthy
-#      cassandra:
-#        condition: service_healthy
+  wallet-service:
+    build: ./wallet-service
+    ports:
+      - "8085:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_CASSANDRA_CONTACT_POINTS: cassandra
+      SPRING_CASSANDRA_PORT: 9042
+      SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
+      SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      cassandra:
+        condition: service_healthy
 
 volumes:
   pgdata:
