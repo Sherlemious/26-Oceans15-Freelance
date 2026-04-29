@@ -9,7 +9,7 @@ public class StalledContractDTO {
     private Double daysSinceLastActivity;
 
     public StalledContractDTO(Long contractId, String freelancerName, String jobTitle,
-                              Double agreedAmount, Double progressPercentage, Double daysSinceLastActivity) {
+            Double agreedAmount, Double progressPercentage, Double daysSinceLastActivity) {
         this.contractId = contractId;
         this.freelancerName = freelancerName;
         this.jobTitle = jobTitle;
@@ -18,7 +18,7 @@ public class StalledContractDTO {
         this.daysSinceLastActivity = daysSinceLastActivity;
     }
 
-    // Private constructor used by the Builder
+    // Private no-arg constructor for Builder
     private StalledContractDTO() {}
 
     // ── Builder ──────────────────────────────────────────────────────────────

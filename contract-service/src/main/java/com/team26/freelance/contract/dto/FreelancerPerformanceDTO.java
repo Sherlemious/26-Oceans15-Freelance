@@ -9,7 +9,7 @@ public class FreelancerPerformanceDTO {
     private final double totalEarnings;
 
     public FreelancerPerformanceDTO(Long freelancerId, long totalContracts, double averageContractValue,
-                                    double completionRate, double averageDurationDays, double totalEarnings) {
+            double completionRate, double averageDurationDays, double totalEarnings) {
         this.freelancerId = freelancerId;
         this.totalContracts = totalContracts;
         this.averageContractValue = averageContractValue;
@@ -72,10 +72,27 @@ public class FreelancerPerformanceDTO {
 
     // ── Getters ──────────────────────────────────────────────────────────────
 
-    public Long getFreelancerId() { return freelancerId; }
-    public long getTotalContracts() { return totalContracts; }
-    public double getAverageContractValue() { return averageContractValue; }
-    public double getCompletionRate() { return completionRate; }
-    public double getAverageDurationDays() { return averageDurationDays; }
-    public double getTotalEarnings() { return totalEarnings; }
+    public Long getFreelancerId() {
+        return freelancerId;
+    }
+
+    public long getTotalContracts() {
+        return totalContracts;
+    }
+
+    public double getAverageContractValue() {
+        return averageContractValue;
+    }
+
+    public double getCompletionRate() {
+        return completionRate;
+    }
+
+    public double getAverageDurationDays() {
+        return averageDurationDays;
+    }
+
+    public double getTotalEarnings() {
+        return totalEarnings;
+    }
 }
