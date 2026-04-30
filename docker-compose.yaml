@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:16
-    container_name: freelance-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -18,7 +17,6 @@ services:
 
   mongodb:
     image: mongo:latest
-    container_name: freelance-mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -31,7 +29,6 @@ services:
 
   redis:
     image: redis:latest
-    container_name: freelance-redis
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     ports:
       - "6379:6379"
@@ -45,7 +42,6 @@ services:
 
   elasticsearch:
     image: elasticsearch:8.19.12
-    container_name: freelance-elasticsearch
     environment:
       discovery.type: single-node
       xpack.security.enabled: "false"
@@ -62,7 +58,6 @@ services:
 
   neo4j:
     image: neo4j:latest
-    container_name: freelance-neo4j
     environment:
       NEO4J_AUTH: neo4j/password
       NEO4J_server_memory_heap_initial__size: 512m
@@ -79,7 +74,6 @@ services:
 
   cassandra:
     image: cassandra:latest
-    container_name: freelance-cassandra
     environment:
       MAX_HEAP_SIZE: 512M
       HEAP_NEWSIZE: 100M
@@ -102,8 +96,11 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
+      JWT_SECRET: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      JWT_EXPIRATION: 86400000
     depends_on:
       postgres:
         condition: service_healthy
@@ -127,9 +124,12 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      JWT_SECRET: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      JWT_EXPIRATION: 86400000
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,11 +153,18 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_NEO4J_URI: bolt://neo4j:7687
-      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
-      SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: password
+      CACHE_TTL_DETAIL: 900
+      CACHE_TTL_SEARCH: 300
+      CACHE_TTL_DASHBOARD: 600
+      CACHE_TTL_ACTIVITY: 300
+      JWT_SECRET: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      JWT_EXPIRATION: 86400000
     depends_on:
       postgres:
         condition: service_healthy
@@ -181,12 +188,15 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+      JWT_SECRET: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      JWT_EXPIRATION: 86400000
     depends_on:
       postgres:
         condition: service_healthy
@@ -210,12 +220,15 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+      JWT_SECRET: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      JWT_EXPIRATION: 86400000
     depends_on:
       postgres:
         condition: service_healthy
