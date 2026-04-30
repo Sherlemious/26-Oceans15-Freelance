@@ -107,7 +107,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -137,7 +137,7 @@ services:
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -170,7 +170,7 @@ services:
       NEO4J_USERNAME: neo4j
       NEO4J_PASSWORD: password
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}   # ← fixed from JWT_EXPIRATION
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}   # ← fixed from JWT_EXPIRATION
       CACHE_TTL_DETAIL: 300
       CACHE_TTL_SEARCH: 60
       CACHE_TTL_DASHBOARD: 600
@@ -207,7 +207,7 @@ services:
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -232,12 +232,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy

@@ -22,7 +22,7 @@ public class JwtConfigurationManager {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expiration-ms}")
+    @Value("${jwt.expiration}")
     private long expirationMs;
 
     @jakarta.annotation.PostConstruct

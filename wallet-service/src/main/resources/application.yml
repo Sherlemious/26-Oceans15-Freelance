@@ -6,8 +6,6 @@ spring:
     name: wallet-service
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
@@ -24,6 +22,9 @@ spring:
     init:
       mode: always
       separator: "@@"
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/freelancedb}
   cassandra:
     contact-points: ${SPRING_CASSANDRA_CONTACT_POINTS:cassandra}
     port: ${SPRING_CASSANDRA_PORT:9042}
@@ -33,7 +34,7 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
-  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 cache:
   ttl:
