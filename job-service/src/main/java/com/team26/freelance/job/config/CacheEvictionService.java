@@ -29,6 +29,7 @@ public class CacheEvictionService {
         evictByPattern(PREFIX + "S2-F5::");
         evictByPattern(PREFIX + "S2-F6::");
         evictByPattern(PREFIX + "S2-F9::*");
+        evictByPattern(PREFIX + "S2-F10::*");
     }
 
     public void evictByPattern(String pattern) {
