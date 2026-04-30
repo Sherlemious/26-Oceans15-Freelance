@@ -1,6 +1,7 @@
 package com.team26.freelance.wallet.service;
 
 import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
+import com.team26.freelance.wallet.dto.ContractDataProjection;
 import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
@@ -146,14 +147,19 @@ public class PayoutService {
   @Transactional
   public Payout processContractPayout(Long contractId,
                                       ProcessContractPayoutRequest request) {
-    List<Object[]> contractRows = payoutRepository.findContractDataById(contractId);
+    List<ContractDataProjection> contractRows = payoutRepository.findContractDataById(contractId);
     if (contractRows.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
     }
-    Object[] contractData = contractRows.get(0);
-    String contractStatus = (String) contractData[0];
-    Double agreedAmount = ((Number) contractData[1]).doubleValue();
-    Long freelancerId = ((Number) contractData[2]).longValue();
+    ContractDataProjection contractData = contractRows.get(0);
+    String contractStatus = contractData.getContractStatus();
+    Double agreedAmount = contractData.getAgreedAmount();
+    Long freelancerId = contractData.getFreelancerId();
+
+    if (agreedAmount == null || freelancerId == null) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                        "Contract data is incomplete for payout processing");
+    }
 
     if (!"COMPLETED".equals(contractStatus)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -177,10 +183,10 @@ public class PayoutService {
               p.setMethod(PayoutMethod.BANK_TRANSFER);
               p.setStatus(PayoutStatus.PENDING);
               p.setTransactionDetails(new HashMap<>());
-              return payoutRepository.save(p);
+              return p;
             });
 
-    PayoutMethod method = request != null ? request.getMethod() : null;
+    PayoutMethod method = normalizePayoutMethod(request != null ? request.getMethod() : null);
     String accountLastFour = request != null ? request.getAccountLastFour() : null;
 
     if (accountLastFour != null && !accountLastFour.isBlank() &&
@@ -271,6 +277,13 @@ public class PayoutService {
     Payout saved = payoutRepository.save(payout);
     payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.REFUNDED, reason);
     return saved;
+  }
+
+  private PayoutMethod normalizePayoutMethod(PayoutMethod method) {
+    if (method == PayoutMethod.BANK) {
+      return PayoutMethod.BANK_TRANSFER;
+    }
+    return method;
   }
 
   @Transactional
