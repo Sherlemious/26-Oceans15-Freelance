@@ -1,19 +1,27 @@
 package com.team26.freelance.user.dto;
 
+import com.team26.freelance.user.model.Role;
+
 public class AuthResponseDTO {
     private String token;
-    private Long expiresIn;
+    private Long userId;
+    private Role role;
 
-    public AuthResponseDTO(String token, Long expiresIn) {
+    public AuthResponseDTO(String token, Long userId, Role role) {
         this.token = token;
-        this.expiresIn = expiresIn;
+        this.userId = userId;
+        this.role = role;
     }
 
     public String getToken() {
         return token;
     }
 
-    public Long getExpiresIn() {
-        return expiresIn;
+    public Long getUserId() {
+        return userId;
+    }
+
+    public Role getRole() {
+        return role;
     }
 }
