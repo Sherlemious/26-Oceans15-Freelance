@@ -14,6 +14,7 @@ import com.team26.freelance.wallet.model.PayoutAuditEvent;
 import com.team26.freelance.wallet.model.PayoutPromo;
 import com.team26.freelance.wallet.model.PayoutStatus;
 import com.team26.freelance.wallet.model.PromoCode;
+import com.team26.freelance.wallet.config.CacheEvictionService;
 import com.team26.freelance.wallet.repository.PayoutAuditEventRepository;
 import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
@@ -44,6 +45,7 @@ public class PayoutService {
   private final PayoutPromoRepository payoutPromoRepository;
   private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditEventRepository payoutAuditEventRepository;
+  private final CacheEvictionService cacheEvictionService;
   private final ApplicationEventPublisher eventPublisher;
 
   public PayoutService(PayoutRepository payoutRepository,
@@ -51,12 +53,14 @@ public class PayoutService {
                        PayoutPromoRepository payoutPromoRepository,
                        RefundStrategySelector refundStrategySelector,
                        PayoutAuditEventRepository payoutAuditEventRepository,
+                       CacheEvictionService cacheEvictionService,
                        ApplicationEventPublisher eventPublisher) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
     this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditEventRepository = payoutAuditEventRepository;
+    this.cacheEvictionService = cacheEvictionService;
     this.eventPublisher = eventPublisher;
   }
 
@@ -369,6 +373,8 @@ public class PayoutService {
       denied.setReason(result.getReasonCode());
       denied.setTimestamp(LocalDateTime.now());
       payoutAuditEventRepository.save(denied);
+      cacheEvictionService.evictAnalyticsCaches();
+      cacheEvictionService.evictPayoutDetail(payout.getId());
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, result.getReasonCode());
     }
 
@@ -383,6 +389,9 @@ public class PayoutService {
     details.put("refundedAt", LocalDateTime.now().toString());
     payout.setTransactionDetails(details);
     payoutRepository.save(payout);
+
+    cacheEvictionService.evictAnalyticsCaches();
+    cacheEvictionService.evictPayoutDetail(payout.getId());
 
     eventPublisher.publishEvent(new PayoutAuditPendingEvent(
         payout.getId(),
