@@ -33,6 +33,9 @@ logs/
 Thumbs.db
 desktop.ini
 
+# Data exports
+*.csv
+
 # Docker volumes (local)
 pgdata/
 

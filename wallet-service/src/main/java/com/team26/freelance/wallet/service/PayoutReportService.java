@@ -22,12 +22,15 @@ public class PayoutReportService {
     }
 
     public RevenueReportDTO getRevenueReport(LocalDate startDate, LocalDate endDate) {
-        if (startDate.isAfter(endDate)) {
+        LocalDate effectiveStart = startDate != null ? startDate : LocalDate.of(1970, 1, 1);
+        LocalDate effectiveEnd = endDate != null ? endDate : LocalDate.now();
+
+        if (effectiveStart.isAfter(effectiveEnd)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate must be before or equal to endDate");
         }
 
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime endExclusive = endDate.plusDays(1).atStartOfDay();
+        LocalDateTime start = effectiveStart.atStartOfDay();
+        LocalDateTime endExclusive = effectiveEnd.plusDays(1).atStartOfDay();
 
         RevenueReportProjection report = payoutRepository.getRevenueReport(start, endExclusive);
 

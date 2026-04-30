@@ -21,7 +21,7 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     void rejectSubmittedProposalsByJobId(@Param("jobId") Long jobId);
 
     @Query(value = "SELECT * FROM jobs j WHERE " +
-            "(:status IS NULL OR j.status = :status) AND " +
+            "(:status IS NULL OR j.status = CAST(:status AS job_status)) AND " +
             "(:minBudget IS NULL OR j.budget_max >= :minBudget) AND " +
             "(:maxBudget IS NULL OR j.budget_min <= :maxBudget) " +
             "ORDER BY j.budget_max DESC",

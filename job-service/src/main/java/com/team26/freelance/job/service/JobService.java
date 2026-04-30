@@ -23,13 +23,17 @@ import java.util.stream.Collectors;
 public class JobService {
 
     private final JobRepository jobRepository;
+    private final JobSearchService jobSearchService;
 
-    public JobService(JobRepository jobRepository) {
+    public JobService(JobRepository jobRepository, JobSearchService jobSearchService) {
         this.jobRepository = jobRepository;
+        this.jobSearchService = jobSearchService;
     }
 
     public Job createJob(Job job) {
-        return jobRepository.save(job);
+        Job saved = jobRepository.save(job);
+        jobSearchService.indexJob(saved.getId(), "auto_crud_create");
+        return saved;
     }
 
     public List<Job> getAllJobs() {
@@ -54,12 +58,15 @@ public class JobService {
         existingJob.setBudgetMax(updatedJob.getBudgetMax());
         existingJob.setRequirements(updatedJob.getRequirements());
 
-        return jobRepository.save(existingJob);
+        Job updated = jobRepository.save(existingJob);
+        jobSearchService.indexJob(updated.getId(), "auto_crud_update");
+        return updated;
     }
 
     public void deleteJob(Long jobId) {
         Job job = getJobById(jobId);
         jobRepository.delete(job);
+        jobSearchService.removeFromIndex(jobId);
     }
 
     @Transactional
