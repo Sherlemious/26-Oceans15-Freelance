@@ -33,18 +33,32 @@ public class PayoutPromoService {
     public PayoutPromoDTO create(CreatePayoutPromoRequest request) {
         Payout payout = payoutRepository.findById(request.getPayoutId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
-        PromoCode promoCode = promoCodeRepository.findById(request.getPromoCodeId())
+        PromoCode promoCode = promoCodeRepository.findByIdForUpdate(request.getPromoCodeId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PromoCode not found"));
+
+        if (!Boolean.TRUE.equals(promoCode.getActive())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Promo code is not active");
+        }
+        if (promoCode.getExpiryDate() != null && promoCode.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Promo code has expired");
+        }
+        int currentUses = promoCode.getCurrentUses() == null ? 0 : promoCode.getCurrentUses();
+        int maxUses = promoCode.getMaxUses() == null ? Integer.MAX_VALUE : promoCode.getMaxUses();
+        if (currentUses >= maxUses) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Promo code has reached maximum uses");
+        }
 
         if (payoutPromoRepository.existsByPayout_IdAndPromoCode_Id(payout.getId(), promoCode.getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Promo already applied to this payout");
         }
 
+        promoCode.setCurrentUses(currentUses + 1);
+        promoCodeRepository.save(promoCode);
+
         PayoutPromo pp = new PayoutPromo();
         pp.setPayout(payout);
         pp.setPromoCode(promoCode);
         pp.setDiscountApplied(request.getDiscountApplied() != null ? request.getDiscountApplied() : 0.0);
-        pp.setAppliedAt(LocalDateTime.now());
         PayoutPromo saved = payoutPromoRepository.save(pp);
         return new PayoutPromoDTO(saved);
     }
@@ -56,6 +70,7 @@ public class PayoutPromoService {
         return new PayoutPromoDTO(pp);
     }
 
+    @Transactional
     public void delete(Long id) {
         payoutPromoRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PayoutPromo not found"));
