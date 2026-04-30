@@ -252,16 +252,19 @@ public class JobService {
         );
     }
 
-    public JobDashboardDTO getJobDashboard(Long jobId, Long userId) {
-        Job job = getJobById(jobId);
+    public void logDashboardViewed(Long jobId) {
+        jobSearchService.notifyObservers("DASHBOARD_VIEWED", Map.of(
+                "jobId", jobId,
+                "source", "dashboard"
+        ));
+    }
 
+    public JobDashboardDTO getJobDashboard(Long jobId) {
+        Job job = getJobById(jobId);
         Long totalProposals = jobRepository.countTotalProposalsByJobId(jobId);
         Long acceptedProposals = jobRepository.countAcceptedProposalsByJobId(jobId);
         Double averageBidAmount = jobRepository.getAverageBidAmountByJobId(jobId);
         Long activeAttachments = jobRepository.countActiveAttachmentsByJobId(jobId);
-
-        JobEvent event = new JobEvent(jobId, "DASHBOARD_VIEWED", null);
-        jobEventRepository.save(event);
 
         return new JobDashboardDTO.Builder()
                 .jobId(jobId)

@@ -150,11 +150,12 @@ public class JobController {
         return ResponseEntity.ok().build();
     }
 
+    @PreAuthorize("hasRole('USER')")
     @GetMapping("/{id}/dashboard")
     @Cacheable(value = "job-dashboard", key = "'job-service::S2-F12::' + #id")
     public ResponseEntity<JobDashboardDTO> getJobDashboard(@PathVariable Long id) {
-        // TODO: Replace with actual user ID from JWT once authentication is ready
-        Long mockUserId = 1L;
-        return ResponseEntity.ok(jobService.getJobDashboard(id, mockUserId));
+        // logging happens here — outside cache, runs on every call including cache hits
+        jobService.logDashboardViewed(id);
+        return ResponseEntity.ok(jobService.getJobDashboard(id));
     }
 }
