@@ -32,7 +32,7 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
 
     @Query(value = """
             SELECT * FROM payouts
-            WHERE (:status IS NULL OR status = :status::payout_status)
+            WHERE (:status IS NULL OR status::text = :status)
               AND created_at BETWEEN :startDate AND :endDate
             ORDER BY created_at DESC
             """, nativeQuery = true)
@@ -51,16 +51,13 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             """)
     Optional<Payout> findByIdWithPromos(@Param("id") Long id);
 
-    @Query(value = "SELECT status::text FROM contracts WHERE id = :contractId", nativeQuery = true)
-    Optional<String> findContractStatusById(@Param("contractId") Long contractId);
+    @Query(value = "SELECT status::text, agreed_amount, freelancer_id FROM contracts WHERE id = :contractId", nativeQuery = true)
+    List<Object[]> findContractDataById(@Param("contractId") Long contractId);
 
     boolean existsByContractIdAndStatus(Long contractId, PayoutStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Payout> findFirstByContractIdAndStatusOrderByCreatedAtAsc(Long contractId, PayoutStatus status);
-
-    @Query(value = "SELECT COUNT(*) FROM users WHERE id = :userId", nativeQuery = true)
-    int countUsersById(@Param("userId") Long userId);
 
     @Query(value = """
             SELECT method, COUNT(*), SUM(amount)
