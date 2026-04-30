@@ -3,6 +3,7 @@ package com.team26.freelance.wallet.controller;
 import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
+import com.team26.freelance.wallet.dto.PayoutReversalResultDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
@@ -88,6 +89,11 @@ public class PayoutController {
   @PutMapping("/{id}/retry")
   public ResponseEntity<Payout> retryFailedPayout(@PathVariable Long id) {
     return ResponseEntity.ok(payoutService.retryFailedPayout(id));
+  }
+
+  @PostMapping("/{id}/reverse")
+  public ResponseEntity<PayoutReversalResultDTO> reversePayout(@PathVariable Long id) {
+    return ResponseEntity.ok(payoutService.reversePayout(id));
   }
   @GetMapping("/{payoutId}/details")
   public ResponseEntity<PayoutDetailsDTO>

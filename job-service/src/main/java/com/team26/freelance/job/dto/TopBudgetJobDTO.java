@@ -6,6 +6,8 @@ public class TopBudgetJobDTO {
     private Double budgetMax;
     private Long totalProposals;
 
+    public TopBudgetJobDTO() {}
+
     public TopBudgetJobDTO(Long jobId, String title, Double budgetMax, Long totalProposals) {
         this.jobId = jobId;
         this.title = title;

@@ -4,6 +4,7 @@ import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
 import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
+import com.team26.freelance.wallet.dto.PayoutReversalResultDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.model.DiscountType;
@@ -15,6 +16,9 @@ import com.team26.freelance.wallet.model.PromoCode;
 import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
+import com.team26.freelance.wallet.strategy.PayoutReversalContext;
+import com.team26.freelance.wallet.strategy.PayoutReversalResult;
+import org.springframework.context.ApplicationEventPublisher;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -35,13 +39,19 @@ public class PayoutService {
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
   private final PayoutPromoRepository payoutPromoRepository;
+  private final PayoutReversalContext payoutReversalContext;
+  private final ApplicationEventPublisher eventPublisher;
 
   public PayoutService(PayoutRepository payoutRepository,
                        PromoCodeRepository promoCodeRepository,
-                       PayoutPromoRepository payoutPromoRepository) {
+                       PayoutPromoRepository payoutPromoRepository,
+                       PayoutReversalContext payoutReversalContext,
+                       ApplicationEventPublisher eventPublisher) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
+    this.payoutReversalContext = payoutReversalContext;
+    this.eventPublisher = eventPublisher;
   }
 
   @Transactional
@@ -189,6 +199,14 @@ public class PayoutService {
       transactionDetails.put("accountLastFour", accountLastFour);
     }
 
+    if (pendingPayout.getAmount() != null) {
+      double platformFee = BigDecimal.valueOf(pendingPayout.getAmount())
+          .multiply(BigDecimal.valueOf(0.10))
+          .setScale(2, java.math.RoundingMode.HALF_UP)
+          .doubleValue();
+      transactionDetails.put("platformFee", platformFee);
+    }
+
     pendingPayout.setStatus(PayoutStatus.COMPLETED);
     pendingPayout.setTransactionDetails(transactionDetails);
 
@@ -327,6 +345,38 @@ public class PayoutService {
       totalAmount += sum;
     }
     return new FreelancerPayoutSummaryDTO(freelancerId, totalPayouts, totalAmount, methodBreakdown);
+  }
+
+  @Transactional
+  public PayoutReversalResultDTO reversePayout(Long id) {
+    Payout payout = payoutRepository.findByIdWithPromos(id).orElseThrow(
+        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
+
+    PayoutReversalResult result = payoutReversalContext.executeStrategy(payout);
+
+    if (result.isApproved()) {
+      payout.setStatus(PayoutStatus.REFUNDED);
+      Map<String, Object> details = payout.getTransactionDetails();
+      if (details == null) {
+        details = new HashMap<>();
+      }
+      details.put("refundedAt", LocalDateTime.now().toString());
+      details.put("strategyApplied", result.getStrategyApplied());
+      details.put("amountReturned", result.getAmountReturned());
+      payout.setTransactionDetails(details);
+      payoutRepository.save(payout);
+    }
+
+    eventPublisher.publishEvent(new PayoutAuditPendingEvent(
+        payout.getId(),
+        result.isApproved() ? "REFUNDED" : "REFUND_DENIED",
+        result.getAmountReturned(),
+        result.getStrategyApplied(),
+        result.getReason(),
+        LocalDateTime.now()
+    ));
+
+    return new PayoutReversalResultDTO(payout, result);
   }
 
   public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {

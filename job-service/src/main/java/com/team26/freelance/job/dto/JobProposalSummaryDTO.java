@@ -8,6 +8,8 @@ public class JobProposalSummaryDTO {
     private Double lowestBid;
     private Double highestBid;
 
+    public JobProposalSummaryDTO() {}
+
     public JobProposalSummaryDTO(Long jobId, String title, Long totalProposals,
                                  Double averageBidAmount, Double lowestBid, Double highestBid) {
         this.jobId = jobId;

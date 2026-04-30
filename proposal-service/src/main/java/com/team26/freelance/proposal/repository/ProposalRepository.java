@@ -24,7 +24,7 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 
         @Query(value = """
                         SELECT * FROM proposals
-                        WHERE (:status IS NULL OR status = :status)
+                        WHERE status = :status
                           AND submitted_at BETWEEN :startDate AND :endDate
                         ORDER BY submitted_at DESC
                         """, nativeQuery = true)
@@ -32,6 +32,23 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         @Param("status") String status,
                         @Param("startDate") LocalDateTime startDate,
                         @Param("endDate") LocalDateTime endDate);
+
+        @Query(value = """
+                        SELECT * FROM proposals
+                        WHERE submitted_at BETWEEN :startDate AND :endDate
+                        ORDER BY submitted_at DESC
+                        """, nativeQuery = true)
+        List<Proposal> searchByDateRange(
+                        @Param("startDate") LocalDateTime startDate,
+                        @Param("endDate") LocalDateTime endDate);
+
+        @Query(value = """
+                        SELECT * FROM proposals
+                        WHERE status = :status
+                        ORDER BY submitted_at DESC
+                        """, nativeQuery = true)
+        List<Proposal> searchByStatus(
+                        @Param("status") String status);
 
         @Query(value = "SELECT role FROM users WHERE id = :freelancerId", nativeQuery = true)
         String findFreelancerRole(@Param("freelancerId") Long freelancerId);
