@@ -1,12 +1,22 @@
 package com.team26.freelance.security;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-@Component
 public class JwtConfigurationManager {
 
     private static volatile JwtConfigurationManager instance;
+
+    private final String secret;
+    private final long expirationMs;
+
+    private JwtConfigurationManager() {
+        this.secret = System.getenv("JWT_SECRET");
+        this.expirationMs = Long.parseLong(
+                System.getenv().getOrDefault("JWT_EXPIRATION", "3600000")
+        );
+
+        if (secret == null || secret.isEmpty()) {
+            throw new IllegalStateException("JWT_SECRET environment variable is not set");
+        }
+    }
 
     public static JwtConfigurationManager getInstance() {
         if (instance == null) {
@@ -19,17 +29,11 @@ public class JwtConfigurationManager {
         return instance;
     }
 
-    @Value("${jwt.secret}")
-    private String secret;
-
-    @Value("${jwt.expiration}")
-    private long expirationMs;
-
-    @jakarta.annotation.PostConstruct
-    private void syncStaticInstance() {
-        instance = this;
+    public String getSecret() {
+        return secret;
     }
 
-    public String getSecret()      { return secret; }
-    public long getExpirationMs()  { return expirationMs; }
+    public long getExpirationMs() {
+        return expirationMs;
+    }
 }

@@ -13,13 +13,9 @@ public class JwtSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public JwtConfigurationManager jwtConfigurationManager() {
-        return JwtConfigurationManager.getInstance();
-    }
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
 
-    @Bean
-    @ConditionalOnMissingBean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtConfigurationManager config) {
+        JwtConfigurationManager config = JwtConfigurationManager.getInstance();
 
         TokenExtractionHandler  h1 = new TokenExtractionHandler();
         TokenValidationHandler  h2 = new TokenValidationHandler(config);
