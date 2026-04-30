@@ -1,4 +1,4 @@
-package com.team26.freelance.user.config;
+package com.team26.freelance.contract.config;
 
 import com.team26.freelance.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -27,7 +27,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/users/health"
+                                "/api/contracts/health"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
