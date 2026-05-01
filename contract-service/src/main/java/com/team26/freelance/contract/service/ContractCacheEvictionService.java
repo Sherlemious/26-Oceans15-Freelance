@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.service;
 
+import com.team26.freelance.common.ObservabilityAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.RedisConnection;
@@ -12,15 +13,13 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
+import java.util.Objects;
 
 @Service
 public class ContractCacheEvictionService {
 
     private static final Logger logger = LoggerFactory.getLogger(ContractCacheEvictionService.class);
     private static final String PREFIX = "contract-service::";
-    private static final String ANALYTICS_VIEWED = "ANALYTICS_VIEWED";
-    private static final String DASHBOARD_VIEWED = "DASHBOARD_VIEWED";
 
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -29,14 +28,35 @@ public class ContractCacheEvictionService {
     }
 
     public void evictContractDetail(Long id) {
-        evictByPattern(PREFIX + "contract::" + id);
+        if (id == null) {
+            return;
+        }
+        String key = PREFIX + "contract::" + id;
+        try {
+            redisTemplate.delete(key);
+        } catch (RuntimeException e) {
+            logger.warn("Redis exact eviction failed for key={}; continuing without cache eviction",
+                    key, e);
+        }
     }
 
     public void evictContractDetails(Collection<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        ids.forEach(this::evictContractDetail);
+        List<String> keys = ids.stream()
+                .filter(Objects::nonNull)
+                .map(id -> PREFIX + "contract::" + id)
+                .toList();
+        if (keys.isEmpty()) {
+            return;
+        }
+        try {
+            redisTemplate.delete(keys);
+        } catch (RuntimeException e) {
+            logger.warn("Redis batch exact eviction failed for keys={}; continuing without cache eviction",
+                    keys, e);
+        }
     }
 
     public void evictAllContractFeatureCaches() {
@@ -48,7 +68,10 @@ public class ContractCacheEvictionService {
     }
 
     public void evictMilestoneTimeline(Long contractId) {
-        evictByPattern(PREFIX + "S4-F12::" + contractId);
+        if (contractId == null) {
+            return;
+        }
+        evictByPattern(PREFIX + "S4-F12::" + contractId + "*");
     }
 
     public void evictAfterContractCreated() {
@@ -80,11 +103,7 @@ public class ContractCacheEvictionService {
     }
 
     public boolean isPureObservabilityAction(String action) {
-        if (action == null) {
-            return false;
-        }
-        String normalized = action.trim().toUpperCase(Locale.ROOT);
-        return ANALYTICS_VIEWED.equals(normalized) || DASHBOARD_VIEWED.equals(normalized);
+        return ObservabilityAction.isPureObservabilityAction(action);
     }
 
     public void evictByPattern(String pattern) {

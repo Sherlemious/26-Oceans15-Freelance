@@ -24,7 +24,9 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Configuration
@@ -113,11 +115,16 @@ public class RedisCacheConfig implements CachingConfigurer {
         objectMapper.activateDefaultTyping(
                 BasicPolymorphicTypeValidator.builder()
                         .allowIfSubType("com.team26.freelance.contract")
-                        .allowIfSubType("java.lang")
+                        .allowIfSubType(String.class)
+                        .allowIfSubType(Number.class)
+                        .allowIfSubType(Boolean.class)
                         .allowIfSubType("java.math")
                         .allowIfSubType("java.sql")
                         .allowIfSubType("java.time")
-                        .allowIfSubType("java.util")
+                        .allowIfSubType(ArrayList.class)
+                        .allowIfSubType(HashMap.class)
+                        .allowIfSubType(LinkedHashMap.class)
+                        .allowIfSubType("java.util.ImmutableCollections")
                         .build(),
                 ObjectMapper.DefaultTyping.NON_FINAL,
                 JsonTypeInfo.As.PROPERTY);

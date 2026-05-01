@@ -224,7 +224,7 @@ public class ContractService {
                         HttpStatus.NOT_FOUND, "Contract not found"));
     }
 
-    @Cacheable(value = "contract-s4-f1", key = "@contractCacheKeys.featureKey('S4-F1', #userId)")
+    @Cacheable(value = "contract-s4-f1", key = "@contractCacheKeys.featureKeyWithId('S4-F1', #userId)")
     public Contract getActiveContractForUser(Long userId) {
         return contractRepository
                 .findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(userId, ContractStatus.ACTIVE,

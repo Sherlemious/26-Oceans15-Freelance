@@ -20,7 +20,7 @@ public class FreelancerPerformanceService {
         this.contractRepository = contractRepository;
     }
 
-    @Cacheable(value = "contract-s4-f8", key = "@contractCacheKeys.featureKey('S4-F8', #freelancerId, #startDateParam, #endDateParam)")
+    @Cacheable(value = "contract-s4-f8", key = "@contractCacheKeys.featureKeyWithId('S4-F8', #freelancerId, #startDateParam, #endDateParam)")
     public FreelancerPerformanceDTO getSummary(Long freelancerId, java.time.LocalDate startDateParam, java.time.LocalDate endDateParam) {
         long contractCount = contractRepository.countByFreelancerId(freelancerId);
         if (contractCount == 0) {
