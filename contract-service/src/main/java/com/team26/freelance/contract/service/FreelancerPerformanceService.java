@@ -3,6 +3,7 @@ package com.team26.freelance.contract.service;
 import com.team26.freelance.contract.dto.FreelancerPerformanceDTO;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.FreelancerPerformanceProjection;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -19,6 +20,7 @@ public class FreelancerPerformanceService {
         this.contractRepository = contractRepository;
     }
 
+    @Cacheable(value = "contract-s4-f8", key = "@contractCacheKeys.featureKey('S4-F8', #freelancerId, #startDateParam, #endDateParam)")
     public FreelancerPerformanceDTO getSummary(Long freelancerId, java.time.LocalDate startDateParam, java.time.LocalDate endDateParam) {
         long contractCount = contractRepository.countByFreelancerId(freelancerId);
         if (contractCount == 0) {

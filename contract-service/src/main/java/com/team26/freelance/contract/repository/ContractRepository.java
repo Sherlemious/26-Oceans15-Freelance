@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,6 +29,10 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     
     @Query("SELECT COUNT(c) FROM Contract c WHERE c.createdAt < :cutoff AND c.status IN ('COMPLETED', 'TERMINATED')")
     long countPurgeable(@Param("cutoff") LocalDateTime cutoff);
+
+    @Query("SELECT c.id FROM Contract c WHERE c.createdAt < :cutoff AND c.status IN :statuses")
+    List<Long> findPurgeableIds(@Param("cutoff") LocalDateTime cutoff,
+                                @Param("statuses") Collection<ContractStatus> statuses);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional

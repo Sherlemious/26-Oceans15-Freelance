@@ -5,24 +5,19 @@ import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
-import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -35,11 +30,14 @@ import java.util.stream.Collectors;
 public class ContractService {
 
     private final ContractRepository contractRepository;
+    private final ContractCacheEvictionService cacheEvictionService;
 
-    public ContractService(ContractRepository contractRepository) {
+    public ContractService(ContractRepository contractRepository, ContractCacheEvictionService cacheEvictionService) {
         this.contractRepository = contractRepository;
+        this.cacheEvictionService = cacheEvictionService;
     }
 
+    @Cacheable(value = "contract-s4-f6", key = "@contractCacheKeys.featureKey('S4-F6', #startDate, #endDate, #status)")
     public List<ContractDateRangeDTO> getContractHistory(LocalDate startDate, LocalDate endDate, ContractStatus status) {
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate must not be after endDate");
@@ -72,6 +70,7 @@ public class ContractService {
                 .toList();
     }
 
+    @Cacheable(value = "contract-s4-f5", key = "@contractCacheKeys.featureKey('S4-F5', #key, #operator, #value)")
     public List<Contract> searchByMetadata(String key, String operator, String value) {
         String normalizedOperator = operator == null ? "" : operator.trim().toLowerCase(Locale.ROOT);
 
@@ -128,12 +127,15 @@ public class ContractService {
         if (contractDetails.getMetadata() != null)
             contract.setMetadata(contractDetails.getMetadata());
 
-        return contractRepository.save(contract);
+        Contract saved = contractRepository.save(contract);
+        cacheEvictionService.evictAfterContractMutation(saved.getId());
+        return saved;
     }
 
     public void delete(Long id) {
         Contract contract = getContractById(id);
         contractRepository.delete(contract);
+        cacheEvictionService.evictAfterContractMutation(id);
     }
 
     @Transactional
@@ -207,6 +209,7 @@ public class ContractService {
         }
 
         contractRepository.saveAll(toSave);
+        cacheEvictionService.evictAfterContractsMutated(uniqueIds);
         return toSave.size();
     }
 
@@ -214,12 +217,14 @@ public class ContractService {
         return contractRepository.findAll();
     }
 
+    @Cacheable(value = "contract-detail", key = "@contractCacheKeys.contractDetail(#id)")
     public Contract getContractById(Long id) {
         return contractRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Contract not found"));
     }
 
+    @Cacheable(value = "contract-s4-f1", key = "@contractCacheKeys.featureKey('S4-F1', #userId)")
     public Contract getActiveContractForUser(Long userId) {
         return contractRepository
                 .findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(userId, ContractStatus.ACTIVE,
@@ -240,9 +245,12 @@ public class ContractService {
         if (contract.getCreatedAt() == null) {
             contract.setCreatedAt(LocalDateTime.now());
         }
-        return contractRepository.save(contract);
+        Contract saved = contractRepository.save(contract);
+        cacheEvictionService.evictAfterContractCreated();
+        return saved;
     }
 
+    @Cacheable(value = "contract-s4-f3", key = "@contractCacheKeys.featureKey('S4-F3', #minAmount, #maxAmount, #status)")
     public List<ContractSummaryDTO> findContractsByBudgetRangeWithFreelancerInfo(Double minAmount,
             Double maxAmount,
             String status) {
@@ -310,7 +318,9 @@ public class ContractService {
         }
         contract.setMetadata(newMetadata);
 
-        return contractRepository.save(contract);
+        Contract saved = contractRepository.save(contract);
+        cacheEvictionService.evictAfterContractMutation(saved.getId());
+        return saved;
     }
 
 }
