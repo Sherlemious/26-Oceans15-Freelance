@@ -9,5 +9,8 @@ public record ProposalDetailsDTO(Long proposalId, Long jobId, Long freelancerId,
                 Double bidAmount, Map<String, Object> metadata, List<ProposalMilestoneDTO> milestones,
                 int totalMilestones,
                 int completedMilestones) {
+    public static ProposalDetailsDTOBuilder builder() {
+        return ProposalDetailsDTOBuilder.builder();
+    }
 
 }
