@@ -21,7 +21,7 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     void rejectSubmittedProposalsByJobId(@Param("jobId") Long jobId);
 
     @Query(value = "SELECT * FROM jobs j WHERE " +
-            "(:status IS NULL OR j.status = :status) AND " +
+            "(:status IS NULL OR j.status = CAST(:status AS job_status)) AND " +
             "(:minBudget IS NULL OR j.budget_max >= :minBudget) AND " +
             "(:maxBudget IS NULL OR j.budget_min <= :maxBudget) " +
             "ORDER BY j.budget_max DESC",
@@ -71,4 +71,16 @@ public interface JobRepository extends JpaRepository<Job, Long> {
 
         @Query(value = "SELECT job_id, status FROM contracts WHERE id = :id", nativeQuery = true)
         Optional<Object[]> findContractJobIdAndStatusById(@Param("id") Long id);
+
+    @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId", nativeQuery = true)
+    Long countTotalProposalsByJobId(@Param("jobId") Long jobId);
+
+    @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId AND status = 'ACCEPTED'", nativeQuery = true)
+    Long countAcceptedProposalsByJobId(@Param("jobId") Long jobId);
+
+    @Query(value = "SELECT COALESCE(AVG(bid_amount), 0) FROM proposals WHERE job_id = :jobId", nativeQuery = true)
+    Double getAverageBidAmountByJobId(@Param("jobId") Long jobId);
+
+    @Query(value = "SELECT COUNT(*) FROM job_attachments WHERE job_id = :jobId AND expiry_date >= CURRENT_DATE", nativeQuery = true)
+    Long countActiveAttachmentsByJobId(@Param("jobId") Long jobId);
 }

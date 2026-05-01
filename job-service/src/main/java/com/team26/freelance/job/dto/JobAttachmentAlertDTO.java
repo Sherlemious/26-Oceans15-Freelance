@@ -12,6 +12,8 @@ public class JobAttachmentAlertDTO {
     private List<JobAttachment> expiredAttachments;
     private int expiredCount;
 
+    public JobAttachmentAlertDTO() {}
+
     public JobAttachmentAlertDTO(Long jobId, String jobTitle, JobStatus jobStatus, List<JobAttachment> expiredAttachments, int expiredCount) {
         this.jobId = jobId;
         this.jobTitle = jobTitle;

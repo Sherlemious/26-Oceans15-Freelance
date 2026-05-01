@@ -23,8 +23,8 @@ public class PayoutReportController {
 
     @GetMapping("/reports/revenue")
     public ResponseEntity<RevenueReportDTO> getRevenueReport(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         return ResponseEntity.ok(payoutReportService.getRevenueReport(startDate, endDate));
     }
 }

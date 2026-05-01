@@ -2,6 +2,7 @@ package com.team26.freelance.contract.service;
 
 import com.team26.freelance.contract.dto.StalledContractDTO;
 import com.team26.freelance.contract.repository.ContractRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ public class StalledContractService {
         this.contractRepository = contractRepository;
     }
 
+    @Cacheable(value = "contract-s4-f9", key = "@contractCacheKeys.featureKey('S4-F9', #maxProgress, #stalledDays)")
     public List<StalledContractDTO> getStalledContracts(double maxProgress, double stalledDays) {
         List<Object[]> rows = contractRepository.findStalledContracts(maxProgress, stalledDays);
         List<StalledContractDTO> dtos = new ArrayList<>();
@@ -34,4 +36,3 @@ public class StalledContractService {
         return dtos;
     }
 }
-

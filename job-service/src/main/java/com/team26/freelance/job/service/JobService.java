@@ -1,12 +1,15 @@
 package com.team26.freelance.job.service;
 
 import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
+import com.team26.freelance.job.dto.JobDashboardDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
+import com.team26.freelance.job.model.mongo.JobEvent;
 import com.team26.freelance.job.repository.JobRepository;
+import com.team26.freelance.job.repository.mongo.JobEventRepository;
 import org.springframework.http.HttpStatus;
 
 import org.springframework.stereotype.Service;
@@ -23,13 +26,20 @@ import java.util.stream.Collectors;
 public class JobService {
 
     private final JobRepository jobRepository;
+    private final JobSearchService jobSearchService;
+    private final JobEventRepository jobEventRepository;
 
-    public JobService(JobRepository jobRepository) {
+
+    public JobService(JobRepository jobRepository, JobSearchService jobSearchService, JobEventRepository jobEventRepository) {
         this.jobRepository = jobRepository;
+        this.jobSearchService = jobSearchService;
+        this.jobEventRepository = jobEventRepository;
     }
 
     public Job createJob(Job job) {
-        return jobRepository.save(job);
+        Job saved = jobRepository.save(job);
+        jobSearchService.indexJob(saved.getId(), "auto_crud_create");
+        return saved;
     }
 
     public List<Job> getAllJobs() {
@@ -54,12 +64,15 @@ public class JobService {
         existingJob.setBudgetMax(updatedJob.getBudgetMax());
         existingJob.setRequirements(updatedJob.getRequirements());
 
-        return jobRepository.save(existingJob);
+        Job updated = jobRepository.save(existingJob);
+        jobSearchService.indexJob(updated.getId(), "auto_crud_update");
+        return updated;
     }
 
     public void deleteJob(Long jobId) {
         Job job = getJobById(jobId);
         jobRepository.delete(job);
+        jobSearchService.removeFromIndex(jobId);
     }
 
     @Transactional
@@ -123,7 +136,7 @@ public class JobService {
         // 1. Find job — 404 if not found
         Job job = getJobById(jobId);
 
-        
+
 
         // 2. Validate contract — 404 if not found, 400 if wrong job or not COMPLETED
         validateContractForJob(jobId, contractId);
@@ -202,7 +215,7 @@ public class JobService {
 }
 
 
-    
+
     public JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
         getJobById(jobId);
 
@@ -237,5 +250,30 @@ public class JobService {
                 ((Number) result[4]).doubleValue(),
                 ((Number) result[5]).doubleValue()
         );
+    }
+
+    public void logDashboardViewed(Long jobId) {
+        jobSearchService.notifyObservers("DASHBOARD_VIEWED", Map.of(
+                "jobId", jobId,
+                "source", "dashboard"
+        ));
+    }
+
+    public JobDashboardDTO getJobDashboard(Long jobId) {
+        Job job = getJobById(jobId);
+        Long totalProposals = jobRepository.countTotalProposalsByJobId(jobId);
+        Long acceptedProposals = jobRepository.countAcceptedProposalsByJobId(jobId);
+        Double averageBidAmount = jobRepository.getAverageBidAmountByJobId(jobId);
+        Long activeAttachments = jobRepository.countActiveAttachmentsByJobId(jobId);
+
+        return new JobDashboardDTO.Builder()
+                .jobId(jobId)
+                .title(job.getTitle())
+                .totalProposals(totalProposals)
+                .acceptedProposals(acceptedProposals)
+                .averageBidAmount(averageBidAmount)
+                .activeAttachments(activeAttachments)
+                .rating(job.getRating())
+                .build();
     }
 }

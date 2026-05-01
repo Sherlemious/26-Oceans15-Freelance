@@ -8,10 +8,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 import java.time.LocalDateTime;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
+
+    boolean existsByEmail(String email);
+
+    boolean existsByPhone(String phone);
+
+    Optional<User> findByEmail(String email);
 
     @Query("""
             SELECT u FROM User u
@@ -68,4 +75,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByLanguageWithMinCompletedContracts(
             @Param("lang") String lang,
             @Param("minContracts") int minContracts);
+
+    @Query(value = """
+            SELECT u.id,
+                   u.name,
+                   COUNT(c.id) AS total_contracts,
+                   COALESCE(SUM(CASE WHEN c.status = 'COMPLETED' THEN 1 ELSE 0 END), 0) AS completed_contracts,
+                   COALESCE(SUM(CASE WHEN c.status = 'TERMINATED' THEN 1 ELSE 0 END), 0) AS terminated_contracts,
+                   COALESCE(SUM(CASE WHEN c.status = 'COMPLETED' THEN c.agreed_amount ELSE 0 END), 0) AS total_earnings,
+                   COALESCE(AVG(CASE WHEN c.status = 'COMPLETED' THEN c.agreed_amount ELSE NULL END), 0) AS average_contract_value
+            FROM users u
+            LEFT JOIN contracts c
+                   ON c.freelancer_id = u.id OR c.client_id = u.id
+            WHERE u.id = :userId
+            GROUP BY u.id, u.name
+            """, nativeQuery = true)
+    List<Object[]> findUserContractSummaryById(@Param("userId") Long userId);
 }
