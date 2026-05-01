@@ -6,7 +6,10 @@ spring:
     name: wallet-service
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      #- org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
+      #- org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
+      #- org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
