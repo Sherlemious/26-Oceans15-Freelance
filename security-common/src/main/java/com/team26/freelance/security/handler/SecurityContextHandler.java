@@ -6,16 +6,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
 
 import java.util.List;
 
 public class SecurityContextHandler extends AbstractJwtHandler {
-
-    // ✅ Explicitly saves context — required in Spring Security 6
-    private static final SecurityContextRepository securityContextRepository =
-            new HttpSessionSecurityContextRepository();
 
     @Override
     public void handle(JwtAuthContext context) throws JwtAuthException {
@@ -30,12 +24,6 @@ public class SecurityContextHandler extends AbstractJwtHandler {
         SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
         securityContext.setAuthentication(authentication);
         SecurityContextHolder.setContext(securityContext);
-
-        securityContextRepository.saveContext(
-                securityContext,
-                context.getRequest(),
-                (jakarta.servlet.http.HttpServletResponse)
-                        context.getRequest().getAttribute("__response")
-        );
+        // No session, no repository — fully stateless
     }
 }
