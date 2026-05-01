@@ -1,5 +1,6 @@
 package com.team26.freelance.proposal.service;
 
+import com.team26.freelance.proposal.adapter.MongoDocumentAdapter;
 import com.team26.freelance.proposal.dto.CreateProposalDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
@@ -15,8 +16,8 @@ import com.team26.freelance.proposal.model.ProposalEvent;
 import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
-import com.team26.freelance.proposal.repository.ProposalEventRepository;
 
+import org.bson.Document;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -41,21 +42,25 @@ public class ProposalService {
     private final ProposalRepository proposalRepository;
     private final ProposalMilestoneRepository milestoneRepository;
     private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
-    private static final String DASHBOARD_CACHE_KEY = "proposal-analytics:dashboard";
+    private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
 
     @Value("${cache.ttl.analytics:600}")
     private long cacheTtlSeconds;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ProposalEventRepository proposalEventRepository;
+    private final MongoDocumentAdapter mongoDocumentAdapter;
+
 
     public ProposalService(ProposalRepository proposalRepository,
                            ProposalMilestoneRepository milestoneRepository,
                            RedisTemplate<String, Object> redisTemplate,
-                           ProposalEventRepository proposalEventRepository) {
+                           ProposalEventRepository proposalEventRepository,
+                           MongoDocumentAdapter mongoDocumentAdapter) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
         this.redisTemplate = redisTemplate;
         this.proposalEventRepository = proposalEventRepository;
+        this.mongoDocumentAdapter = mongoDocumentAdapter;
     }
 
     // ── CRUD ───────────────────────────────────────────────────────────────
@@ -364,7 +369,7 @@ public class ProposalService {
         LocalDateTime end = endDate.atTime(23, 59, 59, 999_000_000);
 
         // Build cache key including date params
-        String cacheKey = DASHBOARD_CACHE_KEY + "::" + startDate + "::" + endDate;
+        String cacheKey = DASHBOARD_CACHE_KEY + "::" + startDate.toString() + "_" + endDate.toString();
 
         // Check Redis cache first
         try {
@@ -395,11 +400,6 @@ public class ProposalService {
             long count = ((Number) row[1]).longValue();
             byStatus.put(status, count);
         }
-
-        // Proposals in last 7 days
-        long last7Days = proposalRepository.countSubmittedSince(
-                LocalDateTime.now().minusDays(7));
-
         // Build DTO using Builder pattern
         ProposalAnalyticsDashboardDTO dto = ProposalAnalyticsDashboardDTO.builder()
                 .withTotalProposals(total)
@@ -407,20 +407,25 @@ public class ProposalService {
                 .withAverageBidAmount(avgBid)
                 .withAverageEstimatedDays(avgDays)
                 .withProposalsByStatus(byStatus)
-                .withProposalsLast7Days(last7Days)
                 .build();
 
-        // Store in Redis
+        ProposalAnalyticsDashboardDTO finalDto = dto;
+
         try {
-            redisTemplate.opsForValue().set(cacheKey, dto, Duration.ofSeconds(cacheTtlSeconds));
+            Document snapshot = new Document()
+                    .append("totalProposals", dto.getTotalProposals())
+                    .append("acceptanceRate", dto.getAcceptanceRate())
+                    .append("averageBidAmount", dto.getAverageBidAmount())
+                    .append("averageEstimatedDays", dto.getAverageEstimatedDays())
+                    .append("proposalsByStatus", dto.getProposalsByStatus());
+            ProposalAnalyticsDashboardDTO adapted = mongoDocumentAdapter.adapt(snapshot);
+            redisTemplate.opsForValue().set(cacheKey, adapted, Duration.ofSeconds(cacheTtlSeconds));
+            finalDto = adapted;
         } catch (Exception e) {
             // Redis soft dependency
         }
-
-        // Log ANALYTICS_VIEWED to MongoDB
         logAnalyticsViewedEvent(startDate, endDate);
-
-        return dto;
+        return finalDto;
     }
 
     private void logAnalyticsViewedEvent(LocalDate startDate, LocalDate endDate) {
@@ -446,7 +451,7 @@ public class ProposalService {
     // Call this on any proposal write to invalidate dashboard cache
     public void invalidateDashboardCache() {
         try {
-            Set<String> keys = redisTemplate.keys("proposal-analytics:dashboard::*");
+            Set<String> keys = redisTemplate.keys("proposal-service::S3-F10::*");
             if (keys != null && !keys.isEmpty()) {
                 redisTemplate.delete(keys);
             }

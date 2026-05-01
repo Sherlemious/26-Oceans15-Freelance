@@ -156,11 +156,5 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                 @Param("startDate") LocalDateTime startDate,
                 @Param("endDate") LocalDateTime endDate
         );
-        @Query(value = """
-                       SELECT COUNT(*) FROM proposals
-                       WHERE submitted_at >= :since
-                       """, nativeQuery = true)
-        long countSubmittedSince(@Param("since") LocalDateTime since);
-
 
 }

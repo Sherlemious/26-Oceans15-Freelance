@@ -9,7 +9,6 @@ public class ProposalAnalyticsDashboardDTO {
     private double averageBidAmount;
     private double averageEstimatedDays;
     private Map<String, Long> proposalsByStatus;
-    private long proposalsLast7Days;
 
     private ProposalAnalyticsDashboardDTO() {}
 
@@ -18,7 +17,6 @@ public class ProposalAnalyticsDashboardDTO {
     public double getAverageBidAmount() { return averageBidAmount; }
     public double getAverageEstimatedDays() { return averageEstimatedDays; }
     public Map<String, Long> getProposalsByStatus() { return proposalsByStatus; }
-    public long getProposalsLast7Days() { return proposalsLast7Days; }
 
     // ── Builder ────────────────────────────────────────────────────────────
 
@@ -52,11 +50,6 @@ public class ProposalAnalyticsDashboardDTO {
 
         public Builder withProposalsByStatus(Map<String, Long> proposalsByStatus) {
             dto.proposalsByStatus = proposalsByStatus;
-            return this;
-        }
-
-        public Builder withProposalsLast7Days(long proposalsLast7Days) {
-            dto.proposalsLast7Days = proposalsLast7Days;
             return this;
         }
 
