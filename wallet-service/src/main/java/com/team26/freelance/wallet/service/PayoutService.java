@@ -8,6 +8,7 @@ import com.team26.freelance.wallet.dto.PayoutResponseDTO;
 import com.team26.freelance.wallet.dto.PayoutReversalResultDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
+import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.DiscountType;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutAuditEventType;
@@ -18,9 +19,9 @@ import com.team26.freelance.wallet.model.PromoCode;
 import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
-import com.team26.freelance.wallet.strategy.PayoutReversalContext;
-import com.team26.freelance.wallet.strategy.PayoutReversalResult;
-import org.springframework.context.ApplicationEventPublisher;
+import com.team26.freelance.wallet.strategy.RefundResult;
+import com.team26.freelance.wallet.strategy.RefundStrategy;
+import com.team26.freelance.wallet.strategy.RefundStrategySelector;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
@@ -44,18 +45,18 @@ public class PayoutService {
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
   private final PayoutPromoRepository payoutPromoRepository;
-  private final PayoutReversalContext payoutReversalContext;
+  private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
 
   public PayoutService(PayoutRepository payoutRepository,
-                        PromoCodeRepository promoCodeRepository,
-                        PayoutPromoRepository payoutPromoRepository,
-                        PayoutReversalContext payoutReversalContext,
-                        PayoutAuditService payoutAuditService) {
+                       PromoCodeRepository promoCodeRepository,
+                       PayoutPromoRepository payoutPromoRepository,
+                       RefundStrategySelector refundStrategySelector,
+                       PayoutAuditService payoutAuditService) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
-    this.payoutReversalContext = payoutReversalContext;
+    this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
   }
 
@@ -453,31 +454,36 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
   })
   @Transactional
-  public PayoutReversalResultDTO reversePayout(Long id) {
+  public PayoutReversalResultDTO reversePayout(Long id, RefundRequest request) {
     Payout payout = payoutRepository.findByIdWithPromos(id).orElseThrow(
         () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
 
-    PayoutReversalResult result = payoutReversalContext.executeStrategy(payout);
-
-    if (result.isApproved()) {
-      payout.setStatus(PayoutStatus.REFUNDED);
-      Map<String, Object> details = payout.getTransactionDetails();
-      if (details == null) {
-        details = new HashMap<>();
-      }
-      details.put("refundedAt", LocalDateTime.now().toString());
-      details.put("strategyApplied", result.getStrategyApplied());
-      details.put("amountReturned", result.getAmountReturned());
-      payout.setTransactionDetails(details);
-      payoutRepository.save(payout);
+    if (payout.getStatus() != PayoutStatus.COMPLETED) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          "Only COMPLETED payouts can be reversed");
     }
 
-    payoutAuditService.recordRefundResult(
-        payout,
-        result.isApproved(),
-        result.getAmountReturned(),
-        result.getStrategyApplied(),
-        result.getReason());
+    RefundStrategy strategy = refundStrategySelector.select(payout, request);
+    RefundResult result = strategy.calculateRefund(payout, request);
+
+    if (!result.isApproved()) {
+      payoutAuditService.recordRefundResult(payout, false, result.getAmount(), result.getStrategyName(), result.getReasonCode());
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, result.getReasonCode());
+    }
+
+    payout.setStatus(PayoutStatus.REFUNDED);
+    Map<String, Object> details = payout.getTransactionDetails();
+    if (details == null) {
+      details = new HashMap<>();
+    }
+    details.put("refundAmount", result.getAmount());
+    details.put("reversalScope", request.getReversalScope());
+    details.put("refundReason", request.getReason());
+    details.put("refundedAt", LocalDateTime.now().toString());
+    payout.setTransactionDetails(details);
+    payoutRepository.save(payout);
+
+    payoutAuditService.recordRefundResult(payout, true, result.getAmount(), result.getStrategyName(), result.getReasonCode());
 
     return new PayoutReversalResultDTO(payout, result);
   }
