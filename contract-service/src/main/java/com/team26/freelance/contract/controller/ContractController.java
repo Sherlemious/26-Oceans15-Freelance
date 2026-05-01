@@ -1,11 +1,12 @@
 package com.team26.freelance.contract.controller;
 
+import com.team26.freelance.contract.dto.ContractAnalyticsDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
+import com.team26.freelance.contract.service.ContractAnalyticsService;
 import com.team26.freelance.contract.service.ContractService;
-import com.team26.freelance.contract.service.dto.ContractStatusUpdateRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
@@ -20,9 +21,11 @@ import java.util.Map;
 public class ContractController {
 
     private final ContractService contractService;
+    private final ContractAnalyticsService contractAnalyticsService;
 
-    public ContractController(ContractService contractService) {
+    public ContractController(ContractService contractService, ContractAnalyticsService contractAnalyticsService) {
         this.contractService = contractService;
+        this.contractAnalyticsService = contractAnalyticsService;
     }
 
     @GetMapping("/history")
@@ -63,6 +66,14 @@ public class ContractController {
     @GetMapping
     public ResponseEntity<List<Contract>> getAllContracts() {
         return ResponseEntity.ok(contractService.getAllContracts());
+    }
+
+    @GetMapping("/analytics")
+    public ResponseEntity<ContractAnalyticsDTO> getContractAnalytics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        contractAnalyticsService.recordAnalyticsViewed(startDate, endDate);
+        return ResponseEntity.ok(contractAnalyticsService.getAnalytics(startDate, endDate));
     }
 
     // GET /api/contracts/{id} ← used by job-service via RestTemplate
