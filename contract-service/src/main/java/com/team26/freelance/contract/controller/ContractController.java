@@ -3,6 +3,8 @@ package com.team26.freelance.contract.controller;
 import com.team26.freelance.contract.dto.ContractAnalyticsDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
+import com.team26.freelance.contract.dto.MilestoneTrackingRequest;
+import com.team26.freelance.contract.dto.MilestoneTrackingResponse;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.service.ContractAnalyticsService;
@@ -10,7 +12,9 @@ import com.team26.freelance.contract.service.ContractService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -89,6 +93,7 @@ public class ContractController {
     }
 
     // POST /api/contracts
+    @PreAuthorize("hasRole('CLIENT')")
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -111,5 +116,13 @@ public class ContractController {
     public ResponseEntity<Contract> updateContractProgress(@PathVariable Long contractId,
             @RequestBody Map<String, Object> incomingMetadata) {
         return ResponseEntity.ok(contractService.updateContractProgress(contractId, incomingMetadata));
+    }
+
+    @PreAuthorize("hasRole('FREELANCER') or hasRole('CLIENT')")
+    @PostMapping("/{id}/milestones/track")
+    public ResponseEntity<MilestoneTrackingResponse> trackMilestone(@PathVariable Long id,
+            @RequestBody @Valid MilestoneTrackingRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(contractService.trackMilestone(id, request));
     }
 }
