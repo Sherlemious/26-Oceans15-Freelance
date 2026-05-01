@@ -7,6 +7,7 @@ import com.team26.freelance.wallet.dto.PayoutReversalResultDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
+import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.service.PayoutService;
 import java.time.LocalDate;
@@ -44,10 +45,14 @@ public class PayoutController {
     return ResponseEntity.ok(payoutService.getPayoutById(id));
   }
 
-    @GetMapping("/analytics/category")
-    public ResponseEntity<List<CategoryRevenueDTO>> getPlatformFeeAnalyticsByCategory() {
-      return ResponseEntity.ok(payoutService.getPlatformFeeAnalyticsByCategory());
-    }
+  @GetMapping("/analytics/category")
+  public ResponseEntity<List<CategoryRevenueDTO>> getPlatformFeeAnalyticsByCategory(
+          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+    return ResponseEntity.ok(
+            payoutService.getPlatformFeeAnalyticsByCategory(startDate, endDate)
+    );
+  }
 
   @PostMapping
   public ResponseEntity<Payout> createPayout(@RequestBody Payout payout) {
@@ -57,7 +62,7 @@ public class PayoutController {
   @PostMapping("/contract/{contractId}")
   public ResponseEntity<Payout>
   processContractPayout(@PathVariable Long contractId,
-                        @RequestBody ProcessContractPayoutRequest request) {
+                        @RequestBody(required = false) ProcessContractPayoutRequest request) {
     return ResponseEntity.status(201).body(
         payoutService.processContractPayout(contractId, request));
   }

@@ -4,12 +4,10 @@ server:
 spring:
   application:
     name: job-service
-
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/freelancedb}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
-
   jpa:
     hibernate:
       ddl-auto: update
@@ -21,24 +19,30 @@ spring:
     init:
       mode: always
       separator: "@@"
-
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin}
-
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/freelancedb}
     redis:
-      host: ${SPRING_REDIS_HOST:redis}
-      port: ${SPRING_REDIS_PORT:6379}
-      password: ${SPRING_REDIS_PASSWORD:redispass}
-
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
   elasticsearch:
     uris: ${SPRING_ELASTICSEARCH_URIS:http://elasticsearch:9200}
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
   expiration: ${JWT_EXPIRATION:86400000}
 
 cache:
   ttl:
     search: 300
     dashboard: 600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always

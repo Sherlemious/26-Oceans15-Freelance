@@ -1,4 +1,4 @@
-package com.team26.freelance.job.config;
+package com.team26.freelance.job.service;
 
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
@@ -29,6 +29,7 @@ public class CacheEvictionService {
         evictByPattern(PREFIX + "S2-F5::");
         evictByPattern(PREFIX + "S2-F6::");
         evictByPattern(PREFIX + "S2-F9::*");
+        evictByPattern(PREFIX + "S2-F10::*");
     }
 
     public void evictByPattern(String pattern) {

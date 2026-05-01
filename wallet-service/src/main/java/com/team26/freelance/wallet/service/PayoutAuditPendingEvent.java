@@ -1,30 +1,53 @@
 package com.team26.freelance.wallet.service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 public class PayoutAuditPendingEvent {
 
     private final Long payoutId;
-    private final String eventType;
-    private final Double amountReturned;
-    private final String strategyApplied;
-    private final String reason;
+    private final String action;
+    private final String method;
+    private final Double amount;
+    private final Map<String, Object> details;
     private final LocalDateTime timestamp;
 
-    public PayoutAuditPendingEvent(Long payoutId, String eventType, Double amountReturned,
-                                   String strategyApplied, String reason, LocalDateTime timestamp) {
+    public PayoutAuditPendingEvent(Long payoutId,
+                                   String action,
+                                   String method,
+                                   Double amount,
+                                   Map<String, Object> details,
+                                   LocalDateTime timestamp) {
         this.payoutId = payoutId;
-        this.eventType = eventType;
-        this.amountReturned = amountReturned;
-        this.strategyApplied = strategyApplied;
-        this.reason = reason;
+        this.action = action;
+        this.method = method;
+        this.amount = amount;
+        this.details = details == null ? new HashMap<>() : details;
         this.timestamp = timestamp;
     }
 
-    public Long getPayoutId() { return payoutId; }
-    public String getEventType() { return eventType; }
-    public Double getAmountReturned() { return amountReturned; }
-    public String getStrategyApplied() { return strategyApplied; }
-    public String getReason() { return reason; }
-    public LocalDateTime getTimestamp() { return timestamp; }
+    public Long getPayoutId() {
+        return payoutId;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public Double getAmount() {
+        return amount;
+    }
+
+    public Map<String, Object> getDetails() {
+        return details;
+    }
+
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
 }

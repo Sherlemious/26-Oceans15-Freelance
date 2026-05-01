@@ -1,8 +1,10 @@
 package com.team26.freelance.wallet.dto;
 
+import java.math.BigDecimal;
+
 public interface CategoryRevenueProjection {
-    String getJobCategory();
-    Double getTotalFees();
-    Double getAverageFee();
+    String getCategory();
+    BigDecimal getPlatformFeeRevenue();
+    BigDecimal getTotalRevenue();
     Long getPayoutCount();
 }

@@ -2,43 +2,57 @@ package com.team26.freelance.wallet.dto;
 
 public class CategoryRevenueDTO {
 
-    private String jobCategory;
-    private Double totalFees;
-    private Double averageFee;
+    private String category;
+    private Double netPayoutRevenue;
+    private Double platformFeeRevenue;
+    private Double totalRevenue;
     private Long payoutCount;
 
     public CategoryRevenueDTO() {
     }
 
     private CategoryRevenueDTO(Builder builder) {
-        this.jobCategory = builder.jobCategory;
-        this.totalFees = builder.totalFees;
-        this.averageFee = builder.averageFee;
+        this.category = builder.category;
+        this.netPayoutRevenue = builder.netPayoutRevenue;
+        this.platformFeeRevenue = builder.platformFeeRevenue;
+        this.totalRevenue = builder.totalRevenue;
         this.payoutCount = builder.payoutCount;
     }
 
-    public String getJobCategory() {
-        return jobCategory;
+    public static Builder builder() {
+        return new Builder();
     }
 
-    public void setJobCategory(String jobCategory) {
-        this.jobCategory = jobCategory;
+    public String getCategory() {
+        return category;
     }
 
-    public Double getTotalFees() {
-        return totalFees;
+    public void setCategory(String category) {
+        this.category = category;
     }
 
-    public void setTotalFees(Double totalFees) {
-        this.totalFees = totalFees;
+    public Double getNetPayoutRevenue() {
+        return netPayoutRevenue;
     }
 
-    public Double getAverageFee() {
-        return averageFee;
+    public void setNetPayoutRevenue(Double netPayoutRevenue) {
+        this.netPayoutRevenue = netPayoutRevenue;
     }
 
-    public void setAverageFee(Double averageFee) {
-        this.averageFee = averageFee;
+    public Double getPlatformFeeRevenue() {
+        return platformFeeRevenue;
+    }
+
+    public void setPlatformFeeRevenue(Double platformFeeRevenue) {
+        this.platformFeeRevenue = platformFeeRevenue;
+    }
+
+    public Double getTotalRevenue() {
+        return totalRevenue;
+    }
+
+    public void setTotalRevenue(Double totalRevenue) {
+        this.totalRevenue = totalRevenue;
     }
 
     public Long getPayoutCount() {
@@ -50,28 +64,33 @@ public class CategoryRevenueDTO {
     }
 
     public static class Builder {
-        private String jobCategory;
-        private Double totalFees;
-        private Double averageFee;
+        private String category;
+        private Double netPayoutRevenue;
+        private Double platformFeeRevenue;
+        private Double totalRevenue;
         private Long payoutCount;
 
-        public Builder jobCategory(String jobCategory) {
-            this.jobCategory = jobCategory;
+        public Builder category(String category) {
+            this.category = category;
             return this;
         }
 
-        public Builder totalFees(Double totalFees) {
-            this.totalFees = totalFees;
+        public Builder netPayoutRevenue(Double netPayoutRevenue) {
+            this.netPayoutRevenue = netPayoutRevenue;
             return this;
         }
 
-        public Builder averageFee(Double averageFee) {
-            this.averageFee = averageFee;
+        public Builder platformFeeRevenue(Double platformFeeRevenue) {
+            this.platformFeeRevenue = platformFeeRevenue;
+            return this;
+        }
+
+        public Builder totalRevenue(Double totalRevenue) {
+            this.totalRevenue = totalRevenue;
             return this;
         }
 
         public Builder payoutCount(Long payoutCount) {
-            this.payoutCount = payoutCount;
             this.payoutCount = payoutCount;
             return this;
         }

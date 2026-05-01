@@ -1,9 +1,10 @@
 package com.team26.freelance.wallet.model;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.LocalDateTime;
 
 @Document(collection = "payout_audit_trail")
 public class PayoutAuditEvent {
@@ -11,26 +12,67 @@ public class PayoutAuditEvent {
     @Id
     private String id;
     private Long payoutId;
-    private String eventType;
-    private Double amountReturned;
-    private String strategyApplied;
-    private String reason;
+    private String action;
     private LocalDateTime timestamp;
+    private String method;
+    private Double amount;
+    private Map<String, Object> details = new HashMap<>();
 
     public PayoutAuditEvent() {}
 
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public Long getPayoutId() { return payoutId; }
-    public void setPayoutId(Long payoutId) { this.payoutId = payoutId; }
-    public String getEventType() { return eventType; }
-    public void setEventType(String eventType) { this.eventType = eventType; }
-    public Double getAmountReturned() { return amountReturned; }
-    public void setAmountReturned(Double amountReturned) { this.amountReturned = amountReturned; }
-    public String getStrategyApplied() { return strategyApplied; }
-    public void setStrategyApplied(String strategyApplied) { this.strategyApplied = strategyApplied; }
-    public String getReason() { return reason; }
-    public void setReason(String reason) { this.reason = reason; }
-    public LocalDateTime getTimestamp() { return timestamp; }
-    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public Long getPayoutId() {
+        return payoutId;
+    }
+
+    public void setPayoutId(Long payoutId) {
+        this.payoutId = payoutId;
+    }
+
+    public String getAction() {
+        return action;
+    }
+
+    public void setAction(String action) {
+        this.action = action;
+    }
+
+    public LocalDateTime getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(LocalDateTime timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public Double getAmount() {
+        return amount;
+    }
+
+    public void setAmount(Double amount) {
+        this.amount = amount;
+    }
+
+    public Map<String, Object> getDetails() {
+        return details;
+    }
+
+    public void setDetails(Map<String, Object> details) {
+        this.details = details;
+    }
 }

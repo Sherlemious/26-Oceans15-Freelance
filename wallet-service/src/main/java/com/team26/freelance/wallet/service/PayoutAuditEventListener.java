@@ -19,10 +19,10 @@ public class PayoutAuditEventListener {
     public void onPayoutAuditPending(PayoutAuditPendingEvent event) {
         PayoutAuditEvent auditEvent = new PayoutAuditEvent();
         auditEvent.setPayoutId(event.getPayoutId());
-        auditEvent.setEventType(event.getEventType());
-        auditEvent.setAmountReturned(event.getAmountReturned());
-        auditEvent.setStrategyApplied(event.getStrategyApplied());
-        auditEvent.setReason(event.getReason());
+        auditEvent.setAction(event.getAction());
+        auditEvent.setMethod(event.getMethod());
+        auditEvent.setAmount(event.getAmount());
+        auditEvent.setDetails(event.getDetails());
         auditEvent.setTimestamp(event.getTimestamp());
         auditEventRepository.save(auditEvent);
     }
