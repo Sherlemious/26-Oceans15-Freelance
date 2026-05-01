@@ -11,7 +11,6 @@ import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.DiscountType;
 import com.team26.freelance.wallet.model.Payout;
-import com.team26.freelance.wallet.model.PayoutAuditEventType;
 import com.team26.freelance.wallet.model.PayoutMethod;
 import com.team26.freelance.wallet.model.PayoutPromo;
 import com.team26.freelance.wallet.model.PayoutStatus;
@@ -123,6 +122,13 @@ public class PayoutService {
     promoCode.setCurrentUses(currentUses + 1);
     promoCodeRepository.save(promoCode);
 
+    Map<String, Object> auditDetails = new LinkedHashMap<>();
+    auditDetails.put("promoCodeId", promoCode.getId());
+    auditDetails.put("code", promoCode.getCode());
+    auditDetails.put("discountApplied", payoutPromo.getDiscountApplied());
+    auditDetails.put("payoutPromoId", payoutPromo.getId());
+    payoutAuditService.recordPayoutEvent(payout, PayoutAuditService.PROMO_APPLIED, auditDetails);
+
     return new PayoutResponseDTO(payout);
   }
 
@@ -161,7 +167,7 @@ public class PayoutService {
   @Transactional
   public Payout createPayout(Payout payout) {
     Payout saved = payoutRepository.save(payout);
-    payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.CREATED, "Payout created");
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.PAYOUT_CREATED, Map.of("reason", "Payout created"));
     return saved;
   }
 
@@ -176,7 +182,8 @@ public class PayoutService {
   })
   @Transactional
   public Payout processContractPayout(Long contractId,
-                                      ProcessContractPayoutRequest request) {
+                                      ProcessContractPayoutRequest request,
+                                      boolean simulateFailure) {
     List<ContractDataProjection> contractRows = payoutRepository.findContractDataById(contractId);
     if (contractRows.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
@@ -215,6 +222,7 @@ public class PayoutService {
               p.setTransactionDetails(new HashMap<>());
               return p;
             });
+    boolean createdNewPayout = pendingPayout.getId() == null;
 
     PayoutMethod method = normalizePayoutMethod(request != null ? request.getMethod() : null);
     String accountLastFour = request != null ? request.getAccountLastFour() : null;
@@ -246,11 +254,38 @@ public class PayoutService {
       transactionDetails.put("platformFee", platformFee);
     }
 
-    pendingPayout.setStatus(PayoutStatus.COMPLETED);
+    if (simulateFailure) {
+      transactionDetails.put("simulateFailure", true);
+      transactionDetails.put("gatewayResponse", "rejected");
+      transactionDetails.put("failureReason", "simulated gateway failure");
+      pendingPayout.setStatus(PayoutStatus.FAILED);
+    } else {
+      transactionDetails.put("gatewayResponse", "approved");
+      pendingPayout.setStatus(PayoutStatus.COMPLETED);
+    }
     pendingPayout.setTransactionDetails(transactionDetails);
 
     Payout saved = payoutRepository.save(pendingPayout);
-    payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.COMPLETED, "Contract payout completed");
+    if (createdNewPayout) {
+      Map<String, Object> createdDetails = new LinkedHashMap<>();
+      createdDetails.put("contractId", contractId);
+      createdDetails.put("freelancerId", freelancerId);
+      createdDetails.put("reason", "Payout row inserted for contract payout");
+      payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.CREATED, createdDetails);
+    }
+
+    Map<String, Object> completionDetails = new LinkedHashMap<>();
+    completionDetails.put("contractId", contractId);
+    completionDetails.put("accountLastFour", accountLastFour);
+    completionDetails.put("platformFee", transactionDetails.get("platformFee"));
+    completionDetails.put("simulateFailure", simulateFailure);
+    if (simulateFailure) {
+      completionDetails.put("failureReason", transactionDetails.get("failureReason"));
+      payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.FAILED, completionDetails);
+    } else {
+      completionDetails.put("reason", "Contract payout completed");
+      payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.COMPLETED, completionDetails);
+    }
     return saved;
   }
 
@@ -265,7 +300,6 @@ public class PayoutService {
   @Transactional
   public Payout updatePayout(Long id, Payout updated) {
     Payout existing = getPayoutById(id);
-    PayoutStatus previousStatus = existing.getStatus();
     existing.setContractId(updated.getContractId());
     existing.setFreelancerId(updated.getFreelancerId());
     existing.setAmount(updated.getAmount());
@@ -273,7 +307,7 @@ public class PayoutService {
     existing.setStatus(updated.getStatus());
     existing.setTransactionDetails(updated.getTransactionDetails());
     Payout saved = payoutRepository.save(existing);
-    recordStatusTransition(saved, previousStatus, saved.getStatus(), "Payout updated");
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.PAYOUT_UPDATED, Map.of("reason", "Payout updated"));
     return saved;
   }
 
@@ -285,9 +319,14 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
   })
+  @Transactional
   public void deletePayout(Long id) {
-    getPayoutById(id);
+    Payout payout = payoutRepository.findById(id).orElseThrow(
+        ()
+            -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                           "Payout not found"));
     payoutRepository.deleteById(id);
+    payoutAuditService.recordPayoutEvent(payout, PayoutAuditService.PAYOUT_DELETED, Map.of("reason", "Payout deleted"));
   }
 
   @Cacheable(
@@ -333,7 +372,10 @@ public class PayoutService {
     transactionDetails.put("refundedAt", LocalDateTime.now().toString());
     payout.setTransactionDetails(transactionDetails);
     Payout saved = payoutRepository.save(payout);
-    payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.REFUNDED, reason);
+    Map<String, Object> auditDetails = new LinkedHashMap<>();
+    auditDetails.put("reason", reason);
+    auditDetails.put("refundedAt", transactionDetails.get("refundedAt"));
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.REFUNDED, auditDetails);
     return saved;
   }
 
@@ -390,9 +432,15 @@ public class PayoutService {
     payout.setTransactionDetails(transactionDetails);
 
     Payout saved = payoutRepository.save(payout);
-    payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.COMPLETED, "Failed payout retried successfully");
+    Map<String, Object> auditDetails = new LinkedHashMap<>();
+    auditDetails.put("retryAttempt", retryAttempt + 1);
+    auditDetails.put("gatewayResponse", transactionDetails.get("gatewayResponse"));
+    auditDetails.put("previousStatus", PayoutStatus.FAILED.name());
+    auditDetails.put("newStatus", PayoutStatus.COMPLETED.name());
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.RETRY_ATTEMPTED, auditDetails);
     return saved;
   }
+
   @Cacheable(cacheNames = "wallet-service::S5-F8", key = "#payoutId")
   public PayoutDetailsDTO getPayoutDetails(Long payoutId) {
     Payout payout = payoutRepository.findByIdWithPromos(payoutId).orElseThrow(
@@ -487,21 +535,6 @@ public class PayoutService {
 
     return new PayoutReversalResultDTO(payout, result);
   }
-
-  private void recordStatusTransition(Payout payout, PayoutStatus previousStatus,
-                                      PayoutStatus currentStatus, String reason) {
-    if (currentStatus == null || currentStatus == previousStatus) {
-      return;
-    }
-    if (currentStatus == PayoutStatus.COMPLETED) {
-      payoutAuditService.recordLifecycleEvent(payout, PayoutAuditEventType.COMPLETED, reason);
-    } else if (currentStatus == PayoutStatus.FAILED) {
-      payoutAuditService.recordLifecycleEvent(payout, PayoutAuditEventType.FAILED, reason);
-    } else if (currentStatus == PayoutStatus.REFUNDED) {
-      payoutAuditService.recordLifecycleEvent(payout, PayoutAuditEventType.REFUNDED, reason);
-    }
-  }
-
 
   @Cacheable(cacheNames = "wallet-service::S5-F9", key = "#limit")
   public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {

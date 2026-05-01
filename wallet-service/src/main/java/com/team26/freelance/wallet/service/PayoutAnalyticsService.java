@@ -3,10 +3,9 @@ package com.team26.freelance.wallet.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team26.freelance.common.event.PayoutAuditEvent;
 import com.team26.freelance.wallet.adapter.MongoDocumentAdapter;
 import com.team26.freelance.wallet.dto.PayoutMethodBreakdownDTO;
-import com.team26.freelance.wallet.model.PayoutAuditEvent;
-import com.team26.freelance.wallet.model.PayoutAuditEventType;
 import java.util.List;
 import org.bson.Document;
 import org.slf4j.Logger;
@@ -23,10 +22,8 @@ public class PayoutAnalyticsService {
 
     private static final Logger log = LoggerFactory.getLogger(PayoutAnalyticsService.class);
     private static final List<String> LIFECYCLE_EVENTS = List.of(
-        PayoutAuditEventType.CREATED.name(),
-        PayoutAuditEventType.COMPLETED.name(),
-        PayoutAuditEventType.FAILED.name(),
-        PayoutAuditEventType.REFUNDED.name()
+        PayoutAuditService.COMPLETED,
+        PayoutAuditService.FAILED
     );
 
     private final MongoTemplate mongoTemplate;
@@ -84,13 +81,13 @@ public class PayoutAnalyticsService {
     private List<PayoutMethodBreakdownDTO> aggregateMethodBreakdown() {
         try {
             Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(Criteria.where("eventType").in(LIFECYCLE_EVENTS)
-                    .and("payoutMethod").exists(true).ne(null)
+                Aggregation.match(Criteria.where("action").in(LIFECYCLE_EVENTS)
+                    .and("method").exists(true).ne(null)
                     .and("payoutId").exists(true).ne(null)),
                 Aggregation.group("payoutId")
-                    .first("payoutMethod").as("payoutMethod")
+                    .first("method").as("payoutMethod")
                     .first("amount").as("amount")
-                    .max(ConditionalOperators.when(Criteria.where("eventType").is(PayoutAuditEventType.COMPLETED.name()))
+                    .max(ConditionalOperators.when(Criteria.where("action").is(PayoutAuditService.COMPLETED))
                         .then(1)
                         .otherwise(0))
                     .as("completedCount"),

@@ -1,5 +1,7 @@
 package com.team26.freelance.wallet.observer;
 
-public interface EntityObserver<T> {
-    void onEvent(T event);
+import java.util.Map;
+
+public interface EntityObserver {
+    void onEvent(String action, Map<String, Object> payload);
 }
