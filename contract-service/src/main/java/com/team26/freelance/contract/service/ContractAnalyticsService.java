@@ -19,10 +19,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 public class ContractAnalyticsService implements ContractEventSubject {
@@ -31,7 +31,7 @@ public class ContractAnalyticsService implements ContractEventSubject {
 
     private final ContractRepository contractRepository;
     private final MongoDocumentAdapter mongoDocumentAdapter;
-    private final List<EntityObserver> observers = new ArrayList<>();
+    private final List<EntityObserver> observers = new CopyOnWriteArrayList<>();
 
     public ContractAnalyticsService(ContractRepository contractRepository,
                                     ContractEventRepository contractEventRepository,
