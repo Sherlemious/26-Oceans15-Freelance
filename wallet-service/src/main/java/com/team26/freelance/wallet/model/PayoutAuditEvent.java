@@ -12,6 +12,8 @@ public class PayoutAuditEvent {
     private String id;
     private Long payoutId;
     private String eventType;
+    private String payoutMethod;
+    private Double amount;
     private Double amountReturned;
     private String strategyApplied;
     private String reason;
@@ -25,6 +27,10 @@ public class PayoutAuditEvent {
     public void setPayoutId(Long payoutId) { this.payoutId = payoutId; }
     public String getEventType() { return eventType; }
     public void setEventType(String eventType) { this.eventType = eventType; }
+    public String getPayoutMethod() { return payoutMethod; }
+    public void setPayoutMethod(String payoutMethod) { this.payoutMethod = payoutMethod; }
+    public Double getAmount() { return amount; }
+    public void setAmount(Double amount) { this.amount = amount; }
     public Double getAmountReturned() { return amountReturned; }
     public void setAmountReturned(Double amountReturned) { this.amountReturned = amountReturned; }
     public String getStrategyApplied() { return strategyApplied; }

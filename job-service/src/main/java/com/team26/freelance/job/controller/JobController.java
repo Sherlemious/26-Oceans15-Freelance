@@ -1,6 +1,7 @@
 package com.team26.freelance.job.controller;
 
-import com.team26.freelance.job.config.CacheEvictionService;
+import com.team26.freelance.job.dto.JobDashboardDTO;
+import com.team26.freelance.job.service.CacheEvictionService;
 import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
@@ -35,7 +36,6 @@ public class JobController {
         this.jobService = jobService;
         this.cacheEvictionService = cacheEvictionService;
         this.jobSearchService = jobSearchService;
- 
     }
 
     @PostMapping
@@ -166,7 +166,16 @@ public class JobController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Double minBudget,
             @RequestParam(required = false) Double maxBudget
-        ) {            
+        ) {
         return ResponseEntity.ok(jobSearchService.fullTextSearch(query, category, status, minBudget, maxBudget));
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @GetMapping("/{id}/dashboard")
+    @Cacheable(value = "job-dashboard", key = "'job-service::S2-F12::' + #id")
+    public ResponseEntity<JobDashboardDTO> getJobDashboard(@PathVariable Long id) {
+        // logging happens here — outside cache, runs on every call including cache hits
+        jobService.logDashboardViewed(id);
+        return ResponseEntity.ok(jobService.getJobDashboard(id));
     }
 }

@@ -94,7 +94,9 @@ services:
       retries: 20
 
   user-service:
-    build: ./user-service
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
     ports:
       - "8081:8080"
     environment:
@@ -104,6 +106,8 @@ services:
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,7 +123,9 @@ services:
         condition: service_healthy
 
   job-service:
-    build: ./job-service
+    build:
+      context: .
+      dockerfile: job-service/Dockerfile
     ports:
       - "8082:8080"
     environment:
@@ -130,6 +136,8 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -145,7 +153,9 @@ services:
         condition: service_healthy
 
   proposal-service:
-    build: ./proposal-service
+    build:
+      context: .
+      dockerfile: proposal-service/Dockerfile
     ports:
       - "8083:8080"
     environment:
@@ -153,11 +163,18 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_NEO4J_URI: bolt://neo4j:7687
-      SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
-      SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ""
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: password
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}   # ← fixed from JWT_EXPIRATION
+      CACHE_TTL_DETAIL: 300
+      CACHE_TTL_SEARCH: 60
+      CACHE_TTL_DASHBOARD: 600
+      CACHE_TTL_ACTIVITY: 120
     depends_on:
       postgres:
         condition: service_healthy
@@ -173,7 +190,9 @@ services:
         condition: service_healthy
 
   contract-service:
-    build: ./contract-service
+    build:
+      context: .
+      dockerfile: contract-service/Dockerfile
     ports:
       - "8084:8080"
     environment:
@@ -187,6 +206,8 @@ services:
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -202,7 +223,9 @@ services:
         condition: service_healthy
 
   wallet-service:
-    build: ./wallet-service
+    build:
+      context: .
+      dockerfile: wallet-service/Dockerfile
     ports:
       - "8085:8080"
     environment:
@@ -210,12 +233,12 @@ services:
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
