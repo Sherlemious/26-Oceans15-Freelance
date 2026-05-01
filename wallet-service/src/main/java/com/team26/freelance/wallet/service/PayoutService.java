@@ -77,7 +77,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public PayoutResponseDTO applyPromoToPayout(Long payoutId, Long promoCodeId) {
@@ -167,7 +168,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public Payout createPayout(Payout payout) {
@@ -183,6 +185,7 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::payout", allEntries = true)
   })
   @Transactional
@@ -270,7 +273,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public Payout updatePayout(Long id, Payout updated) {
@@ -293,7 +297,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   public void deletePayout(Long id) {
     getPayoutById(id);
@@ -322,7 +327,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public Payout processRefund(Long id, String reason) {
@@ -360,7 +366,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public Payout retryFailedPayout(Long id) {
@@ -461,7 +468,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public PayoutReversalResultDTO reversePayout(Long id) {

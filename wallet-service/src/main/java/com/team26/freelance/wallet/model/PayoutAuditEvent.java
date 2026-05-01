@@ -75,4 +75,52 @@ public class PayoutAuditEvent {
     public void setDetails(Map<String, Object> details) {
         this.details = details;
     }
+
+    public String getEventType() {
+        return this.action;
+    }
+
+    public void setEventType(String eventType) {
+        this.action = eventType;
+    }
+
+    public String getPayoutMethod() {
+        return this.method;
+    }
+
+    public void setPayoutMethod(String payoutMethod) {
+        this.method = payoutMethod;
+    }
+
+    public Double getAmountReturned() {
+        return this.amount;
+    }
+
+    public void setAmountReturned(Double amountReturned) {
+        this.amount = amountReturned;
+    }
+
+    public String getReason() {
+        Object value = this.details == null ? null : this.details.get("reason");
+        return value == null ? null : value.toString();
+    }
+
+    public void setReason(String reason) {
+        if (this.details == null) {
+            this.details = new HashMap<>();
+        }
+        this.details.put("reason", reason);
+    }
+
+    public String getStrategyApplied() {
+        Object value = this.details == null ? null : this.details.get("strategyApplied");
+        return value == null ? null : value.toString();
+    }
+
+    public void setStrategyApplied(String strategyApplied) {
+        if (this.details == null) {
+            this.details = new HashMap<>();
+        }
+        this.details.put("strategyApplied", strategyApplied);
+    }
 }

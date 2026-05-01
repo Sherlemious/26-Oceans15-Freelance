@@ -11,6 +11,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.cache.annotation.Cacheable;
 
 @Service
 public class PlatformFeeAnalyticsService {
@@ -20,7 +21,10 @@ public class PlatformFeeAnalyticsService {
     public PlatformFeeAnalyticsService(PayoutRepository payoutRepository) {
         this.payoutRepository = payoutRepository;
     }
-
+    @Cacheable(
+            cacheNames = "wallet-service::S5-F10",
+            key = "T(java.util.Objects).hash(#startDate, #endDate)"
+    )
     public List<CategoryRevenueDTO> getPlatformFeeAnalytics(LocalDate startDate, LocalDate endDate) {
         if (startDate == null || endDate == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
