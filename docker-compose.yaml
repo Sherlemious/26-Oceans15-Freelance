@@ -28,7 +28,11 @@ services:
     volumes:
       - mongodata:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand(’ping’)"]
+      test:
+        [
+          "CMD-SHELL",
+          'mongosh --quiet --eval "db.adminCommand(''ping'').ok" | grep 1',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -110,7 +114,7 @@ services:
     volumes:
       - cassandradata:/var/lib/cassandra
     healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e ’DESCRIBE KEYSPACES’"]
+      test: ["CMD-SHELL", 'cqlsh -e "DESCRIBE KEYSPACES" > /dev/null || exit 1']
       interval: 15s
       timeout: 10s
       retries: 10
