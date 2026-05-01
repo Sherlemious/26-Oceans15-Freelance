@@ -186,7 +186,6 @@ services:
       SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_DATA_REDIS_PASSWORD: redispass
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
@@ -216,6 +215,7 @@ services:
       SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: redispass
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
