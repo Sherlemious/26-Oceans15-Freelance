@@ -67,4 +67,14 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             GROUP BY method
             """, nativeQuery = true)
     List<Object[]> getPayoutSummaryByFreelancer(@Param("freelancerId") Long freelancerId);
+
+    @Query(value = """
+            SELECT COALESCE(SUM(pm.amount), 0)
+            FROM proposal_milestones pm
+            WHERE pm.proposal_id = (
+                SELECT proposal_id FROM contracts WHERE id = :contractId
+            )
+            AND pm.status NOT IN ('COMPLETED', 'APPROVED')
+            """, nativeQuery = true)
+    Double sumUnresolvedMilestoneAmounts(@Param("contractId") Long contractId);
 }
