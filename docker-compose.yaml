@@ -16,9 +16,12 @@ services:
       timeout: 5s
       retries: 5
 
-  mongodb:
+  mongo:
     image: mongo:latest
     container_name: freelance-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpass
     ports:
       - "27017:27017"
     volumes:
@@ -107,7 +110,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
+      mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -133,7 +136,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
+      mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -161,7 +164,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
+      mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -190,7 +193,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
+      mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -219,7 +222,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
+      mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
