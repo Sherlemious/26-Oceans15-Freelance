@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Document(collection = "contract_events")
-public class ContractEvent {
+public class ContractEvent implements MongoEvent {
 
     @Id
     private String id;
@@ -25,6 +25,16 @@ public class ContractEvent {
         this.action = action;
         this.details = details == null ? new HashMap<>() : new HashMap<>(details);
         this.timestamp = LocalDateTime.now();
+    }
+
+    public ContractEvent(Map<String, Object> params) {
+        Object rawId = params.get("contractId");
+        this.contractId = rawId instanceof Number n ? n.longValue() : null;
+        this.action = (String) params.get("action");
+        Object ts = params.get("timestamp");
+        this.timestamp = ts instanceof LocalDateTime ldt ? ldt : LocalDateTime.now();
+        Object det = params.get("details");
+        this.details = det instanceof Map<?, ?> m ? new HashMap<>((Map<String, Object>) m) : new HashMap<>(params);
     }
 
     public String getId() {

@@ -1,6 +1,8 @@
 package com.team26.freelance.contract.observer;
 
 import com.team26.freelance.contract.model.mongo.ContractEvent;
+import com.team26.freelance.contract.model.mongo.EventFactory;
+import com.team26.freelance.contract.model.mongo.EventType;
 import com.team26.freelance.contract.repository.mongo.ContractEventRepository;
 import com.team26.freelance.contract.service.ContractCacheEvictionService;
 import org.slf4j.Logger;
@@ -27,7 +29,11 @@ public class MongoEventLogger implements EntityObserver {
         try {
             Map<String, Object> details = toDetails(payload);
             Long contractId = toLong(details.get("contractId"));
-            contractEventRepository.save(new ContractEvent(contractId, eventType, details));
+            Map<String, Object> params = new HashMap<>(details);
+            params.put("action", eventType);
+            params.put("contractId", contractId);
+            params.put("details", new HashMap<>(details));
+            contractEventRepository.save((ContractEvent) EventFactory.createEvent(EventType.CONTRACT, params));
             cacheEvictionService.evictAnalyticsForObserverEvent(eventType);
         } catch (Exception e) {
             log.warn("Failed to log contract event to MongoDB: {}", e.getMessage());

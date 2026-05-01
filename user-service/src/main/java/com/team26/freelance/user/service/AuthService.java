@@ -4,6 +4,8 @@ import com.team26.freelance.user.dto.AuthResponseDTO;
 import com.team26.freelance.user.dto.LoginRequestDTO;
 import com.team26.freelance.user.dto.RegisterRequestDTO;
 import com.team26.freelance.user.model.AuthEvent;
+import com.team26.freelance.user.model.EventFactory;
+import com.team26.freelance.user.model.EventType;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -60,11 +63,11 @@ public class AuthService {
         user.setStatus(Status.ACTIVE);
         User savedUser = userRepository.save(user);
 
-        authEventRepository.save(new AuthEvent(
-                savedUser.getId(),
-                "REGISTERED",
-                LocalDateTime.now(),
-                Map.of("email", savedUser.getEmail())));
+        Map<String, Object> registerParams = new HashMap<>();
+        registerParams.put("userId", savedUser.getId());
+        registerParams.put("action", "REGISTERED");
+        registerParams.put("details", Map.of("email", savedUser.getEmail()));
+        authEventRepository.save((AuthEvent) EventFactory.createEvent(EventType.AUTH, registerParams));
 
         String token = jwtService.generateToken(savedUser);
 
@@ -83,11 +86,11 @@ public class AuthService {
                     HttpStatus.UNAUTHORIZED,
                     "Invalid credentials");
         }
-        authEventRepository.save(new AuthEvent(
-            user.getId(),
-            "LOGGED_IN",
-            LocalDateTime.now(),
-            Map.of("email", user.getEmail())));
+        Map<String, Object> loginParams = new HashMap<>();
+        loginParams.put("userId", user.getId());
+        loginParams.put("action", "LOGGED_IN");
+        loginParams.put("details", Map.of("email", user.getEmail()));
+        authEventRepository.save((AuthEvent) EventFactory.createEvent(EventType.AUTH, loginParams));
 
         String token = jwtService.generateToken(user);
         return new AuthResponseDTO(token, user.getId(), user.getRole());

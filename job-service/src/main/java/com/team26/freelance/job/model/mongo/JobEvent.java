@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @Document(collection = "job_events")
-public class JobEvent {
+public class JobEvent implements MongoEvent {
     @Id
     private String id;
 
@@ -23,6 +23,16 @@ public class JobEvent {
         this.action = action;
         this.details = details;
         this.timestamp = LocalDateTime.now();
+    }
+
+    public JobEvent(Map<String, Object> params) {
+        Object rawId = params.get("jobId");
+        this.jobId = rawId instanceof Number n ? n.longValue() : null;
+        this.action = (String) params.get("action");
+        Object ts = params.get("timestamp");
+        this.timestamp = ts instanceof LocalDateTime ldt ? ldt : LocalDateTime.now();
+        Object det = params.get("details");
+        this.details = det instanceof Map<?, ?> m ? (Map<String, Object>) m : new java.util.HashMap<>(params);
     }
 
     public String getId() { return id; }

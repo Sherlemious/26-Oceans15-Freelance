@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @Document(collection = "auth_events")
-public class AuthEvent {
+public class AuthEvent implements MongoEvent {
     @Id
     private String id;
 
@@ -21,6 +21,16 @@ public class AuthEvent {
         this.action = action;
         this.timestamp = timestamp;
         this.details = details;
+    }
+
+    public AuthEvent(Map<String, Object> params) {
+        Object rawId = params.get("userId");
+        this.userId = rawId instanceof Number n ? n.longValue() : null;
+        this.action = (String) params.get("action");
+        Object ts = params.get("timestamp");
+        this.timestamp = ts instanceof LocalDateTime ldt ? ldt : LocalDateTime.now();
+        Object det = params.get("details");
+        this.details = det instanceof Map<?, ?> m ? (Map<String, Object>) m : new java.util.HashMap<>(params);
     }
 
     public String getId() {
