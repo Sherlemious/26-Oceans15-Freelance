@@ -482,7 +482,6 @@ public class PayoutService {
     return new PayoutReversalResultDTO(payout, result);
   }
 
-  @Cacheable(cacheNames = "wallet-service::S5-F9", key = "#limit")
   private void recordStatusTransition(Payout payout, PayoutStatus previousStatus,
                                       PayoutStatus currentStatus, String reason) {
     if (currentStatus == null || currentStatus == previousStatus) {
@@ -497,6 +496,8 @@ public class PayoutService {
     }
   }
 
+
+  @Cacheable(cacheNames = "wallet-service::S5-F9", key = "#limit")
   public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {
     if (limit <= 0) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
