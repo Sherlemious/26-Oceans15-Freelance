@@ -138,15 +138,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongo:
-        condition: service_healthy
       redis:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
         condition: service_healthy
 
   job-service:
@@ -168,15 +160,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
       elasticsearch:
         condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
+      redis:
         condition: service_healthy
 
   proposal-service:
@@ -204,15 +190,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
       neo4j:
         condition: service_healthy
-      cassandra:
+      redis:
         condition: service_healthy
 
   contract-service:
@@ -237,15 +217,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongo:
+      cassandra:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
         condition: service_healthy
 
   wallet-service:
@@ -271,15 +245,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      mongo:
-        condition: service_healthy
       redis:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
         condition: service_healthy
 
 volumes:

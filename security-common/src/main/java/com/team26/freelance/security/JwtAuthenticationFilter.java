@@ -21,7 +21,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Set<String> EXEMPT_PATHS = Set.of(
             "/api/auth/register",
             "/api/auth/login",
-            "/actuator/health",
             "/api/users/health",
             "/api/jobs/health",
             "/api/contracts/health",
