@@ -30,6 +30,12 @@ public class ContractCacheKeys {
     }
 
     public String featureKey(String featureId, Object... params) {
+        if (params == null || params.length == 0) {
+            return PREFIX + featureId + "::empty";
+        }
+        if (params.length == 1) {
+            return PREFIX + featureId + "::" + canonicalValue(params[0]);
+        }
         return PREFIX + featureId + "::" + hash(params);
     }
 
