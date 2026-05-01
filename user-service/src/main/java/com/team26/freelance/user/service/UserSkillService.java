@@ -2,9 +2,12 @@ package com.team26.freelance.user.service;
 
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
+import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -12,19 +15,29 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class UserSkillService {
 
+    public static final String USER_SKILL_CREATED = "USER_SKILL_CREATED";
+    public static final String USER_SKILL_UPDATED = "USER_SKILL_UPDATED";
+    public static final String USER_SKILL_DELETED = "USER_SKILL_DELETED";
+
     private final UserSkillRepository userSkillRepository;
     private final UserRepository userRepository;
+    private final AuthEventSubject authEventSubject;
 
-    public UserSkillService(UserSkillRepository userSkillRepository, UserRepository userRepository) {
+    public UserSkillService(UserSkillRepository userSkillRepository,
+                            UserRepository userRepository,
+                            AuthEventSubject authEventSubject) {
         this.userSkillRepository = userSkillRepository;
         this.userRepository = userRepository;
+        this.authEventSubject = authEventSubject;
     }
 
     public UserSkill create(Long userId, UserSkill skill) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         skill.setUser(user);
-        return userSkillRepository.save(skill);
+        UserSkill savedSkill = userSkillRepository.save(skill);
+        recordUserSkillEvent(savedSkill, USER_SKILL_CREATED);
+        return savedSkill;
     }
 
     public UserSkill findById(Long id) {
@@ -51,11 +64,17 @@ public class UserSkillService {
         existing.setProficiencyLevel(updated.getProficiencyLevel());
         existing.setIsPrimary(updated.getIsPrimary());
         existing.setMetadata(updated.getMetadata());
-        return userSkillRepository.save(existing);
+        UserSkill savedSkill = userSkillRepository.save(existing);
+        recordUserSkillEvent(savedSkill, USER_SKILL_UPDATED);
+        return savedSkill;
     }
 
     public void delete(Long id) {
-        userSkillRepository.deleteById(id);
+        UserSkill skill = findById(id);
+        Long userId = skill.getUser().getId();
+        Map<String, Object> details = userSkillDetails(skill);
+        userSkillRepository.delete(skill);
+        recordUserSkillEvent(userId, USER_SKILL_DELETED, details);
     }
 
     public void deleteByUserSkill(Long userId, Long skillId) {
@@ -67,6 +86,30 @@ public class UserSkillService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill does not belong to user");
         }
 
+        Map<String, Object> details = userSkillDetails(skill);
         userSkillRepository.delete(skill);
+        recordUserSkillEvent(userId, USER_SKILL_DELETED, details);
+    }
+
+    private void recordUserSkillEvent(UserSkill skill, String action) {
+        recordUserSkillEvent(skill.getUser().getId(), action, userSkillDetails(skill));
+    }
+
+    private void recordUserSkillEvent(Long userId, String action, Map<String, Object> details) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("userId", userId);
+        payload.put("details", details == null ? Map.of() : details);
+        authEventSubject.notifyObservers(action, payload);
+    }
+
+    private Map<String, Object> userSkillDetails(UserSkill skill) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("skillId", skill.getId());
+        details.put("skillName", skill.getSkillName());
+        details.put("category", skill.getCategory());
+        details.put("yearsOfExperience", skill.getYearsOfExperience());
+        details.put("proficiencyLevel", skill.getProficiencyLevel() == null ? null : skill.getProficiencyLevel().name());
+        details.put("isPrimary", skill.getIsPrimary());
+        return details;
     }
 }

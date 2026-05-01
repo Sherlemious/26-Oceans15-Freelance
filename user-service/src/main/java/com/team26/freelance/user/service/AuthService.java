@@ -1,15 +1,12 @@
 package com.team26.freelance.user.service;
 
-import com.team26.freelance.common.event.AuthEvent;
-import com.team26.freelance.common.event.EventFactory;
-import com.team26.freelance.common.event.EventType;
 import com.team26.freelance.user.dto.AuthResponseDTO;
 import com.team26.freelance.user.dto.LoginRequestDTO;
 import com.team26.freelance.user.dto.RegisterRequestDTO;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
-import com.team26.freelance.user.repository.AuthEventRepository;
+import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,16 +20,16 @@ import java.util.Map;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final AuthEventRepository authEventRepository;
+    private final AuthEventSubject authEventSubject;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     public AuthService(UserRepository userRepository,
-            AuthEventRepository authEventRepository,
+            AuthEventSubject authEventSubject,
             PasswordEncoder passwordEncoder,
             JwtService jwtService) {
         this.userRepository = userRepository;
-        this.authEventRepository = authEventRepository;
+        this.authEventSubject = authEventSubject;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -87,10 +84,8 @@ public class AuthService {
     }
 
     private void logAuthEvent(Long userId, String action, Map<String, Object> details) {
-        AuthEvent event = (AuthEvent) EventFactory.createEvent(EventType.AUTH, Map.of(
+        authEventSubject.notifyObservers(action, Map.of(
                 "userId", userId,
-                "action", action,
                 "details", details));
-        authEventRepository.save(event);
     }
 }
