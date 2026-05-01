@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:17
     container_name: freelance-db
     environment:
       POSTGRES_USER: postgres
@@ -11,7 +11,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d freelancedb" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freelancedb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,29 +22,39 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: rootpass
+      MONGO_INITDB_DATABASE: freelancemongo
     ports:
       - "27017:27017"
     volumes:
       - mongodata:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand(’ping’)"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   redis:
     image: redis:latest
     container_name: freelance-redis
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "redispass",
+        "--maxmemory",
+        "256mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
     ports:
       - "6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      test: ["CMD", "redis-cli", "-a", "redispass", "ping"]
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   elasticsearch:
     image: elasticsearch:8.19.12
@@ -58,16 +68,21 @@ services:
     volumes:
       - esdata:/usr/share/elasticsearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health > /dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:9200/_cluster/health > /dev/null || exit 1",
+        ]
       interval: 15s
-      timeout: 10s
-      retries: 20
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   neo4j:
     image: neo4j:latest
     container_name: freelance-neo4j
     environment:
-      NEO4J_AUTH: neo4j/password
+      NEO4J_AUTH: neo4j/neo4jpass
       NEO4J_server_memory_heap_initial__size: 512m
       NEO4J_server_memory_heap_max__size: 512m
     ports:
@@ -75,26 +90,31 @@ services:
     volumes:
       - neo4jdata:/data
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password \"RETURN 1;\" > /dev/null || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 20
+      test: ["CMD", "neo4j", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   cassandra:
     image: cassandra:latest
     container_name: freelance-cassandra
     environment:
+      CASSANDRA_CLUSTER_NAME: freelancecluster
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_KEYSPACE: freelanceks
       MAX_HEAP_SIZE: 512M
-      HEAP_NEWSIZE: 100M
+      HEAP_NEWSIZE: 128M
     ports:
       - "9042:9042"
     volumes:
       - cassandradata:/var/lib/cassandra
     healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e \"DESCRIBE KEYSPACES\" > /dev/null || exit 1"]
-      interval: 20s
+      test: ["CMD-SHELL", "cqlsh -e ’DESCRIBE KEYSPACES’"]
+      interval: 15s
       timeout: 10s
-      retries: 20
+      retries: 10
+      start_period: 60s
 
   user-service:
     build:
