@@ -4,12 +4,10 @@ server:
 spring:
   application:
     name: proposal-service
-
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/freelancedb}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
-
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: update
@@ -17,33 +15,39 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-
   sql:
     init:
       mode: always
       separator: "@@"
-
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI}
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/freelancedb}
     redis:
-      host: ${SPRING_REDIS_HOST}
-      port: ${SPRING_REDIS_PORT}
-      password: ${SPRING_REDIS_PASSWORD}
-
+      host: ${SPRING_REDIS_HOST:redis}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
   neo4j:
-    uri: ${NEO4J_URI:bolt://localhost:7687}
+    uri: ${NEO4J_URI:bolt://neo4j:7687}
     authentication:
-      username: ${NEO4J_USERNAME}
-      password: ${NEO4J_PASSWORD}
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:password}
 
 jwt:
-  secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
+  secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 cache:
   ttl:
-    proposals: ${CACHE_TTL_DETAIL}
-    search: ${CACHE_TTL_SEARCH}
-    analytics: ${CACHE_TTL_DASHBOARD}
-    activity: ${CACHE_TTL_ACTIVITY}
+    proposals: ${CACHE_TTL_DETAIL:300}
+    search: ${CACHE_TTL_SEARCH:60}
+    analytics: ${CACHE_TTL_DASHBOARD:600}
+    activity: ${CACHE_TTL_ACTIVITY:120}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always

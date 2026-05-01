@@ -1,4 +1,4 @@
-package com.team26.freelance.job.config;
+package com.team26.freelance.proposal.config;
 
 import com.team26.freelance.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -27,7 +27,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/jobs/health"
+                                "/api/proposals/health"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
