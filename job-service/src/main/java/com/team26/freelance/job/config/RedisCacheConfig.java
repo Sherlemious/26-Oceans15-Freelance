@@ -73,6 +73,7 @@ public class RedisCacheConfig implements CachingConfigurer {
         cacheConfigurations.put("top-budget-jobs",         defaultConfig.entryTtl(Duration.ofMinutes(10)));  // F6
         cacheConfigurations.put("job-expired-attachments", defaultConfig.entryTtl(Duration.ofMinutes(10)));  // F9
         cacheConfigurations.put("fullTextJobSearch",     defaultConfig.entryTtl(Duration.ofMinutes(5)));   // F10
+        cacheConfigurations.put("job-dashboard",           defaultConfig.entryTtl(Duration.ofMinutes(10)));
 
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(defaultConfig)

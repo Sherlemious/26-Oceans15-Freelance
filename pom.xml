@@ -4,17 +4,22 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- Root aggregator POM — does NOT act as Maven parent for child modules.
-         Replace XX with your team number everywhere in this project. -->
     <groupId>com.team26.freelance</groupId>
     <artifactId>freelance</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
-
     <name>freelance</name>
     <description>Freelance Marketplace — Multi-Module Maven Project (ACL Spring 2026)</description>
 
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <modules>
+        <module>security-common</module>
         <module>user-service</module>
         <module>job-service</module>
         <module>proposal-service</module>

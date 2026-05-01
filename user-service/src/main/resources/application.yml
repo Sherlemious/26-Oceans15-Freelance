@@ -4,12 +4,10 @@ server:
 spring:
   application:
     name: user-service
-
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
-
   jpa:
     hibernate:
       ddl-auto: update
@@ -17,25 +15,27 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-
   sql:
     init:
       mode: always
       separator: "@@"
-
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI}
-
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/freelancedb}
     redis:
-      host: ${SPRING_REDIS_HOST}
-      port: ${SPRING_REDIS_PORT}
-      password: ${SPRING_REDIS_PASSWORD}
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
 
 jwt:
-  secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION}
+  secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
+  expiration: ${JWT_EXPIRATION:86400000}
 
-#make sure env vars are passed at docker compose i think // note for sawy these fallbacks were for testing so change them 
-# jwt secret  MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
-#expiration 86400000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
