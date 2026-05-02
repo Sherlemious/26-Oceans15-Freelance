@@ -6,6 +6,7 @@ import com.team26.freelance.wallet.repository.PayoutRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -21,13 +22,20 @@ public class PayoutReportService {
         this.payoutRepository = payoutRepository;
     }
 
+    @Cacheable(
+            cacheNames = "wallet-service::S5-F6",
+            key = "T(java.util.Objects).hash(#startDate, #endDate)"
+    )
     public RevenueReportDTO getRevenueReport(LocalDate startDate, LocalDate endDate) {
-        if (startDate.isAfter(endDate)) {
+        LocalDate effectiveStart = startDate != null ? startDate : LocalDate.of(1970, 1, 1);
+        LocalDate effectiveEnd = endDate != null ? endDate : LocalDate.now();
+
+        if (effectiveStart.isAfter(effectiveEnd)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate must be before or equal to endDate");
         }
 
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime endExclusive = endDate.plusDays(1).atStartOfDay();
+        LocalDateTime start = effectiveStart.atStartOfDay();
+        LocalDateTime endExclusive = effectiveEnd.plusDays(1).atStartOfDay();
 
         RevenueReportProjection report = payoutRepository.getRevenueReport(start, endExclusive);
 

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,6 +29,10 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     
     @Query("SELECT COUNT(c) FROM Contract c WHERE c.createdAt < :cutoff AND c.status IN ('COMPLETED', 'TERMINATED')")
     long countPurgeable(@Param("cutoff") LocalDateTime cutoff);
+
+    @Query("SELECT c.id FROM Contract c WHERE c.createdAt < :cutoff AND c.status IN :statuses")
+    List<Long> findPurgeableIds(@Param("cutoff") LocalDateTime cutoff,
+                                @Param("statuses") Collection<ContractStatus> statuses);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
@@ -67,6 +72,36 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
   FreelancerPerformanceProjection getFreelancerPerformance(@Param("freelancerId") Long freelancerId,
                                       @Param("startDate") java.time.LocalDateTime startDate,
                                       @Param("endDate") java.time.LocalDateTime endDate);
+
+    @Query(value = """
+        SELECT
+            COUNT(*) as totalContracts,
+            COALESCE(AVG(agreed_amount), 0) as averageContractValue,
+            CASE
+                WHEN COUNT(*) = 0 THEN 0
+                ELSE COUNT(CASE WHEN CAST(status AS VARCHAR) = 'COMPLETED' THEN 1 END) * 1.0 / COUNT(*)
+            END as completionRate,
+            COALESCE(AVG(CASE
+                WHEN CAST(status AS VARCHAR) = 'COMPLETED' AND end_date IS NOT NULL
+                    THEN EXTRACT(EPOCH FROM (end_date - start_date)) / 86400.0
+                ELSE NULL
+            END), 0) as averageContractDurationDays
+        FROM contracts
+        WHERE start_date >= :startDate
+          AND start_date <= :endDate
+    """, nativeQuery = true)
+    ContractAnalyticsProjection getContractAnalytics(@Param("startDate") LocalDateTime startDate,
+                                                     @Param("endDate") LocalDateTime endDate);
+
+    @Query(value = """
+        SELECT CAST(status AS VARCHAR) as status, COUNT(*) as count
+        FROM contracts
+        WHERE start_date >= :startDate
+          AND start_date <= :endDate
+        GROUP BY status
+    """, nativeQuery = true)
+    List<Object[]> countContractsByStatus(@Param("startDate") LocalDateTime startDate,
+                                          @Param("endDate") LocalDateTime endDate);
 
     @Query(value = """
         SELECT 

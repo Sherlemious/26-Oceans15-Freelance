@@ -1,7 +1,9 @@
 package com.team26.freelance.user.controller;
 
-import com.team26.freelance.user.dto.AuthResponseDTO;
+import com.team26.freelance.user.dto.LoginRequestDTO;
+import com.team26.freelance.user.dto.LoginResponseDTO;
 import com.team26.freelance.user.dto.RegisterRequestDTO;
+import com.team26.freelance.user.dto.RegisterResponseDTO;
 import com.team26.freelance.user.service.AuthService;
 
 import org.springframework.http.HttpStatus;
@@ -22,8 +24,14 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponseDTO> register(@RequestBody RegisterRequestDTO request) {
+    public ResponseEntity<RegisterResponseDTO> register(@RequestBody RegisterRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(authService.register(request));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO request) {
+        return ResponseEntity.ok(
+                authService.login(request));
     }
 }

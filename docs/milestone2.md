@@ -306,7 +306,7 @@ Structure:
 • Single private static field holds the instance
 Loading config in a non-Spring class: Since JwtConfigurationManager is not a Spring bean, it
 cannot use @Value or @ConfigurationProperties. Use one of the following accepted approaches:
-• (Recommended) Environment variables with fallback defaults: Inside the private construc tor, read System.getenv("JWT_SECRET"), System.getenv("JWT_EXPIRATION_MS"), etc., with sen sible fallback defaults for local dev. Docker Compose already sets the required env vars.
+• (Recommended) Environment variables with fallback defaults: Inside the private construc tor, read System.getenv("JWT_SECRET"), System.getenv("JWT_EXPIRATION"), etc., with sen sible fallback defaults for local dev. Docker Compose already sets the required env vars.
 • Singleton-bridge pattern: A Spring @Configuration bean reads application.yml
 via @Value, then pushes the values into the singleton via a static setter (e.g.,
 JwtConfigurationManager.initConfig(secret, expirationMs)) during @PostConstruct. The
