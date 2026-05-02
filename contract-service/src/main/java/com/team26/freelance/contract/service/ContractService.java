@@ -169,17 +169,11 @@ public class ContractService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contracts not found: " + missingIds);
         }
 
-        Map<Long, ContractStatus> statusByContractId = request.stream()
-                .collect(Collectors.toMap(
-                        BatchStatusUpdateRequestDTO::getContractId,
-                        dto -> dto.getStatus() != null ? dto.getStatus() : null
-                ));
-
         List<Contract> toSave = new ArrayList<>(request.size());
         for (BatchStatusUpdateRequestDTO requestItem : request) {
             Long contractId = requestItem.getContractId();
+            ContractStatus targetStatus = requestItem.getStatus();
             Contract contract = contractById.get(contractId);
-            ContractStatus targetStatus = statusByContractId.get(contractId);
 
             boolean valid = contract.getStatus().isValidTransitionTo(targetStatus);
 
