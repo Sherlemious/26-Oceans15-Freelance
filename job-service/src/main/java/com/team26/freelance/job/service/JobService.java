@@ -90,6 +90,11 @@ public class JobService {
 
             job.setStatus(JobStatus.CLOSED);
             jobRepository.save(job);
+
+            jobSearchService.notifyObservers("JOB_CLOSED", Map.of(
+                    "jobId", id,
+                    "source", "close_endpoint"
+            ));
         }
     }
 
