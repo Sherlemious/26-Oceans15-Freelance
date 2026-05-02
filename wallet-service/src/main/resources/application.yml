@@ -30,7 +30,7 @@ spring:
     contact-points: ${SPRING_CASSANDRA_CONTACT_POINTS:cassandra}
     port: ${SPRING_CASSANDRA_PORT:9042}
     local-datacenter: ${SPRING_CASSANDRA_LOCAL_DATACENTER:datacenter1}
-    keyspace-name: ${SPRING_CASSANDRA_KEYSPACE_NAME:freelancedb}
+    keyspace-name: ${SPRING_CASSANDRA_KEYSPACE_NAME:freelanceks}
     schema-action: CREATE_IF_NOT_EXISTS
 
 jwt:

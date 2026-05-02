@@ -114,6 +114,13 @@ services:
       - "9042:9042"
     volumes:
       - cassandradata:/var/lib/cassandra
+    command: >
+      bash -c "
+        docker-entrypoint.sh cassandra -f &
+        until cqlsh -e 'DESCRIBE KEYSPACES' 2>/dev/null; do sleep 5; done;
+        cqlsh -e \"CREATE KEYSPACE IF NOT EXISTS $${CASSANDRA_KEYSPACE} WITH replication = {'class':'SimpleStrategy','replication_factor':1};\";
+        wait
+      "
     healthcheck:
       test: ["CMD-SHELL", 'cqlsh -e "DESCRIBE KEYSPACES" > /dev/null || exit 1']
       interval: 15s
