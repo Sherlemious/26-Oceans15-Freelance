@@ -46,7 +46,7 @@ public class JobAttachmentService {
         jobSearchService.notifyObservers("JOB_ATTACHMENT_CREATED", Map.of(
                 "jobId", jobId,
                 "attachmentId", saved.getId(),
-                "source", "crud_create"
+                "source", "auto_crud_create"
         ));
         return saved;
     }
@@ -95,7 +95,7 @@ public class JobAttachmentService {
         jobSearchService.notifyObservers("JOB_ATTACHMENT_UPDATED", Map.of(
                 "jobId", jobId,
                 "attachmentId", attachmentId,
-                "source", "crud_update"
+                "source", "auto_crud_update"
         ));
         return updated;
     }
@@ -106,7 +106,7 @@ public class JobAttachmentService {
         jobSearchService.notifyObservers("JOB_ATTACHMENT_DELETED", Map.of(
                 "jobId", jobId,
                 "attachmentId", attachmentId,
-                "source", "crud_delete"
+                "source", "auto_crud_delete"
         ));
     }
 
