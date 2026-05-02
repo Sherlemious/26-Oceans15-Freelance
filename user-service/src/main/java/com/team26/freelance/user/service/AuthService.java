@@ -1,6 +1,7 @@
 package com.team26.freelance.user.service;
 
-import com.team26.freelance.user.dto.AuthResponseDTO;
+import com.team26.freelance.user.dto.RegisterResponseDTO;
+import com.team26.freelance.user.dto.LoginResponseDTO;
 import com.team26.freelance.user.dto.LoginRequestDTO;
 import com.team26.freelance.user.dto.RegisterRequestDTO;
 import com.team26.freelance.user.model.AuthEvent;
@@ -37,7 +38,7 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponseDTO register(RegisterRequestDTO request) {
+    public RegisterResponseDTO register(RegisterRequestDTO request) {
         if (request == null
                 || request.getName() == null || request.getName().isBlank()
                 || request.getEmail() == null || request.getEmail().isBlank()
@@ -68,10 +69,10 @@ public class AuthService {
 
         String token = jwtService.generateToken(savedUser);
 
-        return new AuthResponseDTO(token, savedUser.getId(), savedUser.getRole());
+        return new RegisterResponseDTO(token, jwtService.getExpiration());
     }
 
-    public AuthResponseDTO login(LoginRequestDTO req) {
+    public LoginResponseDTO login(LoginRequestDTO req) {
         User user = userRepository
                 .findByEmail(req.email())
                 .orElseThrow(() -> new ResponseStatusException(
@@ -90,6 +91,6 @@ public class AuthService {
             Map.of("email", user.getEmail())));
 
         String token = jwtService.generateToken(user);
-        return new AuthResponseDTO(token, user.getId(), user.getRole());
+        return new LoginResponseDTO(token, user.getId(), user.getRole());
     }
 }

@@ -71,4 +71,16 @@ public interface JobRepository extends JpaRepository<Job, Long> {
 
         @Query(value = "SELECT job_id, status FROM contracts WHERE id = :id", nativeQuery = true)
         Optional<Object[]> findContractJobIdAndStatusById(@Param("id") Long id);
+
+    @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId", nativeQuery = true)
+    Long countTotalProposalsByJobId(@Param("jobId") Long jobId);
+
+    @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId AND status = 'ACCEPTED'", nativeQuery = true)
+    Long countAcceptedProposalsByJobId(@Param("jobId") Long jobId);
+
+    @Query(value = "SELECT COALESCE(AVG(bid_amount), 0) FROM proposals WHERE job_id = :jobId", nativeQuery = true)
+    Double getAverageBidAmountByJobId(@Param("jobId") Long jobId);
+
+    @Query(value = "SELECT COUNT(*) FROM job_attachments WHERE job_id = :jobId AND expiry_date >= CURRENT_DATE", nativeQuery = true)
+    Long countActiveAttachmentsByJobId(@Param("jobId") Long jobId);
 }

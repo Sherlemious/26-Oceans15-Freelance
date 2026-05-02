@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:17
     container_name: freelance-db
     environment:
       POSTGRES_USER: postgres
@@ -11,37 +11,54 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d freelancedb" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d freelancedb"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  mongodb:
+  mongo:
     image: mongo:latest
     container_name: freelance-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpass
+      MONGO_INITDB_DATABASE: freelancemongo
     ports:
       - "27017:27017"
     volumes:
       - mongodata:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1"]
+      test:
+        [
+          "CMD-SHELL",
+          'mongosh --quiet --eval "db.adminCommand(''ping'').ok" | grep 1',
+        ]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   redis:
     image: redis:latest
     container_name: freelance-redis
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "redispass",
+        "--maxmemory",
+        "256mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
     ports:
       - "6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      test: ["CMD", "redis-cli", "-a", "redispass", "ping"]
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
 
   elasticsearch:
     image: elasticsearch:8.19.12
@@ -55,16 +72,21 @@ services:
     volumes:
       - esdata:/usr/share/elasticsearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health > /dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://localhost:9200/_cluster/health > /dev/null || exit 1",
+        ]
       interval: 15s
-      timeout: 10s
-      retries: 20
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   neo4j:
     image: neo4j:latest
     container_name: freelance-neo4j
     environment:
-      NEO4J_AUTH: neo4j/password
+      NEO4J_AUTH: neo4j/neo4jpass
       NEO4J_server_memory_heap_initial__size: 512m
       NEO4J_server_memory_heap_max__size: 512m
     ports:
@@ -72,162 +94,159 @@ services:
     volumes:
       - neo4jdata:/data
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p password \"RETURN 1;\" > /dev/null || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 20
+      test: ["CMD", "neo4j", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   cassandra:
     image: cassandra:latest
     container_name: freelance-cassandra
     environment:
+      CASSANDRA_CLUSTER_NAME: freelancecluster
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_KEYSPACE: freelanceks
       MAX_HEAP_SIZE: 512M
-      HEAP_NEWSIZE: 100M
+      HEAP_NEWSIZE: 128M
     ports:
       - "9042:9042"
     volumes:
       - cassandradata:/var/lib/cassandra
     healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e \"DESCRIBE KEYSPACES\" > /dev/null || exit 1"]
-      interval: 20s
+      test: ["CMD-SHELL", 'cqlsh -e "DESCRIBE KEYSPACES" > /dev/null || exit 1']
+      interval: 15s
       timeout: 10s
-      retries: 20
+      retries: 10
+      start_period: 60s
 
   user-service:
-    build: ./user-service
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
     ports:
       - "8081:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
+      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
-        condition: service_healthy
       redis:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
         condition: service_healthy
 
   job-service:
-    build: ./job-service
+    build:
+      context: .
+      dockerfile: job-service/Dockerfile
     ports:
       - "8082:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
+      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
+      elasticsearch:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
-        condition: service_healthy
 
   proposal-service:
-    build: ./proposal-service
+    build:
+      context: .
+      dockerfile: proposal-service/Dockerfile
     ports:
       - "8083:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
+      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD:-redispass}
       SPRING_NEO4J_URI: bolt://neo4j:7687
       SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
       SPRING_NEO4J_AUTHENTICATION_PASSWORD: password
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      CACHE_TTL_DETAIL: 300
+      CACHE_TTL_SEARCH: 60
+      CACHE_TTL_DASHBOARD: 600
+      CACHE_TTL_ACTIVITY: 120
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
+      neo4j:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
-        condition: service_healthy
 
   contract-service:
-    build: ./contract-service
+    build:
+      context: .
+      dockerfile: contract-service/Dockerfile
     ports:
       - "8084:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
+      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
+      cassandra:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
-        condition: service_healthy
 
   wallet-service:
-    build: ./wallet-service
+    build:
+      context: .
+      dockerfile: wallet-service/Dockerfile
     ports:
       - "8085:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/freelancedb
+      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
       SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD:-redispass}
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
       postgres:
         condition: service_healthy
-      mongodb:
-        condition: service_healthy
       redis:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      cassandra:
         condition: service_healthy
 
 volumes:

@@ -1,12 +1,14 @@
 package com.team26.freelance.wallet.service;
 
 import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
+import com.team26.freelance.wallet.dto.ContractDataProjection;
 import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
 import com.team26.freelance.wallet.dto.PayoutReversalResultDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
+import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.DiscountType;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutAuditEventType;
@@ -17,8 +19,12 @@ import com.team26.freelance.wallet.model.PromoCode;
 import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
-import com.team26.freelance.wallet.strategy.PayoutReversalContext;
-import com.team26.freelance.wallet.strategy.PayoutReversalResult;
+import com.team26.freelance.wallet.strategy.RefundResult;
+import com.team26.freelance.wallet.strategy.RefundStrategy;
+import com.team26.freelance.wallet.strategy.RefundStrategySelector;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDate;
@@ -39,21 +45,29 @@ public class PayoutService {
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
   private final PayoutPromoRepository payoutPromoRepository;
-  private final PayoutReversalContext payoutReversalContext;
+  private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
 
   public PayoutService(PayoutRepository payoutRepository,
-                        PromoCodeRepository promoCodeRepository,
-                        PayoutPromoRepository payoutPromoRepository,
-                        PayoutReversalContext payoutReversalContext,
-                        PayoutAuditService payoutAuditService) {
+                       PromoCodeRepository promoCodeRepository,
+                       PayoutPromoRepository payoutPromoRepository,
+                       RefundStrategySelector refundStrategySelector,
+                       PayoutAuditService payoutAuditService) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
-    this.payoutReversalContext = payoutReversalContext;
+    this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
   }
 
+  @Caching(evict = {
+          @CacheEvict(cacheNames = "wallet-service::payout", key = "#payoutId"),
+          @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+  })
   @Transactional
   public PayoutResponseDTO applyPromoToPayout(Long payoutId, Long promoCodeId) {
     Payout payout = payoutRepository.findByIdWithPromos(payoutId).orElseThrow(
@@ -129,6 +143,7 @@ public class PayoutService {
 
   public List<Payout> getAllPayouts() { return payoutRepository.findAll(); }
 
+  @Cacheable(cacheNames = "wallet-service::payout", key = "#id")
   public Payout getPayoutById(Long id) {
     return payoutRepository.findById(id).orElseThrow(
         ()
@@ -136,6 +151,13 @@ public class PayoutService {
                                            "Payout not found"));
   }
 
+  @Caching(evict = {
+          @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+  })
   @Transactional
   public Payout createPayout(Payout payout) {
     Payout saved = payoutRepository.save(payout);
@@ -143,17 +165,31 @@ public class PayoutService {
     return saved;
   }
 
+
+  @Caching(evict = {
+          @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::payout", allEntries = true)
+  })
   @Transactional
   public Payout processContractPayout(Long contractId,
                                       ProcessContractPayoutRequest request) {
-    List<Object[]> contractRows = payoutRepository.findContractDataById(contractId);
+    List<ContractDataProjection> contractRows = payoutRepository.findContractDataById(contractId);
     if (contractRows.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
     }
-    Object[] contractData = contractRows.get(0);
-    String contractStatus = (String) contractData[0];
-    Double agreedAmount = ((Number) contractData[1]).doubleValue();
-    Long freelancerId = ((Number) contractData[2]).longValue();
+    ContractDataProjection contractData = contractRows.get(0);
+    String contractStatus = contractData.getContractStatus();
+    Double agreedAmount = contractData.getAgreedAmount();
+    Long freelancerId = contractData.getFreelancerId();
+
+    if (agreedAmount == null || freelancerId == null) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                        "Contract data is incomplete for payout processing");
+    }
 
     if (!"COMPLETED".equals(contractStatus)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -177,10 +213,10 @@ public class PayoutService {
               p.setMethod(PayoutMethod.BANK_TRANSFER);
               p.setStatus(PayoutStatus.PENDING);
               p.setTransactionDetails(new HashMap<>());
-              return payoutRepository.save(p);
+              return p;
             });
 
-    PayoutMethod method = request != null ? request.getMethod() : null;
+    PayoutMethod method = normalizePayoutMethod(request != null ? request.getMethod() : null);
     String accountLastFour = request != null ? request.getAccountLastFour() : null;
 
     if (accountLastFour != null && !accountLastFour.isBlank() &&
@@ -218,6 +254,14 @@ public class PayoutService {
     return saved;
   }
 
+  @Caching(evict = {
+          @CacheEvict(cacheNames = "wallet-service::payout", key = "#id"),
+          @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+  })
   @Transactional
   public Payout updatePayout(Long id, Payout updated) {
     Payout existing = getPayoutById(id);
@@ -233,11 +277,23 @@ public class PayoutService {
     return saved;
   }
 
+  @Caching(evict = {
+          @CacheEvict(cacheNames = "wallet-service::payout", key = "#id"),
+          @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+  })
   public void deletePayout(Long id) {
     getPayoutById(id);
     payoutRepository.deleteById(id);
   }
 
+  @Cacheable(
+          cacheNames = "wallet-service::S5-F1",
+          key = "T(java.util.Objects).hash(#status, #startDate, #endDate)"
+  )
   public List<Payout> searchByStatusAndDateRange(String status,
                                                  LocalDate startDate,
                                                  LocalDate endDate) {
@@ -250,6 +306,14 @@ public class PayoutService {
     return payoutRepository.searchByStatusAndDateRange(status, start, end);
   }
 
+  @Caching(evict = {
+          @CacheEvict(cacheNames = "wallet-service::payout", key = "#id"),
+          @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+  })
   @Transactional
   public Payout processRefund(Long id, String reason) {
     Payout payout = payoutRepository.findById(id).orElseThrow(
@@ -273,6 +337,21 @@ public class PayoutService {
     return saved;
   }
 
+  private PayoutMethod normalizePayoutMethod(PayoutMethod method) {
+    if (method == PayoutMethod.BANK) {
+      return PayoutMethod.BANK_TRANSFER;
+    }
+    return method;
+  }
+
+  @Caching(evict = {
+          @CacheEvict(cacheNames = "wallet-service::payout", key = "#id"),
+          @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+  })
   @Transactional
   public Payout retryFailedPayout(Long id) {
     Payout payout = payoutRepository.findById(id).orElseThrow(
@@ -314,6 +393,7 @@ public class PayoutService {
     payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.COMPLETED, "Failed payout retried successfully");
     return saved;
   }
+  @Cacheable(cacheNames = "wallet-service::S5-F8", key = "#payoutId")
   public PayoutDetailsDTO getPayoutDetails(Long payoutId) {
     Payout payout = payoutRepository.findByIdWithPromos(payoutId).orElseThrow(
         ()
@@ -348,6 +428,7 @@ public class PayoutService {
     return dto;
   }
 
+  @Cacheable(cacheNames = "wallet-service::S5-F3", key = "#freelancerId")
   public FreelancerPayoutSummaryDTO getFreelancerPayoutSummary(Long freelancerId) {
     List<Object[]> rows = payoutRepository.getPayoutSummaryByFreelancer(freelancerId);
     Map<String, Double> methodBreakdown = new LinkedHashMap<>();
@@ -364,32 +445,45 @@ public class PayoutService {
     return new FreelancerPayoutSummaryDTO(freelancerId, totalPayouts, totalAmount, methodBreakdown);
   }
 
+  @Caching(evict = {
+          @CacheEvict(cacheNames = "wallet-service::payout", key = "#id"),
+          @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+  })
   @Transactional
-  public PayoutReversalResultDTO reversePayout(Long id) {
+  public PayoutReversalResultDTO reversePayout(Long id, RefundRequest request) {
     Payout payout = payoutRepository.findByIdWithPromos(id).orElseThrow(
         () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
 
-    PayoutReversalResult result = payoutReversalContext.executeStrategy(payout);
-
-    if (result.isApproved()) {
-      payout.setStatus(PayoutStatus.REFUNDED);
-      Map<String, Object> details = payout.getTransactionDetails();
-      if (details == null) {
-        details = new HashMap<>();
-      }
-      details.put("refundedAt", LocalDateTime.now().toString());
-      details.put("strategyApplied", result.getStrategyApplied());
-      details.put("amountReturned", result.getAmountReturned());
-      payout.setTransactionDetails(details);
-      payoutRepository.save(payout);
+    if (payout.getStatus() != PayoutStatus.COMPLETED) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          "Only COMPLETED payouts can be reversed");
     }
 
-    payoutAuditService.recordRefundResult(
-        payout,
-        result.isApproved(),
-        result.getAmountReturned(),
-        result.getStrategyApplied(),
-        result.getReason());
+    RefundStrategy strategy = refundStrategySelector.select(payout, request);
+    RefundResult result = strategy.calculateRefund(payout, request);
+
+    if (!result.isApproved()) {
+      payoutAuditService.recordRefundResult(payout, false, result.getAmount(), result.getStrategyName(), result.getReasonCode());
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, result.getReasonCode());
+    }
+
+    payout.setStatus(PayoutStatus.REFUNDED);
+    Map<String, Object> details = payout.getTransactionDetails();
+    if (details == null) {
+      details = new HashMap<>();
+    }
+    details.put("refundAmount", result.getAmount());
+    details.put("reversalScope", request.getReversalScope());
+    details.put("refundReason", request.getReason());
+    details.put("refundedAt", LocalDateTime.now().toString());
+    payout.setTransactionDetails(details);
+    payoutRepository.save(payout);
+
+    payoutAuditService.recordRefundResult(payout, true, result.getAmount(), result.getStrategyName(), result.getReasonCode());
 
     return new PayoutReversalResultDTO(payout, result);
   }
@@ -408,6 +502,8 @@ public class PayoutService {
     }
   }
 
+
+  @Cacheable(cacheNames = "wallet-service::S5-F9", key = "#limit")
   public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {
     if (limit <= 0) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
