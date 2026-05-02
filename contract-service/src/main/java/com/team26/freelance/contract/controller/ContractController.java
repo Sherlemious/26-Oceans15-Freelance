@@ -1,6 +1,7 @@
 package com.team26.freelance.contract.controller;
 
 import com.team26.freelance.contract.dto.ContractAnalyticsDTO;
+import com.team26.freelance.contract.dto.ContractMilestoneDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.dto.MilestoneTrackingRequest;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -124,5 +126,13 @@ public class ContractController {
             @RequestBody @Valid MilestoneTrackingRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(contractService.trackMilestone(id, request));
+    }
+
+    @GetMapping("/{id}/milestones/timeline")
+    public ResponseEntity<List<ContractMilestoneDTO>> getContractMilestoneTimeline(
+            @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startTime,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endTime) {
+        return ResponseEntity.ok(contractService.getContractMilestoneTimeline(id, startTime, endTime));
     }
 }

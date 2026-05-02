@@ -1,5 +1,7 @@
 package com.team26.freelance.contract.service;
 
+import com.team26.freelance.contract.adapter.CassandraRowAdapter;
+import com.team26.freelance.contract.dto.ContractMilestoneDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.dto.MilestoneTrackingRequest;
@@ -12,6 +14,7 @@ import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.cassandra.ContractMilestoneEventRepository;
 import com.team26.freelance.contract.service.ContractAnalyticsService;
+import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -41,14 +45,21 @@ public class ContractService {
     private final ContractCacheEvictionService cacheEvictionService;
     private final ContractMilestoneEventRepository contractMilestoneEventRepository;
     private final ContractAnalyticsService contractAnalyticsService;
+    private final CassandraTemplate cassandraTemplate;
+    private final CassandraRowAdapter cassandraRowAdapter;
 
-    public ContractService(ContractRepository contractRepository, ContractCacheEvictionService cacheEvictionService,
+    public ContractService(ContractRepository contractRepository,
+            ContractCacheEvictionService cacheEvictionService,
             ContractMilestoneEventRepository contractMilestoneEventRepository,
-            ContractAnalyticsService contractAnalyticsService) {
+            ContractAnalyticsService contractAnalyticsService,
+            CassandraTemplate cassandraTemplate,
+            CassandraRowAdapter cassandraRowAdapter) {
         this.contractRepository = contractRepository;
         this.cacheEvictionService = cacheEvictionService;
         this.contractMilestoneEventRepository = contractMilestoneEventRepository;
         this.contractAnalyticsService = contractAnalyticsService;
+        this.cassandraTemplate = cassandraTemplate;
+        this.cassandraRowAdapter = cassandraRowAdapter;
     }
 
     @Cacheable(value = "contract-s4-f6", key = "@contractCacheKeys.featureKey('S4-F6', #startDate, #endDate, #status)")
@@ -388,6 +399,24 @@ public class ContractService {
             summary.append(": ").append(notes);
         }
         return summary.toString();
+    }
+
+    @Cacheable(value = "contract-s4-f12", key = "'contract-service::S4-F12::' + #contractId")
+    public List<ContractMilestoneDTO> getContractMilestoneTimeline(Long contractId, Instant startTime, Instant endTime) {
+        getContractById(contractId);
+
+        String cql;
+        Object[] args;
+
+        if (startTime != null && endTime != null) {
+            cql = "SELECT * FROM contract_milestone_events WHERE contract_id = ? AND timestamp >= ? AND timestamp <= ?";
+            args = new Object[]{contractId, startTime, endTime};
+        } else {
+            cql = "SELECT * FROM contract_milestone_events WHERE contract_id = ?";
+            args = new Object[]{contractId};
+        }
+
+        return cassandraTemplate.getCqlOperations().query(cql, (row, rowNum) -> cassandraRowAdapter.adapt(row), args);
     }
 
 }
