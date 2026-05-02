@@ -168,6 +168,7 @@ public class PayoutService {
   public Payout createPayout(Payout payout) {
     Payout saved = payoutRepository.save(payout);
     payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.PAYOUT_CREATED, Map.of("reason", "Payout created"));
+    recordLifecycleStatusChange(saved, null, saved.getStatus(), "Payout created with lifecycle status");
     return saved;
   }
 
@@ -300,6 +301,7 @@ public class PayoutService {
   @Transactional
   public Payout updatePayout(Long id, Payout updated) {
     Payout existing = getPayoutById(id);
+    PayoutStatus previousStatus = existing.getStatus();
     existing.setContractId(updated.getContractId());
     existing.setFreelancerId(updated.getFreelancerId());
     existing.setAmount(updated.getAmount());
@@ -308,6 +310,7 @@ public class PayoutService {
     existing.setTransactionDetails(updated.getTransactionDetails());
     Payout saved = payoutRepository.save(existing);
     payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.PAYOUT_UPDATED, Map.of("reason", "Payout updated"));
+    recordLifecycleStatusChange(saved, previousStatus, saved.getStatus(), "Payout status changed through update");
     return saved;
   }
 
@@ -438,6 +441,7 @@ public class PayoutService {
     auditDetails.put("previousStatus", PayoutStatus.FAILED.name());
     auditDetails.put("newStatus", PayoutStatus.COMPLETED.name());
     payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.RETRY_ATTEMPTED, auditDetails);
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.COMPLETED, auditDetails);
     return saved;
   }
 
@@ -576,5 +580,34 @@ public class PayoutService {
     }
 
     return result;
+  }
+
+  private void recordLifecycleStatusChange(Payout payout,
+                                           PayoutStatus previousStatus,
+                                           PayoutStatus newStatus,
+                                           String reason) {
+    if (previousStatus == newStatus || newStatus == null) {
+      return;
+    }
+
+    String action = lifecycleActionForStatus(newStatus);
+    if (action == null) {
+      return;
+    }
+
+    Map<String, Object> details = new LinkedHashMap<>();
+    details.put("previousStatus", previousStatus == null ? null : previousStatus.name());
+    details.put("newStatus", newStatus.name());
+    details.put("reason", reason);
+    payoutAuditService.recordPayoutEvent(payout, action, details);
+  }
+
+  private String lifecycleActionForStatus(PayoutStatus status) {
+    return switch (status) {
+      case COMPLETED -> PayoutAuditService.COMPLETED;
+      case FAILED -> PayoutAuditService.FAILED;
+      case REFUNDED -> PayoutAuditService.REFUNDED;
+      default -> null;
+    };
   }
 }
