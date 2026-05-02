@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -19,12 +20,15 @@ public class JobAttachmentService {
 
     private final JobAttachmentRepository jobAttachmentRepository;
     private final JobRepository jobRepository;
+    private final JobSearchService jobSearchService;
     
 
     public JobAttachmentService(JobAttachmentRepository jobAttachmentRepository,
-                                JobRepository jobRepository) {
+                                JobRepository jobRepository,
+                                JobSearchService jobSearchService) {
         this.jobAttachmentRepository = jobAttachmentRepository;
         this.jobRepository = jobRepository;;
+        this.jobSearchService = jobSearchService;
     }
 
     public JobAttachment createAttachment(Long jobId, JobAttachment attachment) {
@@ -140,6 +144,12 @@ public class JobAttachmentService {
         attachment.setVerified(true);
         
         jobAttachmentRepository.save(attachment);
+
+        jobSearchService.notifyObservers("JOB_ATTACHMENT_VERIFIED", Map.of(
+                "jobId", jobId,
+                "attachmentId", attachmentId,
+                "source", "attachment_verification"
+        ));
 
         return attachment.getJob();
     }
