@@ -39,6 +39,10 @@ public class JobService {
     public Job createJob(Job job) {
         Job saved = jobRepository.save(job);
         jobSearchService.indexJob(saved.getId(), "auto_crud_create");
+        jobSearchService.notifyObservers("JOB_CREATED", Map.of(
+                "jobId", saved.getId(),
+                "source", "crud_create"
+        ));
         return saved;
     }
 
@@ -66,6 +70,10 @@ public class JobService {
 
         Job updated = jobRepository.save(existingJob);
         jobSearchService.indexJob(updated.getId(), "auto_crud_update");
+        jobSearchService.notifyObservers("JOB_UPDATED", Map.of(
+                "jobId", updated.getId(),
+                "source", "crud_update"
+        ));
         return updated;
     }
 
