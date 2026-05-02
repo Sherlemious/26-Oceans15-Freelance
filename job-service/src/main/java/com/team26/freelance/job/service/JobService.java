@@ -230,26 +230,26 @@ public class JobService {
 
         if (results == null || results.isEmpty() || results.get(0) == null) {
             Job job = getJobById(jobId);
-            return new JobProposalSummaryDTO(
-                    jobId,
-                    job.getTitle(),
-                    0L,
-                    0.0,
-                    0.0,
-                    0.0
-            );
+            return JobProposalSummaryDTO.builder()
+                    .jobId(jobId)
+                    .title(job.getTitle())
+                    .totalProposals(0L)
+                    .averageBidAmount(0.0)
+                    .lowestBid(0.0)
+                    .highestBid(0.0)
+                    .build();
         }
 
         Object[] result = results.get(0);
 
-        return new JobProposalSummaryDTO(
-                ((Number) result[0]).longValue(),
-                (String) result[1],
-                ((Number) result[2]).longValue(),
-                ((Number) result[3]).doubleValue(),
-                ((Number) result[4]).doubleValue(),
-                ((Number) result[5]).doubleValue()
-        );
+        return JobProposalSummaryDTO.builder()
+                .jobId(((Number) result[0]).longValue())
+                .title((String) result[1])
+                .totalProposals(((Number) result[2]).longValue())
+                .averageBidAmount(((Number) result[3]).doubleValue())
+                .lowestBid(((Number) result[4]).doubleValue())
+                .highestBid(((Number) result[5]).doubleValue())
+                .build();
     }
 
     public void logDashboardViewed(Long jobId) {
