@@ -22,6 +22,8 @@ import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import com.team26.freelance.wallet.strategy.RefundResult;
 import com.team26.freelance.wallet.strategy.RefundStrategy;
 import com.team26.freelance.wallet.strategy.RefundStrategySelector;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
@@ -47,17 +49,23 @@ public class PayoutService {
   private final PayoutPromoRepository payoutPromoRepository;
   private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
+  private final CacheManager cacheManager;
+  private final PayoutAnalyticsCacheService payoutAnalyticsCacheService;
 
   public PayoutService(PayoutRepository payoutRepository,
                        PromoCodeRepository promoCodeRepository,
                        PayoutPromoRepository payoutPromoRepository,
                        RefundStrategySelector refundStrategySelector,
-                       PayoutAuditService payoutAuditService) {
+                       PayoutAuditService payoutAuditService,
+                       CacheManager cacheManager,
+                       PayoutAnalyticsCacheService payoutAnalyticsCacheService) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
     this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
+    this.cacheManager = cacheManager;
+    this.payoutAnalyticsCacheService = payoutAnalyticsCacheService;
   }
 
   @Caching(evict = {
@@ -451,7 +459,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public PayoutReversalResultDTO reversePayout(Long id, RefundRequest request) {
@@ -468,6 +477,8 @@ public class PayoutService {
 
     if (!result.isApproved()) {
       payoutAuditService.recordRefundResult(payout, false, result.getAmount(), result.getStrategyName(), result.getReasonCode());
+      // Spec step e-ii: invalidate caches before throwing so audit event is immediately visible
+      evictReversalCaches(id);
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, result.getReasonCode());
     }
 
@@ -484,8 +495,18 @@ public class PayoutService {
     payoutRepository.save(payout);
 
     payoutAuditService.recordRefundResult(payout, true, result.getAmount(), result.getStrategyName(), result.getReasonCode());
+    // Evict S5-F11 manual Redis cache (not Spring-managed, so @CacheEvict cannot cover it)
+    payoutAnalyticsCacheService.evictMethodBreakdown();
 
     return new PayoutReversalResultDTO(payout, result);
+  }
+
+  private void evictReversalCaches(Long payoutId) {
+    Cache payoutCache = cacheManager.getCache("wallet-service::payout");
+    if (payoutCache != null) payoutCache.evict(payoutId);
+    Cache s5f10Cache = cacheManager.getCache("wallet-service::S5-F10");
+    if (s5f10Cache != null) s5f10Cache.clear();
+    payoutAnalyticsCacheService.evictMethodBreakdown();
   }
 
   private void recordStatusTransition(Payout payout, PayoutStatus previousStatus,
