@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.controller;
 
+import com.team26.freelance.contract.dto.BatchStatusUpdateRequestDTO;
 import com.team26.freelance.contract.dto.ContractAnalyticsDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
@@ -49,19 +50,8 @@ public class ContractController {
         return ResponseEntity.ok(contractService.searchByMetadata(key, operator, value));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Contract> update(@PathVariable Long id, @RequestBody Contract contractDetails) {
-        return ResponseEntity.ok(contractService.update(id, contractDetails));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        contractService.delete(id);
-        return ResponseEntity.noContent().build();
-    }
-
     @PutMapping("/batch-status")
-    public ResponseEntity<Integer> updateStatuses(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Integer> updateStatuses(@RequestBody @Valid List<BatchStatusUpdateRequestDTO> request) {
         int updatedCount = contractService.updateStatusesRaw(request);
         return ResponseEntity.ok(updatedCount);
     }
@@ -78,12 +68,6 @@ public class ContractController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         contractAnalyticsService.recordAnalyticsViewed(startDate, endDate);
         return ResponseEntity.ok(contractAnalyticsService.getAnalytics(startDate, endDate));
-    }
-
-    // GET /api/contracts/{id} ← used by job-service via RestTemplate
-    @GetMapping("/{id}")
-    public ResponseEntity<Contract> getContractById(@PathVariable Long id) {
-        return ResponseEntity.ok(contractService.getContractById(id));
     }
 
     // GET /api/contracts/user/{userId}/active
@@ -124,5 +108,22 @@ public class ContractController {
             @RequestBody @Valid MilestoneTrackingRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(contractService.trackMilestone(id, request));
+    }
+
+    // GET /api/contracts/{id} ← used by job-service via RestTemplate
+    @GetMapping("/{id}")
+    public ResponseEntity<Contract> getContractById(@PathVariable Long id) {
+        return ResponseEntity.ok(contractService.getContractById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Contract> update(@PathVariable Long id, @RequestBody Contract contractDetails) {
+        return ResponseEntity.ok(contractService.update(id, contractDetails));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        contractService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }
