@@ -10,6 +10,7 @@ import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.service.PayoutService;
+import com.team26.freelance.wallet.service.PlatformFeeAnalyticsService;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,9 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class PayoutController {
 
   private final PayoutService payoutService;
+  private final PlatformFeeAnalyticsService platformFeeAnalyticsService;
 
-  public PayoutController(PayoutService payoutService) {
+  public PayoutController(PayoutService payoutService,
+                          PlatformFeeAnalyticsService platformFeeAnalyticsService) {
     this.payoutService = payoutService;
+    this.platformFeeAnalyticsService = platformFeeAnalyticsService;
   }
 
   @GetMapping
@@ -50,7 +54,7 @@ public class PayoutController {
           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
     return ResponseEntity.ok(
-            payoutService.getPlatformFeeAnalyticsByCategory(startDate, endDate)
+            platformFeeAnalyticsService.getPlatformFeeAnalytics(startDate, endDate)
     );
   }
 

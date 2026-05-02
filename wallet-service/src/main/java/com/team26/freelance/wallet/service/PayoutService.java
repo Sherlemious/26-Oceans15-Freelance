@@ -11,7 +11,6 @@ import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.DiscountType;
 import com.team26.freelance.wallet.model.Payout;
-import com.team26.freelance.wallet.model.PayoutAuditEventType;
 import com.team26.freelance.wallet.model.PayoutMethod;
 import com.team26.freelance.wallet.model.PayoutPromo;
 import com.team26.freelance.wallet.model.PayoutStatus;
@@ -22,10 +21,8 @@ import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import com.team26.freelance.wallet.strategy.RefundResult;
 import com.team26.freelance.wallet.strategy.RefundStrategy;
 import com.team26.freelance.wallet.strategy.RefundStrategySelector;
-import com.team26.freelance.wallet.strategy.PayoutReversalContext;
-import com.team26.freelance.wallet.strategy.PayoutReversalResult;
 import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
-import com.team26.freelance.wallet.model.PayoutAuditEvent;
+import com.team26.freelance.common.event.PayoutAuditEvent;
 import com.team26.freelance.wallet.repository.PayoutAuditEventRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.Cacheable;
@@ -51,7 +48,6 @@ public class PayoutService {
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
   private final PayoutPromoRepository payoutPromoRepository;
-  private final PayoutReversalContext payoutReversalContext;
   private final ApplicationEventPublisher eventPublisher;
   private final PlatformFeeAnalyticsService platformFeeAnalyticsService;
   private final PayoutAuditEventRepository payoutAuditEventRepository;
@@ -61,7 +57,6 @@ public class PayoutService {
   public PayoutService(PayoutRepository payoutRepository,
                        PromoCodeRepository promoCodeRepository,
                        PayoutPromoRepository payoutPromoRepository,
-                       PayoutReversalContext payoutReversalContext,
                        PayoutAuditService payoutAuditService,
                        ApplicationEventPublisher eventPublisher,
                        PlatformFeeAnalyticsService platformFeeAnalyticsService,
@@ -71,7 +66,6 @@ public class PayoutService {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
-    this.payoutReversalContext = payoutReversalContext;
     this.eventPublisher = eventPublisher;
     this.platformFeeAnalyticsService = platformFeeAnalyticsService;
     this.payoutAuditEventRepository = payoutAuditEventRepository;
