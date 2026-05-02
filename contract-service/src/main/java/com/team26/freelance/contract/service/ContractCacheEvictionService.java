@@ -68,10 +68,9 @@ public class ContractCacheEvictionService {
     }
 
     public void evictMilestoneTimeline(Long contractId) {
-        if (contractId == null) {
-            return;
-        }
-        evictByPattern(PREFIX + "S4-F12::" + contractId + "*");
+        // The spec explicitly allows over-invalidation for feature caches.
+        // We wildcard the entire S4-F12 feature to ensure hashed variations are caught.
+        evictByPattern(PREFIX + "S4-F12::*");
     }
 
     public void evictAfterContractCreated() {

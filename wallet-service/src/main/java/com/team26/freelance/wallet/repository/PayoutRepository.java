@@ -6,14 +6,15 @@ import com.team26.freelance.wallet.dto.ContractDataProjection;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutStatus;
 import jakarta.persistence.LockModeType;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PayoutRepository extends JpaRepository<Payout, Long> {
@@ -28,10 +29,8 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             WHERE p.created_at >= :startDate
               AND p.created_at < :endExclusive
             """, nativeQuery = true)
-    RevenueReportProjection getRevenueReport(
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endExclusive") LocalDateTime endExclusive
-    );
+    RevenueReportProjection getRevenueReport(@Param("startDate") LocalDateTime startDate,
+                                             @Param("endExclusive") LocalDateTime endExclusive);
 
     @Query(value = """
             SELECT * FROM payouts
@@ -69,6 +68,17 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             GROUP BY method
             """, nativeQuery = true)
     List<Object[]> getPayoutSummaryByFreelancer(@Param("freelancerId") Long freelancerId);
+
+    @Query(value = """
+            SELECT COALESCE(SUM(pm.amount), 0)
+            FROM proposal_milestones pm
+            WHERE pm.proposal_id = (
+                SELECT proposal_id FROM contracts WHERE id = :contractId
+            )
+            AND pm.status NOT IN ('COMPLETED', 'APPROVED')
+            """, nativeQuery = true)
+    Double sumUnresolvedMilestoneAmounts(@Param("contractId") Long contractId);
+
 
     @Query(value = """
             SELECT

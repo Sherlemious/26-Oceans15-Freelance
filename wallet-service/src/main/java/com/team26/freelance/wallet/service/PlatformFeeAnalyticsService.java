@@ -23,13 +23,10 @@ public class PlatformFeeAnalyticsService {
     }
     @Cacheable(
             cacheNames = "wallet-service::S5-F10",
-            key = "T(java.util.Objects).hash(#startDate, #endDate)"
+            key = "#startDate + ':' + #endDate"
     )
     public List<CategoryRevenueDTO> getPlatformFeeAnalytics(LocalDate startDate, LocalDate endDate) {
-        if (startDate == null || endDate == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "startDate and endDate are required");
-        }
+        
 
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,

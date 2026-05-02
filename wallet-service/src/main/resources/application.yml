@@ -4,12 +4,6 @@ server:
 spring:
   application:
     name: wallet-service
-  autoconfigure:
-    exclude:
-      #- org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
-      #- org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
-      #- org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
@@ -26,6 +20,10 @@ spring:
       mode: always
       separator: "@@"
   data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:redispass}
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/freelancedb}
   cassandra:

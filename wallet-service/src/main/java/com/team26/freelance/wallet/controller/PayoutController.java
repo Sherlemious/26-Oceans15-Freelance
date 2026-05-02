@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
+
 
 @RestController
 @RequestMapping("/api/payouts")
@@ -62,9 +62,10 @@ public class PayoutController {
   @PostMapping("/contract/{contractId}")
   public ResponseEntity<Payout>
   processContractPayout(@PathVariable Long contractId,
-                        @RequestBody(required = false) ProcessContractPayoutRequest request) {
+                        @RequestBody(required = false) ProcessContractPayoutRequest request,
+                        @RequestParam(defaultValue = "false") boolean simulateFailure) {
     return ResponseEntity.status(201).body(
-        payoutService.processContractPayout(contractId, request));
+        payoutService.processContractPayout(contractId, request, simulateFailure));
   }
 
   @PutMapping("/{id}")
@@ -102,9 +103,10 @@ public class PayoutController {
     return ResponseEntity.ok(payoutService.retryFailedPayout(id));
   }
 
-  @PostMapping("/{id}/reverse")
-  public ResponseEntity<PayoutReversalResultDTO> reversePayout(@PathVariable Long id) {
-    return ResponseEntity.ok(payoutService.reversePayout(id));
+  @PostMapping("/{id}/reverse-milestone")
+  public ResponseEntity<PayoutReversalResultDTO> reversePayout(@PathVariable Long id,
+                                                               @RequestBody RefundRequest request) {
+    return ResponseEntity.ok(payoutService.reversePayout(id, request));
   }
   @GetMapping("/{payoutId}/details")
   public ResponseEntity<PayoutDetailsDTO>

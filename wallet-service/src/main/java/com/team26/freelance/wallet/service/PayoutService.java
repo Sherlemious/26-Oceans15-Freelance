@@ -8,6 +8,7 @@ import com.team26.freelance.wallet.dto.PayoutResponseDTO;
 import com.team26.freelance.wallet.dto.PayoutReversalResultDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
+import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.model.DiscountType;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutAuditEventType;
@@ -18,6 +19,9 @@ import com.team26.freelance.wallet.model.PromoCode;
 import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
+import com.team26.freelance.wallet.strategy.RefundResult;
+import com.team26.freelance.wallet.strategy.RefundStrategy;
+import com.team26.freelance.wallet.strategy.RefundStrategySelector;
 import com.team26.freelance.wallet.strategy.PayoutReversalContext;
 import com.team26.freelance.wallet.strategy.PayoutReversalResult;
 import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
@@ -51,6 +55,7 @@ public class PayoutService {
   private final ApplicationEventPublisher eventPublisher;
   private final PlatformFeeAnalyticsService platformFeeAnalyticsService;
   private final PayoutAuditEventRepository payoutAuditEventRepository;
+  private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
 
   public PayoutService(PayoutRepository payoutRepository,
@@ -60,7 +65,9 @@ public class PayoutService {
                        PayoutAuditService payoutAuditService,
                        ApplicationEventPublisher eventPublisher,
                        PlatformFeeAnalyticsService platformFeeAnalyticsService,
-                       PayoutAuditEventRepository payoutAuditEventRepository) {
+                       PayoutAuditEventRepository payoutAuditEventRepository,
+                       RefundStrategySelector refundStrategySelector
+                       ) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
@@ -68,6 +75,7 @@ public class PayoutService {
     this.eventPublisher = eventPublisher;
     this.platformFeeAnalyticsService = platformFeeAnalyticsService;
     this.payoutAuditEventRepository = payoutAuditEventRepository;
+    this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
   }
 
@@ -135,6 +143,13 @@ public class PayoutService {
     promoCode.setCurrentUses(currentUses + 1);
     promoCodeRepository.save(promoCode);
 
+    Map<String, Object> auditDetails = new LinkedHashMap<>();
+    auditDetails.put("promoCodeId", promoCode.getId());
+    auditDetails.put("code", promoCode.getCode());
+    auditDetails.put("discountApplied", payoutPromo.getDiscountApplied());
+    auditDetails.put("payoutPromoId", payoutPromo.getId());
+    payoutAuditService.recordPayoutEvent(payout, PayoutAuditService.PROMO_APPLIED, auditDetails);
+
     return new PayoutResponseDTO(payout);
   }
 
@@ -174,7 +189,8 @@ public class PayoutService {
   @Transactional
   public Payout createPayout(Payout payout) {
     Payout saved = payoutRepository.save(payout);
-    payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.CREATED, "Payout created");
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.PAYOUT_CREATED, Map.of("reason", "Payout created"));
+    recordLifecycleStatusChange(saved, null, saved.getStatus(), "Payout created with lifecycle status");
     return saved;
   }
 
@@ -190,7 +206,8 @@ public class PayoutService {
   })
   @Transactional
   public Payout processContractPayout(Long contractId,
-                                      ProcessContractPayoutRequest request) {
+                                      ProcessContractPayoutRequest request,
+                                      boolean simulateFailure) {
     List<ContractDataProjection> contractRows = payoutRepository.findContractDataById(contractId);
     if (contractRows.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
@@ -219,16 +236,17 @@ public class PayoutService {
         payoutRepository
             .findFirstByContractIdAndStatusOrderByCreatedAtAsc(
                 contractId, PayoutStatus.PENDING)
-                .orElseGet(() -> {
-                  Payout p = new Payout();
-                  p.setContractId(contractId);
-                  p.setFreelancerId(freelancerId);
-                  p.setAmount(agreedAmount);
-                  p.setMethod(PayoutMethod.BANK_TRANSFER);
-                  p.setStatus(PayoutStatus.PENDING);
-                  p.setTransactionDetails(new HashMap<>());
-                  return p;
-                });
+            .orElseGet(() -> {
+              Payout p = new Payout();
+              p.setContractId(contractId);
+              p.setFreelancerId(freelancerId);
+              p.setAmount(agreedAmount);
+              p.setMethod(PayoutMethod.BANK_TRANSFER);
+              p.setStatus(PayoutStatus.PENDING);
+              p.setTransactionDetails(new HashMap<>());
+              return p;
+            });
+    boolean createdNewPayout = pendingPayout.getId() == null;
 
     PayoutMethod method = normalizePayoutMethod(request != null ? request.getMethod() : null);
     String accountLastFour = request != null ? request.getAccountLastFour() : null;
@@ -259,11 +277,38 @@ public class PayoutService {
       transactionDetails.put("platformFee", platformFee);
     }
 
-    pendingPayout.setStatus(PayoutStatus.COMPLETED);
+    if (simulateFailure) {
+      transactionDetails.put("simulateFailure", true);
+      transactionDetails.put("gatewayResponse", "rejected");
+      transactionDetails.put("failureReason", "simulated gateway failure");
+      pendingPayout.setStatus(PayoutStatus.FAILED);
+    } else {
+      transactionDetails.put("gatewayResponse", "approved");
+      pendingPayout.setStatus(PayoutStatus.COMPLETED);
+    }
     pendingPayout.setTransactionDetails(transactionDetails);
 
     Payout saved = payoutRepository.save(pendingPayout);
-    payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.COMPLETED, "Contract payout completed");
+    if (createdNewPayout) {
+      Map<String, Object> createdDetails = new LinkedHashMap<>();
+      createdDetails.put("contractId", contractId);
+      createdDetails.put("freelancerId", freelancerId);
+      createdDetails.put("reason", "Payout row inserted for contract payout");
+      payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.CREATED, createdDetails);
+    }
+
+    Map<String, Object> completionDetails = new LinkedHashMap<>();
+    completionDetails.put("contractId", contractId);
+    completionDetails.put("accountLastFour", accountLastFour);
+    completionDetails.put("platformFee", transactionDetails.get("platformFee"));
+    completionDetails.put("simulateFailure", simulateFailure);
+    if (simulateFailure) {
+      completionDetails.put("failureReason", transactionDetails.get("failureReason"));
+      payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.FAILED, completionDetails);
+    } else {
+      completionDetails.put("reason", "Contract payout completed");
+      payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.COMPLETED, completionDetails);
+    }
     return saved;
   }
 
@@ -287,7 +332,8 @@ public class PayoutService {
     existing.setStatus(updated.getStatus());
     existing.setTransactionDetails(updated.getTransactionDetails());
     Payout saved = payoutRepository.save(existing);
-    recordStatusTransition(saved, previousStatus, saved.getStatus(), "Payout updated");
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.PAYOUT_UPDATED, Map.of("reason", "Payout updated"));
+    recordLifecycleStatusChange(saved, previousStatus, saved.getStatus(), "Payout status changed through update");
     return saved;
   }
 
@@ -300,9 +346,14 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
+  @Transactional
   public void deletePayout(Long id) {
-    getPayoutById(id);
+    Payout payout = payoutRepository.findById(id).orElseThrow(
+        ()
+            -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                           "Payout not found"));
     payoutRepository.deleteById(id);
+    payoutAuditService.recordPayoutEvent(payout, PayoutAuditService.PAYOUT_DELETED, Map.of("reason", "Payout deleted"));
   }
 
   @Cacheable(
@@ -349,7 +400,10 @@ public class PayoutService {
     transactionDetails.put("refundedAt", LocalDateTime.now().toString());
     payout.setTransactionDetails(transactionDetails);
     Payout saved = payoutRepository.save(payout);
-    payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.REFUNDED, reason);
+    Map<String, Object> auditDetails = new LinkedHashMap<>();
+    auditDetails.put("reason", reason);
+    auditDetails.put("refundedAt", transactionDetails.get("refundedAt"));
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.REFUNDED, auditDetails);
     return saved;
   }
 
@@ -407,9 +461,16 @@ public class PayoutService {
     payout.setTransactionDetails(transactionDetails);
 
     Payout saved = payoutRepository.save(payout);
-    payoutAuditService.recordLifecycleEvent(saved, PayoutAuditEventType.COMPLETED, "Failed payout retried successfully");
+    Map<String, Object> auditDetails = new LinkedHashMap<>();
+    auditDetails.put("retryAttempt", retryAttempt + 1);
+    auditDetails.put("gatewayResponse", transactionDetails.get("gatewayResponse"));
+    auditDetails.put("previousStatus", PayoutStatus.FAILED.name());
+    auditDetails.put("newStatus", PayoutStatus.COMPLETED.name());
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.RETRY_ATTEMPTED, auditDetails);
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.COMPLETED, auditDetails);
     return saved;
   }
+
   @Cacheable(cacheNames = "wallet-service::S5-F8", key = "#payoutId")
   public PayoutDetailsDTO getPayoutDetails(Long payoutId) {
     Payout payout = payoutRepository.findByIdWithPromos(payoutId).orElseThrow(
@@ -472,62 +533,39 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
-  public PayoutReversalResultDTO reversePayout(Long id) {
+  public PayoutReversalResultDTO reversePayout(Long id, RefundRequest request) {
     Payout payout = payoutRepository.findByIdWithPromos(id).orElseThrow(
         () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
 
-    PayoutReversalResult result = payoutReversalContext.executeStrategy(payout);
-
-    if (result.isApproved()) {
-      payout.setStatus(PayoutStatus.REFUNDED);
-      Map<String, Object> details = payout.getTransactionDetails();
-      if (details == null) {
-        details = new HashMap<>();
-      }
-      details.put("refundedAt", LocalDateTime.now().toString());
-      details.put("strategyApplied", result.getStrategyApplied());
-      details.put("amountReturned", result.getAmountReturned());
-      payout.setTransactionDetails(details);
-      payoutRepository.save(payout);
+    if (payout.getStatus() != PayoutStatus.COMPLETED) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          "Only COMPLETED payouts can be reversed");
     }
 
-    payoutAuditService.recordRefundResult(
-        payout,
-        result.isApproved(),
-        result.getAmountReturned(),
-        result.getStrategyApplied(),
-        result.getReason());
-    Map<String, Object> auditDetails = new HashMap<>();
-    auditDetails.put("strategyApplied", result.getStrategyApplied());
-    auditDetails.put("reason", result.getReason());
-    auditDetails.put("approved", result.isApproved());
+    RefundStrategy strategy = refundStrategySelector.select(payout, request);
+    RefundResult result = strategy.calculateRefund(payout, request);
 
-    eventPublisher.publishEvent(new PayoutAuditPendingEvent(
-            payout.getId(),
-            result.isApproved() ? "REFUNDED" : "REFUND_DENIED",
-            payout.getMethod() == null ? null : payout.getMethod().name(),
-            result.getAmountReturned(),
-            auditDetails,
-            LocalDateTime.now()
-    ));
+    if (!result.isApproved()) {
+      payoutAuditService.recordRefundResult(payout, false, result.getAmount(), result.getStrategyName(), result.getReasonCode());
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, result.getReasonCode());
+    }
+
+    payout.setStatus(PayoutStatus.REFUNDED);
+    Map<String, Object> details = payout.getTransactionDetails();
+    if (details == null) {
+      details = new HashMap<>();
+    }
+    details.put("refundAmount", result.getAmount());
+    details.put("reversalScope", request.getReversalScope());
+    details.put("refundReason", request.getReason());
+    details.put("refundedAt", LocalDateTime.now().toString());
+    payout.setTransactionDetails(details);
+    payoutRepository.save(payout);
+
+    payoutAuditService.recordRefundResult(payout, true, result.getAmount(), result.getStrategyName(), result.getReasonCode());
 
     return new PayoutReversalResultDTO(payout, result);
   }
-
-  private void recordStatusTransition(Payout payout, PayoutStatus previousStatus,
-                                      PayoutStatus currentStatus, String reason) {
-    if (currentStatus == null || currentStatus == previousStatus) {
-      return;
-    }
-    if (currentStatus == PayoutStatus.COMPLETED) {
-      payoutAuditService.recordLifecycleEvent(payout, PayoutAuditEventType.COMPLETED, reason);
-    } else if (currentStatus == PayoutStatus.FAILED) {
-      payoutAuditService.recordLifecycleEvent(payout, PayoutAuditEventType.FAILED, reason);
-    } else if (currentStatus == PayoutStatus.REFUNDED) {
-      payoutAuditService.recordLifecycleEvent(payout, PayoutAuditEventType.REFUNDED, reason);
-    }
-  }
-
 
   @Cacheable(cacheNames = "wallet-service::S5-F9", key = "#limit")
   public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {
@@ -571,22 +609,32 @@ public class PayoutService {
     return result;
   }
 
-  public List<CategoryRevenueDTO> getPlatformFeeAnalyticsByCategory(LocalDate startDate, LocalDate endDate) {
-    PayoutAuditEvent auditEvent = new PayoutAuditEvent();
-    auditEvent.setPayoutId(null);
-    auditEvent.setAction("ANALYTICS_VIEWED");
-    auditEvent.setTimestamp(LocalDateTime.now());
-    auditEvent.setMethod(null);
-    auditEvent.setAmount(null);
+  private void recordLifecycleStatusChange(Payout payout,
+                                           PayoutStatus previousStatus,
+                                           PayoutStatus newStatus,
+                                           String reason) {
+    if (previousStatus == newStatus || newStatus == null) {
+      return;
+    }
 
-    Map<String, Object> details = new HashMap<>();
-    details.put("startDate", startDate.toString());
-    details.put("endDate", endDate.toString());
-    details.put("endpoint", "/api/payouts/analytics/category");
-    auditEvent.setDetails(details);
+    String action = lifecycleActionForStatus(newStatus);
+    if (action == null) {
+      return;
+    }
 
-    payoutAuditEventRepository.save(auditEvent);
+    Map<String, Object> details = new LinkedHashMap<>();
+    details.put("previousStatus", previousStatus == null ? null : previousStatus.name());
+    details.put("newStatus", newStatus.name());
+    details.put("reason", reason);
+    payoutAuditService.recordPayoutEvent(payout, action, details);
+  }
 
-    return platformFeeAnalyticsService.getPlatformFeeAnalytics(startDate, endDate);
+  private String lifecycleActionForStatus(PayoutStatus status) {
+    return switch (status) {
+      case COMPLETED -> PayoutAuditService.COMPLETED;
+      case FAILED -> PayoutAuditService.FAILED;
+      case REFUNDED -> PayoutAuditService.REFUNDED;
+      default -> null;
+    };
   }
 }

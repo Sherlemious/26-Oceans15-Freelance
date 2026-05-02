@@ -2,7 +2,9 @@ package com.team26.freelance.wallet.service;
 
 import com.team26.freelance.wallet.model.PromoCode;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +14,12 @@ import org.springframework.web.server.ResponseStatusException;
 public class PromoCodeService {
 
     private final PromoCodeRepository promoCodeRepository;
+    private final PayoutAuditService payoutAuditService;
 
-    public PromoCodeService(PromoCodeRepository promoCodeRepository) {
+    public PromoCodeService(PromoCodeRepository promoCodeRepository,
+                            PayoutAuditService payoutAuditService) {
         this.promoCodeRepository = promoCodeRepository;
+        this.payoutAuditService = payoutAuditService;
     }
 
     public List<PromoCode> getAll() {
@@ -30,7 +35,9 @@ public class PromoCodeService {
     public PromoCode create(PromoCode promoCode) {
         promoCode.setId(null);
         promoCode.setCurrentUses(0);
-        return promoCodeRepository.save(promoCode);
+        PromoCode saved = promoCodeRepository.save(promoCode);
+        payoutAuditService.recordGenericEvent(PayoutAuditService.PROMO_CODE_CREATED, promoCodeDetails(saved));
+        return saved;
     }
 
     @Transactional
@@ -45,12 +52,26 @@ public class PromoCodeService {
         if (updated.getMetadata() != null) {
             existing.setMetadata(updated.getMetadata());
         }
-        return promoCodeRepository.save(existing);
+        PromoCode saved = promoCodeRepository.save(existing);
+        payoutAuditService.recordGenericEvent(PayoutAuditService.PROMO_CODE_UPDATED, promoCodeDetails(saved));
+        return saved;
     }
 
     @Transactional
     public void delete(Long id) {
-        getById(id);
-        promoCodeRepository.deleteById(id);
+        PromoCode existing = getById(id);
+        Map<String, Object> details = promoCodeDetails(existing);
+        promoCodeRepository.delete(existing);
+        payoutAuditService.recordGenericEvent(PayoutAuditService.PROMO_CODE_DELETED, details);
+    }
+
+    private Map<String, Object> promoCodeDetails(PromoCode promoCode) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("entityType", "PromoCode");
+        details.put("promoCodeId", promoCode.getId());
+        details.put("code", promoCode.getCode());
+        details.put("discountType", promoCode.getDiscountType() == null ? null : promoCode.getDiscountType().name());
+        details.put("active", promoCode.getActive());
+        return details;
     }
 }

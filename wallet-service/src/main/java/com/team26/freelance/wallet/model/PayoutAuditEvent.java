@@ -92,14 +92,6 @@ public class PayoutAuditEvent {
         this.method = payoutMethod;
     }
 
-    public Double getAmountReturned() {
-        return this.amount;
-    }
-
-    public void setAmountReturned(Double amountReturned) {
-        this.amount = amountReturned;
-    }
-
     public String getReason() {
         Object value = this.details == null ? null : this.details.get("reason");
         return value == null ? null : value.toString();
