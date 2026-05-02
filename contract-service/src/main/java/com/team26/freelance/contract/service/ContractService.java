@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.service;
 
+import com.team26.freelance.contract.dto.BatchStatusUpdateRequestDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
 import com.team26.freelance.contract.dto.MilestoneTrackingRequest;
@@ -11,7 +12,6 @@ import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.cassandra.ContractMilestoneEventRepository;
-import com.team26.freelance.contract.service.ContractAnalyticsService;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -153,19 +153,10 @@ public class ContractService {
     }
 
     @Transactional
-    public int updateStatusesRaw(Map<String, Object> request) {
-        Object idsObj = request.get("ids");
-        if (idsObj == null)
-            idsObj = request.get("contractIds");
-        if (idsObj == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing ids in request");
-        }
-
-        List<?> list = (List<?>) idsObj;
-        Set<Long> uniqueIds = new HashSet<>();
-        for (Object o : list) {
-            uniqueIds.add(Long.valueOf(o.toString()));
-        }
+    public int updateStatusesRaw(List<BatchStatusUpdateRequestDTO> request) {
+        Set<Long> uniqueIds = request.stream()
+                .map(BatchStatusUpdateRequestDTO::getContractId)
+                .collect(Collectors.toSet());
 
         List<Contract> contracts = contractRepository.findAllById(uniqueIds);
         Map<Long, Contract> contractById = contracts.stream()
@@ -178,30 +169,17 @@ public class ContractService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contracts not found: " + missingIds);
         }
 
-        Object statusObj = request.get("status");
-        if (statusObj == null)
-            statusObj = request.get("newStatus");
-        if (statusObj == null)
-            statusObj = request.get("targetStatus");
-        if (statusObj == null)
-            statusObj = request.get("toStatus");
-        if (statusObj == null)
-            statusObj = request.get("contractStatus");
+        Map<Long, ContractStatus> statusByContractId = request.stream()
+                .collect(Collectors.toMap(
+                        BatchStatusUpdateRequestDTO::getContractId,
+                        dto -> dto.getStatus() != null ? dto.getStatus() : null
+                ));
 
-        String s = statusObj != null ? statusObj.toString().toUpperCase() : null;
-
-        List<Contract> toSave = new ArrayList<>(uniqueIds.size());
-        for (Long id : uniqueIds) {
-            Contract contract = contractById.get(id);
-
-            ContractStatus targetStatus;
-            try {
-                if (s == null)
-                    throw new NullPointerException();
-                targetStatus = ContractStatus.valueOf(s);
-            } catch (IllegalArgumentException | NullPointerException e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status");
-            }
+        List<Contract> toSave = new ArrayList<>(request.size());
+        for (BatchStatusUpdateRequestDTO requestItem : request) {
+            Long contractId = requestItem.getContractId();
+            Contract contract = contractById.get(contractId);
+            ContractStatus targetStatus = statusByContractId.get(contractId);
 
             boolean valid = contract.getStatus().isValidTransitionTo(targetStatus);
 
