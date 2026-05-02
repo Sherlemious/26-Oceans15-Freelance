@@ -17,7 +17,7 @@ public class TopBudgetJobDTO {
         return new Builder();
     }
 
-    public static class Builder {
+    public static final class Builder {
         private Long jobId;
         private String title;
         private Double budgetMax;
