@@ -182,14 +182,15 @@ public class JobService {
     public List<TopBudgetJobDTO> getTopBudgetJobs(int limit) {
         List<Object[]> results = jobRepository.findTopBudgetJobs(limit);
         return results.stream()
-                .map(row -> new TopBudgetJobDTO(
-                        ((Number) row[0]).longValue(),
-                        (String) row[1],
-                        ((Number) row[2]).doubleValue(),
-                        ((Number) row[3]).longValue()
-                ))
+                .map(row -> TopBudgetJobDTO.builder()
+                        .jobId(((Number) row[0]).longValue())
+                        .title((String) row[1])
+                        .budgetMax(((Number) row[2]).doubleValue())
+                        .totalProposals(((Number) row[3]).longValue())
+                        .build())
                 .collect(Collectors.toList());
     }
+
     public List<JobAttachmentAlertDTO> getJobsWithExpiredAttachments() {
     List<Long> jobIds = jobRepository.findJobIdsWithExpiredAttachments();
 
