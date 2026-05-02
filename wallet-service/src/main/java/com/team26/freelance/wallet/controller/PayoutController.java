@@ -112,6 +112,7 @@ public class PayoutController {
                                                                @RequestBody RefundRequest request) {
     return ResponseEntity.ok(payoutService.reversePayout(id, request));
   }
+
   @GetMapping("/{payoutId}/details")
   public ResponseEntity<PayoutDetailsDTO>
   getPayoutDetails(@PathVariable Long payoutId) {
