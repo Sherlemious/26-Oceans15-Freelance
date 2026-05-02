@@ -345,6 +345,7 @@ public class ContractService {
                 request.getRecordedBy(), request.getNotes()));
 
         contractAnalyticsService.notifyObservers("MILESTONE_TRACKED", details);
+        cacheEvictionService.evictMilestoneTimeline(contractId);
 
         return new MilestoneTrackingResponse(
                 savedEvent.getContractId(),

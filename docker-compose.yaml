@@ -114,13 +114,8 @@ services:
       - "9042:9042"
     volumes:
       - cassandradata:/var/lib/cassandra
-    command: >
-      bash -c "
-        docker-entrypoint.sh cassandra -f &
-        until cqlsh -e 'DESCRIBE KEYSPACES' 2>/dev/null; do sleep 5; done;
-        cqlsh -e \"CREATE KEYSPACE IF NOT EXISTS $${CASSANDRA_KEYSPACE} WITH replication = {'class':'SimpleStrategy','replication_factor':1};\";
-        wait
-      "
+      - ./docker/cassandra-init.sh:/usr/local/bin/cassandra-init.sh:ro
+    command: ["bash", "/usr/local/bin/cassandra-init.sh"]
     healthcheck:
       test: ["CMD-SHELL", 'cqlsh -e "DESCRIBE KEYSPACES" > /dev/null || exit 1']
       interval: 15s
@@ -220,7 +215,7 @@ services:
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
-      SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+      SPRING_CASSANDRA_KEYSPACE_NAME: freelanceks
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
@@ -248,7 +243,7 @@ services:
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
-      SPRING_CASSANDRA_KEYSPACE_NAME: freelancedb
+      SPRING_CASSANDRA_KEYSPACE_NAME: freelanceks
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
