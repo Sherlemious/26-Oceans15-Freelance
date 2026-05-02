@@ -26,34 +26,44 @@ public class ProposalAnalyticsDashboardDTO {
 
     public static class Builder {
 
-        private final ProposalAnalyticsDashboardDTO dto = new ProposalAnalyticsDashboardDTO();
+        private long totalProposals;
+        private double acceptanceRate;
+        private double averageBidAmount;
+        private double averageEstimatedDays;
+        private Map<String, Long> proposalsByStatus;
 
         public Builder withTotalProposals(long totalProposals) {
-            dto.totalProposals = totalProposals;
+            this.totalProposals = totalProposals;
             return this;
         }
 
         public Builder withAcceptanceRate(double acceptanceRate) {
-            dto.acceptanceRate = acceptanceRate;
+            this.acceptanceRate = acceptanceRate;
             return this;
         }
 
         public Builder withAverageBidAmount(double averageBidAmount) {
-            dto.averageBidAmount = averageBidAmount;
+            this.averageBidAmount = averageBidAmount;
             return this;
         }
 
         public Builder withAverageEstimatedDays(double averageEstimatedDays) {
-            dto.averageEstimatedDays = averageEstimatedDays;
+            this.averageEstimatedDays = averageEstimatedDays;
             return this;
         }
 
         public Builder withProposalsByStatus(Map<String, Long> proposalsByStatus) {
-            dto.proposalsByStatus = proposalsByStatus;
+            this.proposalsByStatus = proposalsByStatus;
             return this;
         }
 
         public ProposalAnalyticsDashboardDTO build() {
+            ProposalAnalyticsDashboardDTO dto = new ProposalAnalyticsDashboardDTO();
+            dto.totalProposals = this.totalProposals;
+            dto.acceptanceRate = this.acceptanceRate;
+            dto.averageBidAmount = this.averageBidAmount;
+            dto.averageEstimatedDays = this.averageEstimatedDays;
+            dto.proposalsByStatus = this.proposalsByStatus;
             return dto;
         }
     }
