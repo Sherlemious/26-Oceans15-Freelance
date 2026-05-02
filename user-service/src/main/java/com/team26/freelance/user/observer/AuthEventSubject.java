@@ -1,15 +1,16 @@
-package com.team26.freelance.wallet.observer;
+package com.team26.freelance.user.observer;
+
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.springframework.stereotype.Component;
 
 @Component
-public class PayoutAuditSubject {
+public class AuthEventSubject {
 
     private final List<EntityObserver> observers;
 
-    public PayoutAuditSubject(List<EntityObserver> observers) {
+    public AuthEventSubject(List<EntityObserver> observers) {
         this.observers = new ArrayList<>(observers);
     }
 
@@ -25,7 +26,7 @@ public class PayoutAuditSubject {
         observers.clear();
     }
 
-    public void notifyObservers(String action, Object payload) {
-        observers.forEach(observer -> observer.onEvent(action, payload));
+    public void notifyObservers(String eventType, Object payload) {
+        observers.forEach(observer -> observer.onEvent(eventType, payload));
     }
 }
