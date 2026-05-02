@@ -170,7 +170,16 @@ public class JobService {
         }
 
         job.setRequirements(existingRequirements);
-        return jobRepository.save(job);
+        Job updatedJob = jobRepository.save(job);
+
+        // Add observer notification
+        Map<String, Object> eventData = new HashMap<>();
+        eventData.put("jobId", jobId);
+        eventData.put("eventType", "REQUIREMENTS_UPDATED");
+        eventData.put("timestamp", java.time.LocalDateTime.now().toString());
+        jobSearchService.notifyObservers("REQUIREMENTS_UPDATED", eventData);
+
+        return updatedJob;
     }
     public List<Job> searchJobs(String status, Double minBudget, Double maxBudget) {
         if (minBudget != null && maxBudget != null && minBudget > maxBudget) {
