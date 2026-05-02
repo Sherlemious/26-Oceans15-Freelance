@@ -334,6 +334,7 @@ public class ProposalService {
                 .withTotalBidValue(totalBid)
                 .withAverageBid(averageBid)
                 .withAcceptanceRate(acceptanceRate)
-                .build();    }
+                .build();
+    }
 
 }

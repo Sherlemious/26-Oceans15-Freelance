@@ -25,39 +25,51 @@ public class ProposalAnalyticsDTO {
 
     public static class Builder {
 
-        private final ProposalAnalyticsDTO dto = new ProposalAnalyticsDTO();
+        private long totalProposals;
+        private long acceptedProposals;
+        private long rejectedProposals;
+        private double totalBidValue;
+        private double averageBid;
+        private double acceptanceRate;
 
         public Builder withTotalProposals(long totalProposals) {
-            dto.totalProposals = totalProposals;
+            this.totalProposals = totalProposals;
             return this;
         }
 
         public Builder withAcceptedProposals(long acceptedProposals) {
-            dto.acceptedProposals = acceptedProposals;
+            this.acceptedProposals = acceptedProposals;
             return this;
         }
 
         public Builder withRejectedProposals(long rejectedProposals) {
-            dto.rejectedProposals = rejectedProposals;
+            this.rejectedProposals = rejectedProposals;
             return this;
         }
 
         public Builder withTotalBidValue(double totalBidValue) {
-            dto.totalBidValue = totalBidValue;
+            this.totalBidValue = totalBidValue;
             return this;
         }
 
         public Builder withAverageBid(double averageBid) {
-            dto.averageBid = averageBid;
+            this.averageBid = averageBid;
             return this;
         }
 
         public Builder withAcceptanceRate(double acceptanceRate) {
-            dto.acceptanceRate = acceptanceRate;
+            this.acceptanceRate = acceptanceRate;
             return this;
         }
 
         public ProposalAnalyticsDTO build() {
+            ProposalAnalyticsDTO dto = new ProposalAnalyticsDTO();
+            dto.totalProposals = this.totalProposals;
+            dto.acceptedProposals = this.acceptedProposals;
+            dto.rejectedProposals = this.rejectedProposals;
+            dto.totalBidValue = this.totalBidValue;
+            dto.averageBid = this.averageBid;
+            dto.acceptanceRate = this.acceptanceRate;
             return dto;
         }
     }
