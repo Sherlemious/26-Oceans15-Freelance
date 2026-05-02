@@ -3,11 +3,13 @@ package com.team26.freelance.wallet.controller;
 import com.team26.freelance.wallet.dto.PayoutMethodBreakdownDTO;
 import com.team26.freelance.wallet.service.PayoutAnalyticsService;
 import com.team26.freelance.wallet.service.WalletJwtService;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -23,10 +25,12 @@ public class PayoutAnalyticsController {
         this.walletJwtService = walletJwtService;
     }
 
-    @GetMapping("/method-breakdown")
+    @GetMapping("/methods")
     public ResponseEntity<List<PayoutMethodBreakdownDTO>> getMethodBreakdown(
-        @RequestHeader(value = "Authorization", required = false) String authorization) {
+        @RequestHeader(value = "Authorization", required = false) String authorization,
+        @RequestParam LocalDate startDate,
+        @RequestParam LocalDate endDate) {
         walletJwtService.validateAuthorizationHeader(authorization);
-        return ResponseEntity.ok(payoutAnalyticsService.getMethodBreakdown());
+        return ResponseEntity.ok(payoutAnalyticsService.getMethodBreakdown(startDate, endDate));
     }
 }

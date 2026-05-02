@@ -182,37 +182,38 @@ public class JobService {
     public List<TopBudgetJobDTO> getTopBudgetJobs(int limit) {
         List<Object[]> results = jobRepository.findTopBudgetJobs(limit);
         return results.stream()
-                .map(row -> new TopBudgetJobDTO(
-                        ((Number) row[0]).longValue(),
-                        (String) row[1],
-                        ((Number) row[2]).doubleValue(),
-                        ((Number) row[3]).longValue()
-                ))
+                .map(row -> TopBudgetJobDTO.builder()
+                        .jobId(((Number) row[0]).longValue())
+                        .title((String) row[1])
+                        .budgetMax(((Number) row[2]).doubleValue())
+                        .totalProposals(((Number) row[3]).longValue())
+                        .build())
                 .collect(Collectors.toList());
     }
+
     public List<JobAttachmentAlertDTO> getJobsWithExpiredAttachments() {
-    List<Long> jobIds = jobRepository.findJobIdsWithExpiredAttachments();
+        List<Long> jobIds = jobRepository.findJobIdsWithExpiredAttachments();
 
-    return jobIds.stream()
-        .map(jobId -> {
-            Job job = jobRepository.findById(jobId).orElseThrow();
+        return jobIds.stream()
+                .map(jobId -> {
+                    Job job = jobRepository.findById(jobId).orElseThrow();
 
-            List<JobAttachment> expiredAttachments = job.getJobAttachments()
-                .stream()
-                .filter(a -> a.getExpiryDate() != null && a.getExpiryDate().isBefore(LocalDate.now()))
+                    List<JobAttachment> expiredAttachments = job.getJobAttachments()
+                            .stream()
+                            .filter(a -> a.getExpiryDate() != null && a.getExpiryDate().isBefore(LocalDate.now()))
+                            .toList();
+
+                    return JobAttachmentAlertDTO.builder()
+                            .jobId(job.getId())
+                            .jobTitle(job.getTitle())
+                            .jobStatus(job.getStatus())
+                            .expiredAttachments(expiredAttachments)
+                            .expiredCount(expiredAttachments.size())
+                            .build();
+                })
+                .filter(dto -> dto.getExpiredCount() > 0)
                 .toList();
-
-            return new JobAttachmentAlertDTO(
-                job.getId(),
-                job.getTitle(),
-                job.getStatus(),        // JobStatus enum directly
-                expiredAttachments,     // List<JobAttachment> directly
-                expiredAttachments.size() // int, not long
-            );
-        })
-        .filter(dto -> dto.getExpiredCount() > 0)
-        .toList();
-}
+    }
 
 
 
@@ -230,26 +231,26 @@ public class JobService {
 
         if (results == null || results.isEmpty() || results.get(0) == null) {
             Job job = getJobById(jobId);
-            return new JobProposalSummaryDTO(
-                    jobId,
-                    job.getTitle(),
-                    0L,
-                    0.0,
-                    0.0,
-                    0.0
-            );
+            return JobProposalSummaryDTO.builder()
+                    .jobId(jobId)
+                    .title(job.getTitle())
+                    .totalProposals(0L)
+                    .averageBidAmount(0.0)
+                    .lowestBid(0.0)
+                    .highestBid(0.0)
+                    .build();
         }
 
         Object[] result = results.get(0);
 
-        return new JobProposalSummaryDTO(
-                ((Number) result[0]).longValue(),
-                (String) result[1],
-                ((Number) result[2]).longValue(),
-                ((Number) result[3]).doubleValue(),
-                ((Number) result[4]).doubleValue(),
-                ((Number) result[5]).doubleValue()
-        );
+        return JobProposalSummaryDTO.builder()
+                .jobId(((Number) result[0]).longValue())
+                .title((String) result[1])
+                .totalProposals(((Number) result[2]).longValue())
+                .averageBidAmount(((Number) result[3]).doubleValue())
+                .lowestBid(((Number) result[4]).doubleValue())
+                .highestBid(((Number) result[5]).doubleValue())
+                .build();
     }
 
     public void logDashboardViewed(Long jobId) {

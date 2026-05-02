@@ -9,6 +9,8 @@ import com.team26.freelance.wallet.repository.PayoutPromoRepository;
 import com.team26.freelance.wallet.repository.PayoutRepository;
 import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,13 +22,16 @@ public class PayoutPromoService {
     private final PayoutPromoRepository payoutPromoRepository;
     private final PayoutRepository payoutRepository;
     private final PromoCodeRepository promoCodeRepository;
+    private final PayoutAuditService payoutAuditService;
 
     public PayoutPromoService(PayoutPromoRepository payoutPromoRepository,
                               PayoutRepository payoutRepository,
-                              PromoCodeRepository promoCodeRepository) {
+                              PromoCodeRepository promoCodeRepository,
+                              PayoutAuditService payoutAuditService) {
         this.payoutPromoRepository = payoutPromoRepository;
         this.payoutRepository = payoutRepository;
         this.promoCodeRepository = promoCodeRepository;
+        this.payoutAuditService = payoutAuditService;
     }
 
     @Transactional
@@ -60,6 +65,7 @@ public class PayoutPromoService {
         pp.setPromoCode(promoCode);
         pp.setDiscountApplied(request.getDiscountApplied() != null ? request.getDiscountApplied() : 0.0);
         PayoutPromo saved = payoutPromoRepository.save(pp);
+        payoutAuditService.recordPayoutEvent(payout, PayoutAuditService.PAYOUT_PROMO_CREATED, payoutPromoDetails(saved));
         return new PayoutPromoDTO(saved);
     }
 
@@ -72,8 +78,20 @@ public class PayoutPromoService {
 
     @Transactional
     public void delete(Long id) {
-        payoutPromoRepository.findById(id)
+        PayoutPromo payoutPromo = payoutPromoRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PayoutPromo not found"));
+        Payout payout = payoutPromo.getPayout();
+        Map<String, Object> details = payoutPromoDetails(payoutPromo);
         payoutPromoRepository.deleteById(id);
+        payoutAuditService.recordPayoutEvent(payout, PayoutAuditService.PAYOUT_PROMO_DELETED, details);
+    }
+
+    private Map<String, Object> payoutPromoDetails(PayoutPromo payoutPromo) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("entityType", "PayoutPromo");
+        details.put("payoutPromoId", payoutPromo.getId());
+        details.put("promoCodeId", payoutPromo.getPromoCode() == null ? null : payoutPromo.getPromoCode().getId());
+        details.put("discountApplied", payoutPromo.getDiscountApplied());
+        return details;
     }
 }
