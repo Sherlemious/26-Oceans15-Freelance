@@ -21,6 +21,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+// TODO: add preauthorize('hasRole('FREELANCER/CLIENT')')
+
 @RestController
 @RequestMapping("/api/contracts")
 public class ContractController {

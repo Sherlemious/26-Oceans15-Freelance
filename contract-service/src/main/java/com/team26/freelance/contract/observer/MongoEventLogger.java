@@ -1,6 +1,10 @@
 package com.team26.freelance.contract.observer;
 
-import com.team26.freelance.contract.model.mongo.ContractEvent;
+import com.team26.freelance.common.event.ContractEvent;
+import com.team26.freelance.common.event.EventFactory;
+import com.team26.freelance.common.event.EventType;
+import com.team26.freelance.common.event.MongoEvent;
+
 import com.team26.freelance.contract.repository.mongo.ContractEventRepository;
 import com.team26.freelance.contract.service.ContractCacheEvictionService;
 import org.slf4j.Logger;
@@ -15,6 +19,7 @@ public class MongoEventLogger implements EntityObserver {
 
     private final ContractEventRepository contractEventRepository;
     private final ContractCacheEvictionService cacheEvictionService;
+    private final EventType eventType = EventType.CONTRACT;
 
     public MongoEventLogger(ContractEventRepository contractEventRepository,
                             ContractCacheEvictionService cacheEvictionService) {
@@ -26,8 +31,9 @@ public class MongoEventLogger implements EntityObserver {
     public void onEvent(String eventType, Object payload) {
         try {
             Map<String, Object> details = toDetails(payload);
-            Long contractId = toLong(details.get("contractId"));
-            contractEventRepository.save(new ContractEvent(contractId, eventType, details));
+
+            MongoEvent event = EventFactory.createEvent(this.eventType, details);
+            contractEventRepository.save((ContractEvent) event);
             cacheEvictionService.evictAnalyticsForObserverEvent(eventType);
         } catch (Exception e) {
             log.warn("Failed to log contract event to MongoDB: {}", e.getMessage());
@@ -44,16 +50,8 @@ public class MongoEventLogger implements EntityObserver {
                 details.put(entry.getKey().toString(), entry.getValue());
             }
         }
+        details.put("action", eventType);
+        
         return details;
-    }
-
-    private Long toLong(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value == null) {
-            return null;
-        }
-        return Long.valueOf(value.toString());
     }
 }
