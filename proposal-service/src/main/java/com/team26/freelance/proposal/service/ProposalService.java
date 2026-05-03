@@ -1,5 +1,9 @@
 package com.team26.freelance.proposal.service;
 
+import com.team26.freelance.common.event.EventFactory;
+import com.team26.freelance.common.event.EventType;
+import com.team26.freelance.common.event.MongoEvent;
+import com.team26.freelance.proposal.observer.ProposalEventSubject;
 import com.team26.freelance.proposal.adapter.MongoDocumentAdapter;
 import com.team26.freelance.proposal.dto.CreateProposalDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
@@ -40,6 +44,7 @@ import java.util.Set;
 @Service
 public class ProposalService {
 
+    private final ProposalEventSubject eventSubject;
     private final ProposalRepository proposalRepository;
     private final ProposalMilestoneRepository milestoneRepository;
     private final ProposalCacheEvictionService cacheEvictionService;
@@ -59,13 +64,15 @@ public class ProposalService {
                            ProposalCacheEvictionService cacheEvictionService,
                            RedisTemplate<String, Object> redisTemplate,
                            ProposalEventRepository proposalEventRepository,
-                           MongoDocumentAdapter mongoDocumentAdapter) {
+                           MongoDocumentAdapter mongoDocumentAdapter,
+                           ProposalEventSubject eventSubject) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
         this.cacheEvictionService = cacheEvictionService;
         this.redisTemplate = redisTemplate;
         this.proposalEventRepository = proposalEventRepository;
         this.mongoDocumentAdapter = mongoDocumentAdapter;
+        this.eventSubject = eventSubject;
     }
 
     // ── CRUD (Reads Cached, Writes Evict) ──────────────────────────────────
@@ -207,6 +214,9 @@ public class ProposalService {
 
         Proposal saved = proposalRepository.save(proposal);
         cacheEvictionService.evictProposalCaches(saved.getId());
+
+        eventSubject.notifyObservers("PROPOSAL_COMPLETED", saved);
+
         return saved;
     }
 
@@ -417,21 +427,16 @@ public class ProposalService {
 
     private void logAnalyticsViewedEvent(LocalDate startDate, LocalDate endDate) {
         try {
-            Map<String, Object> details = new java.util.HashMap<>();
-            details.put("startDate", startDate.toString());
-            details.put("endDate", endDate.toString());
+            Map<String, Object> params = new java.util.HashMap<>();
+            params.put("action", "ANALYTICS_VIEWED");
+            params.put("startDate", startDate.toString());
+            params.put("endDate", endDate.toString());
 
-            ProposalEvent event = new ProposalEvent(
-                    null,
-                    "ANALYTICS_VIEWED",
-                    LocalDateTime.now(),
-                    details
-            );
-            proposalEventRepository.save(event);
+
+            MongoEvent event = EventFactory.createEvent(EventType.PROPOSAL, params);
+            proposalEventRepository.save((com.team26.freelance.proposal.model.ProposalEvent) event);
         } catch (Exception e) {
-            // MongoDB soft dependency — log warning and continue
-            System.err.println("WARN: Failed to log ANALYTICS_VIEWED event to MongoDB: "
-                    + e.getMessage());
+            System.err.println("WARN: Failed to log ANALYTICS_VIEWED event: " + e.getMessage());
         }
     }
 
