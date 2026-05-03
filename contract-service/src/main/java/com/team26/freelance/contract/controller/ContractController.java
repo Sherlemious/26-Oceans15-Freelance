@@ -1,8 +1,11 @@
 package com.team26.freelance.contract.controller;
 
+import com.team26.freelance.contract.dto.BatchStatusUpdateRequestDTO;
 import com.team26.freelance.contract.dto.ContractAnalyticsDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
+import com.team26.freelance.contract.dto.MilestoneTrackingRequest;
+import com.team26.freelance.contract.dto.MilestoneTrackingResponse;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.service.ContractAnalyticsService;
@@ -10,7 +13,9 @@ import com.team26.freelance.contract.service.ContractService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -45,19 +50,8 @@ public class ContractController {
         return ResponseEntity.ok(contractService.searchByMetadata(key, operator, value));
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Contract> update(@PathVariable Long id, @RequestBody Contract contractDetails) {
-        return ResponseEntity.ok(contractService.update(id, contractDetails));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        contractService.delete(id);
-        return ResponseEntity.noContent().build();
-    }
-
     @PutMapping("/batch-status")
-    public ResponseEntity<Integer> updateStatuses(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Integer> updateStatuses(@RequestBody @Valid List<BatchStatusUpdateRequestDTO> request) {
         int updatedCount = contractService.updateStatusesRaw(request);
         return ResponseEntity.ok(updatedCount);
     }
@@ -76,12 +70,6 @@ public class ContractController {
         return ResponseEntity.ok(contractAnalyticsService.getAnalytics(startDate, endDate));
     }
 
-    // GET /api/contracts/{id} ← used by job-service via RestTemplate
-    @GetMapping("/{id}")
-    public ResponseEntity<Contract> getContractById(@PathVariable Long id) {
-        return ResponseEntity.ok(contractService.getContractById(id));
-    }
-
     // GET /api/contracts/user/{userId}/active
     @GetMapping("/user/{userId}/active")
     public ResponseEntity<Contract> getActiveContractForUser(@PathVariable Long userId) {
@@ -89,6 +77,7 @@ public class ContractController {
     }
 
     // POST /api/contracts
+    @PreAuthorize("hasRole('CLIENT')")
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -111,5 +100,30 @@ public class ContractController {
     public ResponseEntity<Contract> updateContractProgress(@PathVariable Long contractId,
             @RequestBody Map<String, Object> incomingMetadata) {
         return ResponseEntity.ok(contractService.updateContractProgress(contractId, incomingMetadata));
+    }
+
+    @PreAuthorize("hasRole('FREELANCER') or hasRole('CLIENT')")
+    @PostMapping("/{id}/milestones/track")
+    public ResponseEntity<MilestoneTrackingResponse> trackMilestone(@PathVariable Long id,
+            @RequestBody @Valid MilestoneTrackingRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(contractService.trackMilestone(id, request));
+    }
+
+    // GET /api/contracts/{id} ← used by job-service via RestTemplate
+    @GetMapping("/{id}")
+    public ResponseEntity<Contract> getContractById(@PathVariable Long id) {
+        return ResponseEntity.ok(contractService.getContractById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Contract> update(@PathVariable Long id, @RequestBody Contract contractDetails) {
+        return ResponseEntity.ok(contractService.update(id, contractDetails));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        contractService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

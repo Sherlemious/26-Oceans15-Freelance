@@ -2,7 +2,6 @@ package com.team26.freelance.wallet.adapter;
 
 import com.team26.freelance.wallet.dto.PayoutMethodBreakdownDTO;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import org.bson.Document;
 import org.springframework.stereotype.Component;
 
@@ -10,22 +9,14 @@ import org.springframework.stereotype.Component;
 public class MongoDocumentAdapter {
 
     public PayoutMethodBreakdownDTO adapt(Document document) {
-        String payoutMethod = document.getString("payoutMethod");
+        String method = document.getString("method");
+        long successCount = toLong(document.get("successCount"));
+        long failureCount = toLong(document.get("failureCount"));
         BigDecimal totalAmount = toBigDecimal(document.get("totalAmount"));
-        long count = toLong(document.get("count"));
-        long completedCount = toLong(document.get("completedCount"));
-        BigDecimal averageAmount = count == 0
-            ? BigDecimal.ZERO
-            : totalAmount.divide(BigDecimal.valueOf(count), MathContext.DECIMAL64);
-        double successRate = count == 0 ? 0.0 : (completedCount * 100.0) / count;
+        long total = successCount + failureCount;
+        double successRate = total > 0 ? (double) successCount / total : 0.0;
 
-        return new PayoutMethodBreakdownDTO(
-            payoutMethod,
-            totalAmount,
-            count,
-            averageAmount,
-            successRate
-        );
+        return new PayoutMethodBreakdownDTO(method, successCount, failureCount, totalAmount, successRate);
     }
 
     private BigDecimal toBigDecimal(Object value) {

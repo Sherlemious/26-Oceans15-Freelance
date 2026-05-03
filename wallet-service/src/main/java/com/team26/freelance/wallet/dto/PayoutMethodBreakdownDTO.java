@@ -4,31 +4,31 @@ import java.math.BigDecimal;
 
 public class PayoutMethodBreakdownDTO {
 
-    private String payoutMethod;
+    private String method;
+    private long successCount;
+    private long failureCount;
     private BigDecimal totalAmount;
-    private long count;
-    private BigDecimal averageAmount;
     private double successRate;
 
     public PayoutMethodBreakdownDTO() {}
 
-    public PayoutMethodBreakdownDTO(String payoutMethod, BigDecimal totalAmount,
-                                    long count, BigDecimal averageAmount, double successRate) {
-        this.payoutMethod = payoutMethod;
+    public PayoutMethodBreakdownDTO(String method, long successCount, long failureCount,
+                                    BigDecimal totalAmount, double successRate) {
+        this.method = method;
+        this.successCount = successCount;
+        this.failureCount = failureCount;
         this.totalAmount = totalAmount;
-        this.count = count;
-        this.averageAmount = averageAmount;
         this.successRate = successRate;
     }
 
-    public String getPayoutMethod() { return payoutMethod; }
-    public void setPayoutMethod(String payoutMethod) { this.payoutMethod = payoutMethod; }
+    public String getMethod() { return method; }
+    public void setMethod(String method) { this.method = method; }
+    public long getSuccessCount() { return successCount; }
+    public void setSuccessCount(long successCount) { this.successCount = successCount; }
+    public long getFailureCount() { return failureCount; }
+    public void setFailureCount(long failureCount) { this.failureCount = failureCount; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
-    public long getCount() { return count; }
-    public void setCount(long count) { this.count = count; }
-    public BigDecimal getAverageAmount() { return averageAmount; }
-    public void setAverageAmount(BigDecimal averageAmount) { this.averageAmount = averageAmount; }
     public double getSuccessRate() { return successRate; }
     public void setSuccessRate(double successRate) { this.successRate = successRate; }
 }

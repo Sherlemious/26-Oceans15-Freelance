@@ -132,5 +132,29 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         """, nativeQuery = true)
         List<Object[]> getProposalAnalyticsRawData(@Param("startDate") LocalDateTime startDate,
                         @Param("endDate") LocalDateTime endDate);
+        @Query(value = """
+                        SELECT status, COUNT(*) as count
+                        FROM proposals
+                        WHERE submitted_at BETWEEN :startDate AND :endDate
+                        GROUP BY status
+                        """, nativeQuery = true)
+        List<Object[]> countByStatusInRange(
+                @Param("startDate") LocalDateTime startDate,
+                @Param("endDate") LocalDateTime endDate
+        );
+
+        @Query(value = """
+                       SELECT 
+                        COUNT(*) as total,
+                        AVG(bid_amount) as avgBid,
+                        AVG(estimated_days) as avgDays,
+                        SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END) as accepted
+                       FROM proposals
+                       WHERE submitted_at BETWEEN :startDate AND :endDate
+                       """, nativeQuery = true)
+        List<Object[]> getAggregateStats(
+                @Param("startDate") LocalDateTime startDate,
+                @Param("endDate") LocalDateTime endDate
+        );
 
 }

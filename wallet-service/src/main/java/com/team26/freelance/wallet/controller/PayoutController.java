@@ -51,9 +51,10 @@ public class PayoutController {
   @PostMapping("/contract/{contractId}")
   public ResponseEntity<Payout>
   processContractPayout(@PathVariable Long contractId,
-                        @RequestBody(required = false) ProcessContractPayoutRequest request) {
+                        @RequestBody(required = false) ProcessContractPayoutRequest request,
+                        @RequestParam(defaultValue = "false") boolean simulateFailure) {
     return ResponseEntity.status(201).body(
-        payoutService.processContractPayout(contractId, request));
+        payoutService.processContractPayout(contractId, request, simulateFailure));
   }
 
   @PutMapping("/{id}")

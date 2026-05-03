@@ -1,10 +1,17 @@
 package com.team26.freelance.contract.service;
 
+import com.team26.freelance.contract.dto.BatchStatusUpdateRequestDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
+import com.team26.freelance.contract.dto.MilestoneTrackingRequest;
+import com.team26.freelance.contract.dto.MilestoneTrackingResponse;
+import com.team26.freelance.contract.model.MilestoneStatus;
+import com.team26.freelance.contract.model.cassandra.ContractMilestoneEvent;
+import com.team26.freelance.contract.model.cassandra.ContractMilestoneEventKey;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
+import com.team26.freelance.contract.repository.cassandra.ContractMilestoneEventRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +26,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -31,10 +39,16 @@ public class ContractService {
 
     private final ContractRepository contractRepository;
     private final ContractCacheEvictionService cacheEvictionService;
+    private final ContractMilestoneEventRepository contractMilestoneEventRepository;
+    private final ContractAnalyticsService contractAnalyticsService;
 
-    public ContractService(ContractRepository contractRepository, ContractCacheEvictionService cacheEvictionService) {
+    public ContractService(ContractRepository contractRepository, ContractCacheEvictionService cacheEvictionService,
+            ContractMilestoneEventRepository contractMilestoneEventRepository,
+            ContractAnalyticsService contractAnalyticsService) {
         this.contractRepository = contractRepository;
         this.cacheEvictionService = cacheEvictionService;
+        this.contractMilestoneEventRepository = contractMilestoneEventRepository;
+        this.contractAnalyticsService = contractAnalyticsService;
     }
 
     @Cacheable(value = "contract-s4-f6", key = "@contractCacheKeys.featureKey('S4-F6', #startDate, #endDate, #status)")
@@ -139,19 +153,10 @@ public class ContractService {
     }
 
     @Transactional
-    public int updateStatusesRaw(Map<String, Object> request) {
-        Object idsObj = request.get("ids");
-        if (idsObj == null)
-            idsObj = request.get("contractIds");
-        if (idsObj == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing ids in request");
-        }
-
-        List<?> list = (List<?>) idsObj;
-        Set<Long> uniqueIds = new HashSet<>();
-        for (Object o : list) {
-            uniqueIds.add(Long.valueOf(o.toString()));
-        }
+    public int updateStatusesRaw(List<BatchStatusUpdateRequestDTO> request) {
+        Set<Long> uniqueIds = request.stream()
+                .map(BatchStatusUpdateRequestDTO::getContractId)
+                .collect(Collectors.toSet());
 
         List<Contract> contracts = contractRepository.findAllById(uniqueIds);
         Map<Long, Contract> contractById = contracts.stream()
@@ -164,30 +169,11 @@ public class ContractService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contracts not found: " + missingIds);
         }
 
-        Object statusObj = request.get("status");
-        if (statusObj == null)
-            statusObj = request.get("newStatus");
-        if (statusObj == null)
-            statusObj = request.get("targetStatus");
-        if (statusObj == null)
-            statusObj = request.get("toStatus");
-        if (statusObj == null)
-            statusObj = request.get("contractStatus");
-
-        String s = statusObj != null ? statusObj.toString().toUpperCase() : null;
-
-        List<Contract> toSave = new ArrayList<>(uniqueIds.size());
-        for (Long id : uniqueIds) {
-            Contract contract = contractById.get(id);
-
-            ContractStatus targetStatus;
-            try {
-                if (s == null)
-                    throw new NullPointerException();
-                targetStatus = ContractStatus.valueOf(s);
-            } catch (IllegalArgumentException | NullPointerException e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status");
-            }
+        List<Contract> toSave = new ArrayList<>(request.size());
+        for (BatchStatusUpdateRequestDTO requestItem : request) {
+            Long contractId = requestItem.getContractId();
+            ContractStatus targetStatus = requestItem.getStatus();
+            Contract contract = contractById.get(contractId);
 
             boolean valid = contract.getStatus().isValidTransitionTo(targetStatus);
 
@@ -321,6 +307,60 @@ public class ContractService {
         Contract saved = contractRepository.save(contract);
         cacheEvictionService.evictAfterContractMutation(saved.getId());
         return saved;
+    }
+
+    public MilestoneTrackingResponse trackMilestone(Long contractId, MilestoneTrackingRequest request) {
+        Contract contract = getContractById(contractId);
+
+        MilestoneStatus milestoneStatus;
+        try {
+            milestoneStatus = MilestoneStatus.valueOf(request.getStatus().trim().toUpperCase());
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        ContractMilestoneEvent event = new ContractMilestoneEvent(
+                new ContractMilestoneEventKey(contract.getId(), now),
+                request.getMilestoneOrder(),
+                milestoneStatus.name(),
+                request.getRecordedBy(),
+                request.getNotes());
+
+        ContractMilestoneEvent savedEvent = contractMilestoneEventRepository.save(event);
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("contractId", contract.getId());
+        details.put("milestoneOrder", request.getMilestoneOrder());
+        details.put("status", milestoneStatus.name());
+        details.put("recordedBy", request.getRecordedBy());
+        details.put("notes", request.getNotes());
+        details.put("summary", buildMilestoneSummary(contract.getId(), request.getMilestoneOrder(), milestoneStatus,
+                request.getRecordedBy(), request.getNotes()));
+
+        contractAnalyticsService.notifyObservers("MILESTONE_TRACKED", details);
+        cacheEvictionService.evictMilestoneTimeline(contractId);
+
+        return new MilestoneTrackingResponse(
+                savedEvent.getContractId(),
+                savedEvent.getTimestamp(),
+                savedEvent.getMilestoneOrder(),
+                savedEvent.getStatus(),
+                savedEvent.getRecordedBy(),
+                savedEvent.getNotes());
+    }
+
+    private String buildMilestoneSummary(Long contractId, Integer milestoneOrder, MilestoneStatus milestoneStatus,
+            String recordedBy, String notes) {
+        StringBuilder summary = new StringBuilder();
+        summary.append("Contract ").append(contractId)
+                .append(" milestone ").append(milestoneOrder)
+                .append(" marked ").append(milestoneStatus.name())
+                .append(" by ").append(recordedBy);
+        if (notes != null && !notes.isBlank()) {
+            summary.append(": ").append(notes);
+        }
+        return summary.toString();
     }
 
 }

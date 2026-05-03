@@ -90,11 +90,6 @@ public class ContractCacheEvictionService {
         evictContractAnalyticsDashboard();
     }
 
-    public void evictAfterMilestoneTracked(Long contractId) {
-        evictMilestoneTimeline(contractId);
-        evictContractAnalyticsDashboard();
-    }
-
     public void evictAnalyticsForObserverEvent(String action) {
         if (!isPureObservabilityAction(action)) {
             evictContractAnalyticsDashboard();

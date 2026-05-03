@@ -6,20 +6,40 @@ import java.util.List;
 
 public class JobAttachmentAlertDTO {
 
-    private Long jobId;
-    private String jobTitle;
-    private JobStatus jobStatus;
-    private List<JobAttachment> expiredAttachments;
-    private int expiredCount;
+    private final Long jobId;
+    private final String jobTitle;
+    private final JobStatus jobStatus;
+    private final List<JobAttachment> expiredAttachments;
+    private final int expiredCount;
 
-    public JobAttachmentAlertDTO() {}
+    private JobAttachmentAlertDTO(Builder builder) {
+        this.jobId = builder.jobId;
+        this.jobTitle = builder.jobTitle;
+        this.jobStatus = builder.jobStatus;
+        this.expiredAttachments = builder.expiredAttachments;
+        this.expiredCount = builder.expiredCount;
+    }
 
-    public JobAttachmentAlertDTO(Long jobId, String jobTitle, JobStatus jobStatus, List<JobAttachment> expiredAttachments, int expiredCount) {
-        this.jobId = jobId;
-        this.jobTitle = jobTitle;
-        this.jobStatus = jobStatus;
-        this.expiredAttachments = expiredAttachments;
-        this.expiredCount = expiredCount;
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static final class Builder {
+        private Long jobId;
+        private String jobTitle;
+        private JobStatus jobStatus;
+        private List<JobAttachment> expiredAttachments;
+        private int expiredCount;
+
+        public Builder jobId(Long jobId) { this.jobId = jobId; return this; }
+        public Builder jobTitle(String jobTitle) { this.jobTitle = jobTitle; return this; }
+        public Builder jobStatus(JobStatus jobStatus) { this.jobStatus = jobStatus; return this; }
+        public Builder expiredAttachments(List<JobAttachment> expiredAttachments) { this.expiredAttachments = expiredAttachments; return this; }
+        public Builder expiredCount(int expiredCount) { this.expiredCount = expiredCount; return this; }
+
+        public JobAttachmentAlertDTO build() {
+            return new JobAttachmentAlertDTO(this);
+        }
     }
 
     public Long getJobId() { return jobId; }
@@ -27,5 +47,4 @@ public class JobAttachmentAlertDTO {
     public JobStatus getJobStatus() { return jobStatus; }
     public List<JobAttachment> getExpiredAttachments() { return expiredAttachments; }
     public int getExpiredCount() { return expiredCount; }
-
 }
