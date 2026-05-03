@@ -174,8 +174,13 @@ public class ProposalService {
         double freelancerPayout = bidAmount - platformFee;
         double estimatedDailyRate = freelancerPayout;
 
-        return new FeeEstimateDTO(bidAmount, platformFee, freelancerPayout,
-                feePercentage, estimatedDailyRate);
+        return FeeEstimateDTO.builder()
+                .withBidAmount(bidAmount)
+                .withPlatformFee(platformFee)
+                .withFreelancerPayout(freelancerPayout)
+                .withFeePercentage(feePercentage)
+                .withEstimatedDailyRate(estimatedDailyRate)
+                .build();
     }
 
     @Transactional
@@ -302,16 +307,17 @@ public class ProposalService {
                         m.getMetadata()))
                 .toList();
 
-        return new ProposalDetailsDTO(
-                proposal.getId(),
-                proposal.getJobId(),
-                proposal.getFreelancerId(),
-                proposal.getStatus(),
-                proposal.getBidAmount(),
-                proposal.getMetadata(),
-                milestoneDTOs,
-                totalMilestones,
-                completedMilestones);
+        return ProposalDetailsDTOBuilder.builder()
+                .withProposalId(proposal.getId())
+                .withJobId(proposal.getJobId())
+                .withFreelancerId(proposal.getFreelancerId())
+                .withStatus(proposal.getStatus())
+                .withBidAmount(proposal.getBidAmount())
+                .withMetadata(proposal.getMetadata())
+                .withMilestones(milestoneDTOs)
+                .withTotalMilestones(totalMilestones)
+                .withCompletedMilestones(completedMilestones)
+                .build();
 
     }
 
@@ -352,7 +358,14 @@ public class ProposalService {
         double averageBid = (total == 0) ? 0.0 : (totalBid / total);
         double acceptanceRate = (total == 0) ? 0.0 : ((double) accepted / total) * 100.0;
 
-        return new ProposalAnalyticsDTO(total, accepted, rejected, totalBid, averageBid, acceptanceRate);
+        return ProposalAnalyticsDTO.builder()
+                .withTotalProposals(total)
+                .withAcceptedProposals(accepted)
+                .withRejectedProposals(rejected)
+                .withTotalBidValue(totalBid)
+                .withAverageBid(averageBid)
+                .withAcceptanceRate(acceptanceRate)
+                .build();
     }
 
     // ── S3-F10 ─────────────────────────────────────────────────────────────
