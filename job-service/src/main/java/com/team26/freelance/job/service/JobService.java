@@ -148,6 +148,8 @@ public class JobService {
 
         Job updated = jobRepository.save(job);
 
+
+        jobSearchService.indexJob(jobId, "client_rating");
         jobSearchService.notifyObservers("JOB_RATED", Map.of(
                 "jobId", jobId,
                 "newRating", newRating,
