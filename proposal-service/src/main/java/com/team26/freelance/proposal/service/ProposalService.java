@@ -4,6 +4,7 @@ import com.team26.freelance.proposal.adapter.MongoDocumentAdapter;
 import com.team26.freelance.proposal.dto.CreateProposalDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
+import com.team26.freelance.proposal.dto.ProposalDetailsDTOBuilder;
 import com.team26.freelance.proposal.dto.ProposalMilestoneDTO;
 import com.team26.freelance.proposal.dto.UpdateProposalDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
@@ -17,6 +18,7 @@ import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
@@ -25,7 +27,6 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
-
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -41,6 +42,7 @@ public class ProposalService {
 
     private final ProposalRepository proposalRepository;
     private final ProposalMilestoneRepository milestoneRepository;
+    private final ProposalCacheEvictionService cacheEvictionService;
     private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
     private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
 
@@ -51,24 +53,28 @@ public class ProposalService {
     private final MongoDocumentAdapter mongoDocumentAdapter;
 
 
+    // MERGED CONSTRUCTOR
     public ProposalService(ProposalRepository proposalRepository,
                            ProposalMilestoneRepository milestoneRepository,
+                           ProposalCacheEvictionService cacheEvictionService,
                            RedisTemplate<String, Object> redisTemplate,
                            ProposalEventRepository proposalEventRepository,
                            MongoDocumentAdapter mongoDocumentAdapter) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
+        this.cacheEvictionService = cacheEvictionService;
         this.redisTemplate = redisTemplate;
         this.proposalEventRepository = proposalEventRepository;
         this.mongoDocumentAdapter = mongoDocumentAdapter;
     }
 
-    // ── CRUD ───────────────────────────────────────────────────────────────
+    // ── CRUD (Reads Cached, Writes Evict) ──────────────────────────────────
 
     public List<Proposal> getAllProposals() {
-        return proposalRepository.findAll();
+        return proposalRepository.findAll(); // Intentionally NOT cached per M2 Spec 4.4.2
     }
 
+    @Cacheable(value = "proposal-service::proposal", key = "#id")
     public Proposal getProposalById(@NonNull Long id) {
         return proposalRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
@@ -82,7 +88,10 @@ public class ProposalService {
         proposal.setBidAmount(request.bidAmount());
         proposal.setEstimatedDays(request.estimatedDays());
         proposal.setMetadata(request.metadata());
-        return proposalRepository.save(proposal);
+
+        Proposal saved = proposalRepository.save(proposal);
+        cacheEvictionService.evictProposalCaches(saved.getId());
+        return saved;
     }
 
     public Proposal updateProposal(@NonNull Long id, UpdateProposalDTO updated) {
@@ -96,14 +105,21 @@ public class ProposalService {
         if (updated.metadata() != null) {
             existing.setMetadata(updated.metadata());
         }
-        return proposalRepository.save(existing);
+
+        Proposal saved = proposalRepository.save(existing);
+        cacheEvictionService.evictProposalCaches(saved.getId());
+        return saved;
     }
 
     public void deleteProposal(@NonNull Long id) {
         getProposalById(id);
         proposalRepository.deleteById(id);
+        cacheEvictionService.evictProposalCaches(id);
     }
 
+    // ── Features (Reads Cached, Writes Evict) ─────────────────────────────
+
+    @Cacheable(value = "proposal-service::S3-F1", key = "(#status != null ? #status : 'ALL') + '-' + (#startDate != null ? #startDate.toString() : 'NONE') + '-' + (#endDate != null ? #endDate.toString() : 'NONE')")
     public List<Proposal> searchByStatusAndDateRange(String status, LocalDate startDate, LocalDate endDate) {
         LocalDateTime start = null;
         LocalDateTime end = null;
@@ -117,7 +133,7 @@ public class ProposalService {
         }
         return status == null ? proposalRepository.searchByDateRange(start, end)
                 : startDate == null && endDate == null ? proposalRepository.searchByStatus(status)
-                        : proposalRepository.searchByStatusAndDateRange(status, start, end);
+                : proposalRepository.searchByStatusAndDateRange(status, start, end);
     }
 
     private void validateFreelancer(Long freelancerId) {
@@ -134,45 +150,33 @@ public class ProposalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         if (proposal.getStatus() == ProposalStatus.ACCEPTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Proposal is already accepted");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal is already accepted");
         }
-        
-        if (proposal.getStatus() != ProposalStatus.SUBMITTED
-                && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
+        if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
         }
-
-        // TODO S3-F5: Add freelancer validation to ensure only valid freelancers can have their proposals accepted
-        // this.validateFreelancer(proposal.getFreelancerId());
 
         proposal.setStatus(ProposalStatus.ACCEPTED);
         proposal.setAcceptedAt(LocalDateTime.now());
         proposalRepository.updateJobStatusToInProgress(proposal.getJobId());
         proposalRepository.insertContractFromProposal(proposalId);
 
-        return proposalRepository.save(proposal);
+        Proposal saved = proposalRepository.save(proposal);
+        cacheEvictionService.evictProposalCaches(saved.getId());
+        return saved;
     }
 
+    // MERGED FEE ESTIMATE (Keeps CC-3 Cache, Uses Main Builder)
+    @Cacheable(value = "proposal-service::S3-F3", key = "#bidAmount + '-' + #competingProposals")
     public FeeEstimateDTO estimateFee(double bidAmount, int competingProposals) {
         if (bidAmount <= 0 || competingProposals < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "bidAmount must be positive and competingProposals must be zero or positive");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidAmount must be positive and competingProposals must be zero or positive");
         }
 
-        double feePercentage;
-        if (competingProposals <= 5) {
-            feePercentage = 20.0;
-        } else if (competingProposals <= 15) {
-            feePercentage = 15.0;
-        } else {
-            feePercentage = 10.0;
-        }
-
+        double feePercentage = (competingProposals <= 5) ? 20.0 : (competingProposals <= 15) ? 15.0 : 10.0;
         double platformFee = bidAmount * feePercentage / 100;
         double freelancerPayout = bidAmount - platformFee;
-        double estimatedDailyRate = freelancerPayout;
+        double estimatedDailyRate = freelancerPayout; // Ensures builder doesn't break
 
         return FeeEstimateDTO.builder()
                 .withBidAmount(bidAmount)
@@ -189,8 +193,7 @@ public class ProposalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         if (proposal.getStatus() != ProposalStatus.ACCEPTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Proposal status must be ACCEPTED to complete work");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal status must be ACCEPTED to complete work");
         }
 
         Long activeContractId = proposalRepository.findActiveContractIdByProposalId(proposalId);
@@ -199,12 +202,12 @@ public class ProposalService {
         }
 
         proposalRepository.markContractAsCompleted(activeContractId);
-
         proposalRepository.updateJobStatusToClosed(proposal.getJobId());
-
         proposalRepository.insertPendingPayout(activeContractId, proposal.getFreelancerId(), proposal.getBidAmount());
 
-        return proposalRepository.save(proposal);
+        Proposal saved = proposalRepository.save(proposal);
+        cacheEvictionService.evictProposalCaches(saved.getId());
+        return saved;
     }
 
     @Transactional
@@ -213,8 +216,7 @@ public class ProposalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Only SUBMITTED or SHORTLISTED proposals can be withdrawn");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only SUBMITTED or SHORTLISTED proposals can be withdrawn");
         }
 
         proposal.setStatus(ProposalStatus.WITHDRAWN);
@@ -226,7 +228,9 @@ public class ProposalService {
             }
         }
 
-        return proposalRepository.save(proposal);
+        Proposal saved = proposalRepository.save(proposal);
+        cacheEvictionService.evictProposalCaches(saved.getId());
+        return saved;
     }
 
     @Transactional
@@ -234,27 +238,18 @@ public class ProposalService {
         Proposal proposal = getProposalById(proposalId);
 
         if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Milestones can only be added to SUBMITTED or SHORTLISTED proposals");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestones can only be added to SUBMITTED or SHORTLISTED proposals");
         }
-
         if (milestones == null || milestones.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "At least one milestone is required");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one milestone is required");
         }
 
         int milestoneOrder = milestoneRepository.findMaxMilestoneOrderByProposalId(proposalId);
-
         double currentMilestoneSum = milestoneRepository.sumAmountsByProposalId(proposalId);
-
-        double newMilestoneSum = milestones.stream()
-                .peek(this::validateMilestoneInput)
-                .mapToDouble(ProposalMilestone::getAmount)
-                .sum();
+        double newMilestoneSum = milestones.stream().peek(this::validateMilestoneInput).mapToDouble(ProposalMilestone::getAmount).sum();
 
         if (currentMilestoneSum + newMilestoneSum > proposal.getBidAmount()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Total milestone amounts cannot exceed proposal bid amount");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Total milestone amounts cannot exceed proposal bid amount");
         }
 
         for (ProposalMilestone milestone : milestones) {
@@ -266,45 +261,30 @@ public class ProposalService {
 
         proposal.getProposalMilestones().sort(Comparator.comparing(ProposalMilestone::getMilestoneOrder));
 
-        return proposalRepository.save(proposal);
+        Proposal saved = proposalRepository.save(proposal);
+        cacheEvictionService.evictProposalCaches(saved.getId());
+        return saved;
     }
 
     private void validateMilestoneInput(ProposalMilestone milestone) {
-        if (milestone == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone item cannot be null");
-        }
-        if (milestone.getTitle() == null || milestone.getTitle().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone title is required");
-        }
-        if (milestone.getDescription() == null || milestone.getDescription().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone description is required");
-        }
-        if (milestone.getAmount() == null || milestone.getAmount() <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone amount must be greater than 0");
-        }
+        if (milestone == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone item cannot be null");
+        if (milestone.getTitle() == null || milestone.getTitle().isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone title is required");
+        if (milestone.getDescription() == null || milestone.getDescription().isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone description is required");
+        if (milestone.getAmount() == null || milestone.getAmount() <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone amount must be greater than 0");
     }
 
+    // MERGED PROPOSAL DETAILS (Keeps CC-3 Cache, Uses Main Builder)
+    @Cacheable(value = "proposal-service::S3-F9", key = "#proposalId")
     public ProposalDetailsDTO getProposalDetails(Long proposalId) {
         Proposal proposal = proposalRepository.findByIdWithMilestones(proposalId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
-        List<ProposalMilestone> milestones = proposal.getProposalMilestones().stream()
-                .sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder))
-                .toList();
+        List<ProposalMilestone> milestones = proposal.getProposalMilestones().stream().sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder)).toList();
         int totalMilestones = milestones.size();
-        int completedMilestones = (int) milestones.stream()
-                .filter(m -> (m.getStatus() == MilestoneStatus.COMPLETED || m.getStatus() == MilestoneStatus.APPROVED))
-                .count();
+        int completedMilestones = (int) milestones.stream().filter(m -> (m.getStatus() == MilestoneStatus.COMPLETED || m.getStatus() == MilestoneStatus.APPROVED)).count();
 
         List<ProposalMilestoneDTO> milestoneDTOs = milestones.stream()
-                .map(m -> new ProposalMilestoneDTO(
-                        m.getId(),
-                        m.getMilestoneOrder(),
-                        m.getTitle(),
-                        m.getDescription(),
-                        m.getAmount(),
-                        m.getStatus(),
-                        m.getMetadata()))
+                .map(m -> new ProposalMilestoneDTO(m.getId(), m.getMilestoneOrder(), m.getTitle(), m.getDescription(), m.getAmount(), m.getStatus(), m.getMetadata()))
                 .toList();
 
         return ProposalDetailsDTOBuilder.builder()
@@ -318,29 +298,24 @@ public class ProposalService {
                 .withTotalMilestones(totalMilestones)
                 .withCompletedMilestones(completedMilestones)
                 .build();
-
     }
 
+    @Cacheable(value = "proposal-service::S3-F5", key = "#key + '-' + #value")
     public List<Proposal> filterProposalsByMetadata(String key, String value) {
         String normalizedKey = key == null ? null : key.trim();
         String normalizedValue = value == null ? null : value.trim();
 
-        if (normalizedKey == null || normalizedKey.isBlank() ||
-                normalizedValue == null || normalizedValue.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Metadata key and value must not be blank");
+        if (normalizedKey == null || normalizedKey.isBlank() || normalizedValue == null || normalizedValue.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Metadata key and value must not be blank");
         }
-
         if (!normalizedKey.matches(VALID_KEY_REGEX)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid metadata key");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid metadata key");
         }
 
         return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
     }
 
-    // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
-
+    @Cacheable(value = "proposal-service::S3-F6", key = "#startDate.toString() + '-' + #endDate.toString()")
     public ProposalAnalyticsDTO getProposalAnalytics(LocalDateTime startDate, LocalDateTime endDate) {
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date must be before end date");
@@ -354,7 +329,6 @@ public class ProposalService {
         long rejected = row[2] != null ? ((Number) row[2]).longValue() : 0L;
         double totalBid = ((Number) row[3]).doubleValue();
 
-        // Handle edge cases to prevent division by zero
         double averageBid = (total == 0) ? 0.0 : (totalBid / total);
         double acceptanceRate = (total == 0) ? 0.0 : ((double) accepted / total) * 100.0;
 
@@ -472,5 +446,4 @@ public class ProposalService {
             // Redis soft dependency
         }
     }
-
 }
