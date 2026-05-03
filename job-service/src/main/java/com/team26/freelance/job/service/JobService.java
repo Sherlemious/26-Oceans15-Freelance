@@ -165,8 +165,18 @@ public class JobService {
         job.setRating(newRating);
         job.setTotalRatings(totalRatings + 1);
 
-        // 5. Save and return
-        return jobRepository.save(job);
+        Job updated = jobRepository.save(job);
+
+
+        jobSearchService.indexJob(jobId, "client_rating");
+        jobSearchService.notifyObservers("JOB_RATED", Map.of(
+                "jobId", jobId,
+                "newRating", newRating,
+                "totalRatings", updated.getTotalRatings(),
+                "source", "client_rating"
+        ));
+
+        return updated;
     }
 
     @Transactional

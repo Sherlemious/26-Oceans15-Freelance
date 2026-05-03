@@ -21,6 +21,7 @@ public class JobAttachmentService {
     private final JobAttachmentRepository jobAttachmentRepository;
     private final JobRepository jobRepository;
     private final JobSearchService jobSearchService;
+    
 
     public JobAttachmentService(JobAttachmentRepository jobAttachmentRepository,
                                 JobRepository jobRepository,
@@ -159,6 +160,12 @@ public class JobAttachmentService {
         attachment.setVerified(true);
         
         jobAttachmentRepository.save(attachment);
+
+        jobSearchService.notifyObservers("JOB_ATTACHMENT_VERIFIED", Map.of(
+                "jobId", jobId,
+                "attachmentId", attachmentId,
+                "source", "attachment_verification"
+        ));
 
         return attachment.getJob();
     }
