@@ -151,11 +151,10 @@ public class JobService {
         jobSearchService.notifyObservers("JOB_RATED", Map.of(
                 "jobId", jobId,
                 "newRating", newRating,
-                "totalRatings", totalRatings + 1,
+                "totalRatings", updated.getTotalRatings(),
                 "source", "client_rating"
         ));
 
-        // 5. Save and return
         return updated;
     }
 
