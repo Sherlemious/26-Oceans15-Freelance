@@ -1,12 +1,13 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
+  application:
+    name: contract-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/freelancedb
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
-  
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}   # ← fixed hardcoded localhost
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: update
@@ -14,32 +15,26 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-  
   sql:
     init:
       mode: always
-      separator: '@@'
-  
-  application:
-    name: contract-service
-  
+      separator: "@@"
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin}
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/freelancedb}
     redis:
-      host: redis
-      port: 6379
-      password: ${SPRING_DATA_REDIS_PASSWORD}
-  
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:redispass}
   cassandra:
-    contact-points: cassandra
-    port: 9042
-    local-datacenter: datacenter1
-    keyspace-name: freelanceks
+    contact-points: ${SPRING_CASSANDRA_CONTACT_POINTS:cassandra}
+    port: ${SPRING_CASSANDRA_PORT:9042}
+    local-datacenter: ${SPRING_CASSANDRA_LOCAL_DATACENTER:datacenter1}
+    keyspace-name: ${SPRING_CASSANDRA_KEYSPACE_NAME:freelanceks}
     schema-action: CREATE_IF_NOT_EXISTS
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
   expiration: ${JWT_EXPIRATION:86400000}
 
 cache:
@@ -48,3 +43,12 @@ cache:
     search: ${CACHE_TTL_SEARCH:300}
     activity: ${CACHE_TTL_ACTIVITY:300}
     detail: ${CACHE_TTL_DETAIL:900}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always

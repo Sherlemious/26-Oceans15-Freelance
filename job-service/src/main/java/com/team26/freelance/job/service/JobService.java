@@ -1,12 +1,15 @@
 package com.team26.freelance.job.service;
 
 import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
+import com.team26.freelance.job.dto.JobDashboardDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
+import com.team26.freelance.job.model.mongo.JobEvent;
 import com.team26.freelance.job.repository.JobRepository;
+import com.team26.freelance.job.repository.mongo.JobEventRepository;
 import org.springframework.http.HttpStatus;
 
 import org.springframework.stereotype.Service;
@@ -24,15 +27,22 @@ public class JobService {
 
     private final JobRepository jobRepository;
     private final JobSearchService jobSearchService;
+    private final JobEventRepository jobEventRepository;
 
-    public JobService(JobRepository jobRepository, JobSearchService jobSearchService) {
+
+    public JobService(JobRepository jobRepository, JobSearchService jobSearchService, JobEventRepository jobEventRepository) {
         this.jobRepository = jobRepository;
         this.jobSearchService = jobSearchService;
+        this.jobEventRepository = jobEventRepository;
     }
 
     public Job createJob(Job job) {
         Job saved = jobRepository.save(job);
         jobSearchService.indexJob(saved.getId(), "auto_crud_create");
+        jobSearchService.notifyObservers("JOB_CREATED", Map.of(
+                "jobId", saved.getId(),
+                "source", "auto_crud_create"
+        ));
         return saved;
     }
 
@@ -60,6 +70,10 @@ public class JobService {
 
         Job updated = jobRepository.save(existingJob);
         jobSearchService.indexJob(updated.getId(), "auto_crud_update");
+        jobSearchService.notifyObservers("JOB_UPDATED", Map.of(
+                "jobId", updated.getId(),
+                "source", "auto_crud_update"
+        ));
         return updated;
     }
 
@@ -84,6 +98,11 @@ public class JobService {
 
             job.setStatus(JobStatus.CLOSED);
             jobRepository.save(job);
+
+            jobSearchService.notifyObservers("JOB_CLOSED", Map.of(
+                    "jobId", id,
+                    "source", "close_endpoint"
+            ));
         }
     }
 
@@ -130,7 +149,7 @@ public class JobService {
         // 1. Find job — 404 if not found
         Job job = getJobById(jobId);
 
-        
+
 
         // 2. Validate contract — 404 if not found, 400 if wrong job or not COMPLETED
         validateContractForJob(jobId, contractId);
@@ -186,40 +205,41 @@ public class JobService {
     public List<TopBudgetJobDTO> getTopBudgetJobs(int limit) {
         List<Object[]> results = jobRepository.findTopBudgetJobs(limit);
         return results.stream()
-                .map(row -> new TopBudgetJobDTO(
-                        ((Number) row[0]).longValue(),
-                        (String) row[1],
-                        ((Number) row[2]).doubleValue(),
-                        ((Number) row[3]).longValue()
-                ))
+                .map(row -> TopBudgetJobDTO.builder()
+                        .jobId(((Number) row[0]).longValue())
+                        .title((String) row[1])
+                        .budgetMax(((Number) row[2]).doubleValue())
+                        .totalProposals(((Number) row[3]).longValue())
+                        .build())
                 .collect(Collectors.toList());
     }
+
     public List<JobAttachmentAlertDTO> getJobsWithExpiredAttachments() {
-    List<Long> jobIds = jobRepository.findJobIdsWithExpiredAttachments();
+        List<Long> jobIds = jobRepository.findJobIdsWithExpiredAttachments();
 
-    return jobIds.stream()
-        .map(jobId -> {
-            Job job = jobRepository.findById(jobId).orElseThrow();
+        return jobIds.stream()
+                .map(jobId -> {
+                    Job job = jobRepository.findById(jobId).orElseThrow();
 
-            List<JobAttachment> expiredAttachments = job.getJobAttachments()
-                .stream()
-                .filter(a -> a.getExpiryDate() != null && a.getExpiryDate().isBefore(LocalDate.now()))
+                    List<JobAttachment> expiredAttachments = job.getJobAttachments()
+                            .stream()
+                            .filter(a -> a.getExpiryDate() != null && a.getExpiryDate().isBefore(LocalDate.now()))
+                            .toList();
+
+                    return JobAttachmentAlertDTO.builder()
+                            .jobId(job.getId())
+                            .jobTitle(job.getTitle())
+                            .jobStatus(job.getStatus())
+                            .expiredAttachments(expiredAttachments)
+                            .expiredCount(expiredAttachments.size())
+                            .build();
+                })
+                .filter(dto -> dto.getExpiredCount() > 0)
                 .toList();
-
-            return new JobAttachmentAlertDTO(
-                job.getId(),
-                job.getTitle(),
-                job.getStatus(),        // JobStatus enum directly
-                expiredAttachments,     // List<JobAttachment> directly
-                expiredAttachments.size() // int, not long
-            );
-        })
-        .filter(dto -> dto.getExpiredCount() > 0)
-        .toList();
-}
+    }
 
 
-    
+
     public JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
         getJobById(jobId);
 
@@ -234,25 +254,50 @@ public class JobService {
 
         if (results == null || results.isEmpty() || results.get(0) == null) {
             Job job = getJobById(jobId);
-            return new JobProposalSummaryDTO(
-                    jobId,
-                    job.getTitle(),
-                    0L,
-                    0.0,
-                    0.0,
-                    0.0
-            );
+            return JobProposalSummaryDTO.builder()
+                    .jobId(jobId)
+                    .title(job.getTitle())
+                    .totalProposals(0L)
+                    .averageBidAmount(0.0)
+                    .lowestBid(0.0)
+                    .highestBid(0.0)
+                    .build();
         }
 
         Object[] result = results.get(0);
 
-        return new JobProposalSummaryDTO(
-                ((Number) result[0]).longValue(),
-                (String) result[1],
-                ((Number) result[2]).longValue(),
-                ((Number) result[3]).doubleValue(),
-                ((Number) result[4]).doubleValue(),
-                ((Number) result[5]).doubleValue()
-        );
+        return JobProposalSummaryDTO.builder()
+                .jobId(((Number) result[0]).longValue())
+                .title((String) result[1])
+                .totalProposals(((Number) result[2]).longValue())
+                .averageBidAmount(((Number) result[3]).doubleValue())
+                .lowestBid(((Number) result[4]).doubleValue())
+                .highestBid(((Number) result[5]).doubleValue())
+                .build();
+    }
+
+    public void logDashboardViewed(Long jobId) {
+        jobSearchService.notifyObservers("DASHBOARD_VIEWED", Map.of(
+                "jobId", jobId,
+                "source", "dashboard"
+        ));
+    }
+
+    public JobDashboardDTO getJobDashboard(Long jobId) {
+        Job job = getJobById(jobId);
+        Long totalProposals = jobRepository.countTotalProposalsByJobId(jobId);
+        Long acceptedProposals = jobRepository.countAcceptedProposalsByJobId(jobId);
+        Double averageBidAmount = jobRepository.getAverageBidAmountByJobId(jobId);
+        Long activeAttachments = jobRepository.countActiveAttachmentsByJobId(jobId);
+
+        return new JobDashboardDTO.Builder()
+                .jobId(jobId)
+                .title(job.getTitle())
+                .totalProposals(totalProposals)
+                .acceptedProposals(acceptedProposals)
+                .averageBidAmount(averageBidAmount)
+                .activeAttachments(activeAttachments)
+                .rating(job.getRating())
+                .build();
     }
 }

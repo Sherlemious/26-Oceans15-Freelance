@@ -1,6 +1,7 @@
 package com.team26.freelance.job.controller;
 
-import com.team26.freelance.job.config.CacheEvictionService;
+import com.team26.freelance.job.dto.JobDashboardDTO;
+import com.team26.freelance.job.service.CacheEvictionService;
 import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
 import com.team26.freelance.job.dto.TopBudgetJobDTO;
 import com.team26.freelance.job.dto.JobProposalSummaryDTO;
@@ -10,8 +11,10 @@ import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.service.JobService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+
 import org.springframework.web.bind.annotation.*;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
@@ -28,6 +31,7 @@ public class JobController {
     private final JobService jobService;
     private final CacheEvictionService cacheEvictionService;
     private final JobSearchService jobSearchService;
+
     public JobController(JobService jobService, CacheEvictionService cacheEvictionService, JobSearchService jobSearchService) {
         this.jobService = jobService;
         this.cacheEvictionService = cacheEvictionService;
@@ -147,5 +151,31 @@ public class JobController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         return ResponseEntity.ok().build();
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @GetMapping("/search/full-text")
+    @Cacheable(
+        value  = "fullTextJobSearch",
+        key    = "'job-service::S2-F10::' + #query + ':' + #category + ':' + #status + ':' + #minBudget + ':' + #maxBudget",
+        unless = "#result.body == null || #result.body.isEmpty()"
+    )
+    public ResponseEntity<List<Job>> fullTextSearch(
+            @RequestParam String query,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Double minBudget,
+            @RequestParam(required = false) Double maxBudget
+        ) {
+        return ResponseEntity.ok(jobSearchService.fullTextSearch(query, category, status, minBudget, maxBudget));
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @GetMapping("/{id}/dashboard")
+    @Cacheable(value = "job-dashboard", key = "'job-service::S2-F12::' + #id")
+    public ResponseEntity<JobDashboardDTO> getJobDashboard(@PathVariable Long id) {
+        // logging happens here — outside cache, runs on every call including cache hits
+        jobService.logDashboardViewed(id);
+        return ResponseEntity.ok(jobService.getJobDashboard(id));
     }
 }

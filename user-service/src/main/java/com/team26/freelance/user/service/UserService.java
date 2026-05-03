@@ -9,6 +9,7 @@ import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
+import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
 
@@ -22,6 +23,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -31,15 +33,26 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
 
+    public static final String PREFERENCES_UPDATED = "PREFERENCES_UPDATED";
+    public static final String USER_DEACTIVATED = "USER_DEACTIVATED";
+    public static final String PRIMARY_SKILL_SET = "PRIMARY_SKILL_SET";
+    public static final String USER_CREATED = "USER_CREATED";
+    public static final String USER_UPDATED = "USER_UPDATED";
+    public static final String USER_DELETED = "USER_DELETED";
+
     @Autowired
     private PasswordEncoder encoder;
 
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
+    private final AuthEventSubject authEventSubject;
 
-    public UserService(UserRepository userRepository, UserSkillRepository userSkillRepository) {
+    public UserService(UserRepository userRepository,
+                       UserSkillRepository userSkillRepository,
+                       AuthEventSubject authEventSubject) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
+        this.authEventSubject = authEventSubject;
     }
 
     public UserResponseDTO create(User user) {
@@ -48,7 +61,9 @@ public class UserService {
         }
 
         user.setPassword(encoder.encode(user.getPassword()));
-        return new UserResponseDTO(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+        recordUserEvent(savedUser, USER_CREATED, userDetails(savedUser));
+        return new UserResponseDTO(savedUser);
     }
 
     public UserResponseDTO findById(Long id) {
@@ -112,11 +127,17 @@ public class UserService {
         existing.setRole(updated.getRole());
         existing.setStatus(updated.getStatus());
         existing.setPreferences(updated.getPreferences());
-        return new UserResponseDTO(userRepository.save(existing));
+        User savedUser = userRepository.save(existing);
+        recordUserEvent(savedUser, USER_UPDATED, userDetails(savedUser));
+        return new UserResponseDTO(savedUser);
     }
 
     public void delete(Long id) {
-        userRepository.deleteById(id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        Map<String, Object> details = userDetails(user);
+        userRepository.delete(user);
+        recordUserEvent(id, USER_DELETED, details);
     }
 
     @Transactional
@@ -129,7 +150,9 @@ public class UserService {
         }
         user.setStatus(Status.DEACTIVATED);
         userRepository.withdrawSubmittedProposals(id);
-        return new UserResponseDTO(userRepository.save(user));
+        User savedUser = userRepository.save(user);
+        recordUserEvent(savedUser, USER_DEACTIVATED, userDetails(savedUser));
+        return new UserResponseDTO(savedUser);
     }
 
     @Transactional(readOnly = true)
@@ -212,6 +235,10 @@ public class UserService {
 
         user.setPreferences(merged);
         User savedUser = userRepository.save(user);
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("updatedKeys", incomingPreferences.keySet());
+        details.put("preferences", savedUser.getPreferences());
+        recordUserEvent(savedUser, PREFERENCES_UPDATED, details);
         return new UserResponseDTO(savedUser);
     }
 
@@ -233,6 +260,11 @@ public class UserService {
         targetSkill.setIsPrimary(true);
 
         User savedUser = userRepository.save(user);
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("skillId", targetSkill.getId());
+        details.put("skillName", targetSkill.getSkillName());
+        details.put("category", targetSkill.getCategory());
+        recordUserEvent(savedUser, PRIMARY_SKILL_SET, details);
         return new UserResponseDTO(savedUser);
         //done 
     }
@@ -271,5 +303,24 @@ public class UserService {
             return bigDecimal;
         }
         return new BigDecimal(value.toString());
+    }
+
+    private void recordUserEvent(User user, String action, Map<String, Object> details) {
+        recordUserEvent(user.getId(), action, details);
+    }
+
+    private void recordUserEvent(Long userId, String action, Map<String, Object> details) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("userId", userId);
+        payload.put("details", details == null ? Map.of() : details);
+        authEventSubject.notifyObservers(action, payload);
+    }
+
+    private Map<String, Object> userDetails(User user) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("email", user.getEmail());
+        details.put("role", user.getRole() == null ? null : user.getRole().name());
+        details.put("status", user.getStatus() == null ? null : user.getStatus().name());
+        return details;
     }
 }

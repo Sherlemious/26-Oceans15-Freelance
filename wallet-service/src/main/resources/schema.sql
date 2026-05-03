@@ -1,6 +1,6 @@
 DO $$
 BEGIN
-    CREATE TYPE payout_method AS ENUM ('BANK_TRANSFER', 'PAYPAL', 'CRYPTO');
+    CREATE TYPE payout_method AS ENUM ('BANK_TRANSFER', 'BANK', 'PAYPAL', 'CRYPTO');
 EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;

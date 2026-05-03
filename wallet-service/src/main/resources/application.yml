@@ -4,18 +4,10 @@ server:
 spring:
   application:
     name: wallet-service
-
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/freelancedb}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
-
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: update
@@ -23,22 +15,26 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-
   sql:
     init:
       mode: always
       separator: "@@"
-
   data:
-    mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI}
     redis:
-      host: ${SPRING_REDIS_HOST:localhost}
-      port: ${SPRING_REDIS_PORT:6379}
-      password: ${SPRING_REDIS_PASSWORD}
+      host: ${SPRING_DATA_REDIS_HOST:redis}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD:redispass}
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/freelancedb}
+  cassandra:
+    contact-points: ${SPRING_CASSANDRA_CONTACT_POINTS:cassandra}
+    port: ${SPRING_CASSANDRA_PORT:9042}
+    local-datacenter: ${SPRING_CASSANDRA_LOCAL_DATACENTER:datacenter1}
+    keyspace-name: ${SPRING_CASSANDRA_KEYSPACE_NAME:freelanceks}
+    schema-action: CREATE_IF_NOT_EXISTS
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
   expiration: ${JWT_EXPIRATION:86400000}
 
 cache:
@@ -46,3 +42,12 @@ cache:
     payouts: 900
     analytics: 600
     activity: 300
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
