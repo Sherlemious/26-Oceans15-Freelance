@@ -1,23 +1,40 @@
 package com.team26.freelance.proposal.service;
 
-import com.team26.freelance.proposal.dto.*;
+import com.team26.freelance.proposal.adapter.MongoDocumentAdapter;
+import com.team26.freelance.proposal.dto.CreateProposalDTO;
+import com.team26.freelance.proposal.dto.FeeEstimateDTO;
+import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
+import com.team26.freelance.proposal.dto.ProposalMilestoneDTO;
+import com.team26.freelance.proposal.dto.UpdateProposalDTO;
+import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
+import com.team26.freelance.proposal.dto.ProposalAnalyticsDashboardDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.model.ProposalStatus;
+import com.team26.freelance.proposal.model.ProposalEvent;
+import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 
+import org.bson.Document;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class ProposalService {
@@ -25,11 +42,25 @@ public class ProposalService {
     private final ProposalRepository proposalRepository;
     private final ProposalMilestoneRepository milestoneRepository;
     private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
+    private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
+
+    @Value("${cache.ttl.analytics:600}")
+    private long cacheTtlSeconds;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ProposalEventRepository proposalEventRepository;
+    private final MongoDocumentAdapter mongoDocumentAdapter;
+
 
     public ProposalService(ProposalRepository proposalRepository,
-            ProposalMilestoneRepository milestoneRepository) {
+                           ProposalMilestoneRepository milestoneRepository,
+                           RedisTemplate<String, Object> redisTemplate,
+                           ProposalEventRepository proposalEventRepository,
+                           MongoDocumentAdapter mongoDocumentAdapter) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
+        this.redisTemplate = redisTemplate;
+        this.proposalEventRepository = proposalEventRepository;
+        this.mongoDocumentAdapter = mongoDocumentAdapter;
     }
 
     // ── CRUD ───────────────────────────────────────────────────────────────
@@ -335,6 +366,111 @@ public class ProposalService {
                 .withAverageBid(averageBid)
                 .withAcceptanceRate(acceptanceRate)
                 .build();
+    }
+
+    // ── S3-F10 ─────────────────────────────────────────────────────────────
+
+    public ProposalAnalyticsDashboardDTO getProposalAnalyticsDashboard(
+            LocalDate startDate, LocalDate endDate) {
+
+        if (startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "startDate must not be after endDate");
+        }
+
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(23, 59, 59, 999_000_000);
+
+        // Build cache key including date params
+        String cacheKey = DASHBOARD_CACHE_KEY + "::" + startDate.toString() + "_" + endDate.toString();
+
+        // Check Redis cache first
+        try {
+            Object cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                // Log ANALYTICS_VIEWED even on cache hit
+                logAnalyticsViewedEvent(startDate, endDate);
+                return (ProposalAnalyticsDashboardDTO) cached;
+            }
+        } catch (Exception e) {
+            // Redis soft dependency — continue if unavailable
+        }
+
+        // Aggregate stats from PostgreSQL
+        List<Object[]> statsList = proposalRepository.getAggregateStats(start, end);
+        Object[] stats = statsList.isEmpty() ? new Object[4] : statsList.get(0);
+        long total = stats[0] != null ? ((Number) stats[0]).longValue() : 0L;
+        double avgBid = stats[1] != null ? ((Number) stats[1]).doubleValue() : 0.0;
+        double avgDays = stats[2] != null ? ((Number) stats[2]).doubleValue() : 0.0;
+        long accepted = stats[3] != null ? ((Number) stats[3]).longValue() : 0L;
+        double acceptanceRate = total > 0 ? (double) accepted / total : 0.0;
+
+        // Status breakdown
+        List<Object[]> statusCounts = proposalRepository.countByStatusInRange(start, end);
+        Map<String, Long> byStatus = new LinkedHashMap<>();
+        for (Object[] row : statusCounts) {
+            String status = row[0].toString();
+            long count = ((Number) row[1]).longValue();
+            byStatus.put(status, count);
+        }
+        // Build DTO using Builder pattern
+        ProposalAnalyticsDashboardDTO dto = ProposalAnalyticsDashboardDTO.builder()
+                .withTotalProposals(total)
+                .withAcceptanceRate(acceptanceRate)
+                .withAverageBidAmount(avgBid)
+                .withAverageEstimatedDays(avgDays)
+                .withProposalsByStatus(byStatus)
+                .build();
+
+        ProposalAnalyticsDashboardDTO finalDto = dto;
+
+        try {
+            Document snapshot = new Document()
+                    .append("totalProposals", dto.getTotalProposals())
+                    .append("acceptanceRate", dto.getAcceptanceRate())
+                    .append("averageBidAmount", dto.getAverageBidAmount())
+                    .append("averageEstimatedDays", dto.getAverageEstimatedDays())
+                    .append("proposalsByStatus", dto.getProposalsByStatus());
+            ProposalAnalyticsDashboardDTO adapted = mongoDocumentAdapter.adapt(snapshot);
+            redisTemplate.opsForValue().set(cacheKey, adapted, Duration.ofSeconds(cacheTtlSeconds));
+            finalDto = adapted;
+        } catch (Exception e) {
+            // Redis soft dependency
+        }
+        logAnalyticsViewedEvent(startDate, endDate);
+        return finalDto;
+    }
+
+    private void logAnalyticsViewedEvent(LocalDate startDate, LocalDate endDate) {
+        try {
+            Map<String, Object> details = new java.util.HashMap<>();
+            details.put("startDate", startDate.toString());
+            details.put("endDate", endDate.toString());
+
+            ProposalEvent event = new ProposalEvent(
+                    null,
+                    "ANALYTICS_VIEWED",
+                    LocalDateTime.now(),
+                    details
+            );
+            proposalEventRepository.save(event);
+        } catch (Exception e) {
+            // MongoDB soft dependency — log warning and continue
+            System.err.println("WARN: Failed to log ANALYTICS_VIEWED event to MongoDB: "
+                    + e.getMessage());
+        }
+    }
+
+    // Call this on any proposal write to invalidate dashboard cache
+    public void invalidateDashboardCache() {
+        try {
+            Set<String> keys = redisTemplate.keys("proposal-service::S3-F10::*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            // Redis soft dependency
+        }
     }
 
 }

@@ -25,7 +25,7 @@ spring:
     redis:
       host: ${SPRING_REDIS_HOST:redis}
       port: ${SPRING_REDIS_PORT:6379}
-      password: ${SPRING_REDIS_PASSWORD:}
+      password: ${SPRING_REDIS_PASSWORD:redispass}
   neo4j:
     uri: ${NEO4J_URI:bolt://neo4j:7687}
     authentication:
