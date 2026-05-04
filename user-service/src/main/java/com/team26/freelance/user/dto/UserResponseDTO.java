@@ -19,21 +19,50 @@ public class UserResponseDTO {
     private LocalDateTime createdAt;
     private List<UserSkillResponseDTO> userSkills;
 
+    public UserResponseDTO(Long id, String name, String email, String phone,
+                           Role role, Status status, Map<String, Object> preferences,
+                           LocalDateTime createdAt, List<UserSkillResponseDTO> userSkills) {
+        this.id = id;
+        this.name = name;
+        this.email = email;
+        this.phone = phone;
+        this.role = role;
+        this.status = status;
+        this.preferences = preferences;
+        this.createdAt = createdAt;
+        this.userSkills = userSkills;
+    }
+
     public UserResponseDTO(User user) {
-        this.id = user.getId();
-        this.name = user.getName();
-        this.email = user.getEmail();
-        this.phone = user.getPhone();
-        this.role = user.getRole();
-        this.status = user.getStatus();
-        this.preferences = user.getPreferences();
-        this.createdAt = user.getCreatedAt();
-        this.userSkills = user.getUserSkills().stream()
-                .map(s -> new UserSkillResponseDTO(
-                        s.getId(), s.getSkillName(), s.getCategory(),
-                        s.getYearsOfExperience(), s.getProficiencyLevel(),
-                        s.getIsPrimary(), s.getMetadata(), s.getCreatedAt()))
-                .collect(Collectors.toList());
+        this(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getPhone(),
+                user.getRole(),
+                user.getStatus(),
+                user.getPreferences(),
+                user.getCreatedAt(),
+                mapUserSkills(user)
+        );
+    }
+
+    public static UserResponseDTO fromUser(User user) {
+        return builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .preferences(user.getPreferences())
+                .createdAt(user.getCreatedAt())
+                .userSkills(mapUserSkills(user))
+                .build();
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     public Long getId() { return id; }
@@ -45,4 +74,90 @@ public class UserResponseDTO {
     public Map<String, Object> getPreferences() { return preferences; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public List<UserSkillResponseDTO> getUserSkills() { return userSkills; }
+
+    private static List<UserSkillResponseDTO> mapUserSkills(User user) {
+        return user.getUserSkills().stream()
+                .map(s -> UserSkillResponseDTO.builder()
+                        .id(s.getId())
+                        .skillName(s.getSkillName())
+                        .category(s.getCategory())
+                        .yearsOfExperience(s.getYearsOfExperience())
+                        .proficiencyLevel(s.getProficiencyLevel())
+                        .isPrimary(s.getIsPrimary())
+                        .metadata(s.getMetadata())
+                        .createdAt(s.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    public static class Builder {
+        private Long id;
+        private String name;
+        private String email;
+        private String phone;
+        private Role role;
+        private Status status;
+        private Map<String, Object> preferences;
+        private LocalDateTime createdAt;
+        private List<UserSkillResponseDTO> userSkills;
+
+        public Builder id(Long id) {
+            this.id = id;
+            return this;
+        }
+
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder email(String email) {
+            this.email = email;
+            return this;
+        }
+
+        public Builder phone(String phone) {
+            this.phone = phone;
+            return this;
+        }
+
+        public Builder role(Role role) {
+            this.role = role;
+            return this;
+        }
+
+        public Builder status(Status status) {
+            this.status = status;
+            return this;
+        }
+
+        public Builder preferences(Map<String, Object> preferences) {
+            this.preferences = preferences;
+            return this;
+        }
+
+        public Builder createdAt(LocalDateTime createdAt) {
+            this.createdAt = createdAt;
+            return this;
+        }
+
+        public Builder userSkills(List<UserSkillResponseDTO> userSkills) {
+            this.userSkills = userSkills;
+            return this;
+        }
+
+        public UserResponseDTO build() {
+            return new UserResponseDTO(
+                    id,
+                    name,
+                    email,
+                    phone,
+                    role,
+                    status,
+                    preferences,
+                    createdAt,
+                    userSkills
+            );
+        }
+    }
 }

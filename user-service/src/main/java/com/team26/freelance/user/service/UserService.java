@@ -1,5 +1,6 @@
 package com.team26.freelance.user.service;
 
+import com.team26.freelance.user.adapter.ObjectArrayDtoAdapter;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
@@ -19,7 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -46,13 +46,16 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
     private final AuthEventSubject authEventSubject;
+    private final ObjectArrayDtoAdapter objectArrayDtoAdapter;
 
     public UserService(UserRepository userRepository,
                        UserSkillRepository userSkillRepository,
-                       AuthEventSubject authEventSubject) {
+                       AuthEventSubject authEventSubject,
+                       ObjectArrayDtoAdapter objectArrayDtoAdapter) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.authEventSubject = authEventSubject;
+        this.objectArrayDtoAdapter = objectArrayDtoAdapter;
     }
 
     public UserResponseDTO create(User user) {
@@ -63,13 +66,13 @@ public class UserService {
         user.setPassword(encoder.encode(user.getPassword()));
         User savedUser = userRepository.save(user);
         recordUserEvent(savedUser, USER_CREATED, userDetails(savedUser));
-        return new UserResponseDTO(savedUser);
+        return UserResponseDTO.fromUser(savedUser);
     }
 
     public UserResponseDTO findById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        return new UserResponseDTO(user);
+        return UserResponseDTO.fromUser(user);
     }
 
     @Transactional(readOnly = true)
@@ -78,28 +81,30 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         List<UserProfileSkillDTO> skills = user.getUserSkills().stream()
-                .map(skill -> new UserProfileSkillDTO(
-                        skill.getSkillName(),
-                        skill.getCategory(),
-                        skill.getYearsOfExperience(),
-                        skill.getProficiencyLevel(),
-                        skill.getIsPrimary(),
-                        skill.getMetadata()))
+                .map(skill -> UserProfileSkillDTO.builder()
+                        .skillName(skill.getSkillName())
+                        .category(skill.getCategory())
+                        .yearsOfExperience(skill.getYearsOfExperience())
+                        .proficiencyLevel(skill.getProficiencyLevel())
+                        .isPrimary(skill.getIsPrimary())
+                        .metadata(skill.getMetadata())
+                        .build())
                 .collect(Collectors.toList());
 
-        return new UserProfileDTO(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getPhone(),
-                user.getPreferences(),
-                skills,
-                skills.size());
+        return UserProfileDTO.builder()
+                .userId(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .preferences(user.getPreferences())
+                .skills(skills)
+                .totalSkills(skills.size())
+                .build();
     }
 
     public List<UserResponseDTO> findAll() {
         return userRepository.findAll().stream()
-                .map(UserResponseDTO::new)
+                .map(UserResponseDTO::fromUser)
                 .collect(Collectors.toList());
     }
 
@@ -113,7 +118,7 @@ public class UserService {
                 .filter(user -> normalizedName == null || containsIgnoreCase(user.getName(), normalizedName))
                 .filter(user -> normalizedEmail == null || containsIgnoreCase(user.getEmail(), normalizedEmail))
                 .filter(user -> normalizedRole == null || user.getRole() == normalizedRole)
-                .map(UserResponseDTO::new)
+                .map(UserResponseDTO::fromUser)
                 .collect(Collectors.toList());
     }
 
@@ -129,7 +134,7 @@ public class UserService {
         existing.setPreferences(updated.getPreferences());
         User savedUser = userRepository.save(existing);
         recordUserEvent(savedUser, USER_UPDATED, userDetails(savedUser));
-        return new UserResponseDTO(savedUser);
+        return UserResponseDTO.fromUser(savedUser);
     }
 
     public void delete(Long id) {
@@ -152,7 +157,7 @@ public class UserService {
         userRepository.withdrawSubmittedProposals(id);
         User savedUser = userRepository.save(user);
         recordUserEvent(savedUser, USER_DEACTIVATED, userDetails(savedUser));
-        return new UserResponseDTO(savedUser);
+        return UserResponseDTO.fromUser(savedUser);
     }
 
     @Transactional(readOnly = true)
@@ -163,7 +168,7 @@ public class UserService {
 
         String prefJson = String.format("{\"%s\": \"%s\"}", key, value);
         return userRepository.findByPreference(prefJson).stream()
-                .map(UserResponseDTO::new)
+                .map(UserResponseDTO::fromUser)
                 .toList();
     }
     public List<TopFreelancerDTO> getTopFreelancers(LocalDate startDate, LocalDate endDate, int limit) {
@@ -174,11 +179,12 @@ public class UserService {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(23, 59, 59);
         return userRepository.findTopFreelancersByEarnings(start, end, limit).stream()
-                .map(row -> new TopFreelancerDTO(
-                        ((Number) row[0]).longValue(),
-                        (String) row[1],
-                        ((Number) row[2]).doubleValue(),
-                        ((Number) row[3]).longValue()))
+                .map(row -> TopFreelancerDTO.builder()
+                        .userId(((Number) row[0]).longValue())
+                        .name((String) row[1])
+                        .totalEarnings(((Number) row[2]).doubleValue())
+                        .contractCount(((Number) row[3]).longValue())
+                        .build())
                 .collect(Collectors.toList());
     }
 
@@ -192,7 +198,7 @@ public class UserService {
         }
 
         return userRepository.findByLanguageWithMinCompletedContracts(lang, minContracts).stream()
-                .map(UserResponseDTO::new)
+                .map(UserResponseDTO::fromUser)
                 .collect(Collectors.toList());
     }
 
@@ -205,17 +211,7 @@ public class UserService {
         if (summaryRows.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
-        Object[] summaryRow = summaryRows.get(0);
-
-        return new UserContractSummaryDTO(
-                ((Number) summaryRow[0]).longValue(),
-                (String) summaryRow[1],
-                ((Number) summaryRow[2]).longValue(),
-                ((Number) summaryRow[3]).longValue(),
-                ((Number) summaryRow[4]).longValue(),
-                toBigDecimal(summaryRow[5]),
-                toBigDecimal(summaryRow[6])
-        );
+        return objectArrayDtoAdapter.adapt(summaryRows.get(0));
     }
 
     @Transactional
@@ -239,7 +235,7 @@ public class UserService {
         details.put("updatedKeys", incomingPreferences.keySet());
         details.put("preferences", savedUser.getPreferences());
         recordUserEvent(savedUser, PREFERENCES_UPDATED, details);
-        return new UserResponseDTO(savedUser);
+        return UserResponseDTO.fromUser(savedUser);
     }
 
     @Transactional
@@ -265,7 +261,7 @@ public class UserService {
         details.put("skillName", targetSkill.getSkillName());
         details.put("category", targetSkill.getCategory());
         recordUserEvent(savedUser, PRIMARY_SKILL_SET, details);
-        return new UserResponseDTO(savedUser);
+        return UserResponseDTO.fromUser(savedUser);
         //done 
     }
 
@@ -293,16 +289,6 @@ public class UserService {
 
     private boolean containsIgnoreCase(String source, String term) {
         return source != null && source.toLowerCase(Locale.ROOT).contains(term.toLowerCase(Locale.ROOT));
-    }
-
-    private BigDecimal toBigDecimal(Object value) {
-        if (value == null) {
-            return BigDecimal.ZERO;
-        }
-        if (value instanceof BigDecimal bigDecimal) {
-            return bigDecimal;
-        }
-        return new BigDecimal(value.toString());
     }
 
     private void recordUserEvent(User user, String action, Map<String, Object> details) {
