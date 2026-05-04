@@ -78,23 +78,25 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         List<UserProfileSkillDTO> skills = user.getUserSkills().stream()
-                .map(skill -> new UserProfileSkillDTO(
-                        skill.getSkillName(),
-                        skill.getCategory(),
-                        skill.getYearsOfExperience(),
-                        skill.getProficiencyLevel(),
-                        skill.getIsPrimary(),
-                        skill.getMetadata()))
+                .map(skill -> UserProfileSkillDTO.builder()
+                        .skillName(skill.getSkillName())
+                        .category(skill.getCategory())
+                        .yearsOfExperience(skill.getYearsOfExperience())
+                        .proficiencyLevel(skill.getProficiencyLevel())
+                        .isPrimary(skill.getIsPrimary())
+                        .metadata(skill.getMetadata())
+                        .build())
                 .collect(Collectors.toList());
 
-        return new UserProfileDTO(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getPhone(),
-                user.getPreferences(),
-                skills,
-                skills.size());
+        return UserProfileDTO.builder()
+                .userId(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .preferences(user.getPreferences())
+                .skills(skills)
+                .totalSkills(skills.size())
+                .build();
     }
 
     public List<UserResponseDTO> findAll() {
@@ -174,11 +176,12 @@ public class UserService {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(23, 59, 59);
         return userRepository.findTopFreelancersByEarnings(start, end, limit).stream()
-                .map(row -> new TopFreelancerDTO(
-                        ((Number) row[0]).longValue(),
-                        (String) row[1],
-                        ((Number) row[2]).doubleValue(),
-                        ((Number) row[3]).longValue()))
+                .map(row -> TopFreelancerDTO.builder()
+                        .userId(((Number) row[0]).longValue())
+                        .name((String) row[1])
+                        .totalEarnings(((Number) row[2]).doubleValue())
+                        .contractCount(((Number) row[3]).longValue())
+                        .build())
                 .collect(Collectors.toList());
     }
 
@@ -207,15 +210,15 @@ public class UserService {
         }
         Object[] summaryRow = summaryRows.get(0);
 
-        return new UserContractSummaryDTO(
-                ((Number) summaryRow[0]).longValue(),
-                (String) summaryRow[1],
-                ((Number) summaryRow[2]).longValue(),
-                ((Number) summaryRow[3]).longValue(),
-                ((Number) summaryRow[4]).longValue(),
-                toBigDecimal(summaryRow[5]),
-                toBigDecimal(summaryRow[6])
-        );
+        return UserContractSummaryDTO.builder()
+                .userId(((Number) summaryRow[0]).longValue())
+                .name((String) summaryRow[1])
+                .totalContracts(((Number) summaryRow[2]).longValue())
+                .completedContracts(((Number) summaryRow[3]).longValue())
+                .terminatedContracts(((Number) summaryRow[4]).longValue())
+                .totalEarnings(toBigDecimal(summaryRow[5]))
+                .averageContractValue(toBigDecimal(summaryRow[6]))
+                .build();
     }
 
     @Transactional
