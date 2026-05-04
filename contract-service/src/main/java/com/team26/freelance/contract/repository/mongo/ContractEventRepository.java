@@ -1,6 +1,6 @@
 package com.team26.freelance.contract.repository.mongo;
 
-import com.team26.freelance.contract.model.mongo.ContractEvent;
+import com.team26.freelance.common.event.ContractEvent;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 

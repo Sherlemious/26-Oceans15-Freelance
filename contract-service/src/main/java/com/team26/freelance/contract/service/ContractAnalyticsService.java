@@ -1,12 +1,10 @@
 package com.team26.freelance.contract.service;
 
-import com.team26.freelance.common.ObservabilityAction;
+import com.team26.freelance.common.event.ObservabilityAction;
 import com.team26.freelance.contract.adapter.MongoDocumentAdapter;
 import com.team26.freelance.contract.dto.ContractAnalyticsDTO;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.observer.ContractEventSubject;
-import com.team26.freelance.contract.observer.EntityObserver;
-import com.team26.freelance.contract.observer.MongoEventLogger;
 import com.team26.freelance.contract.repository.ContractAnalyticsProjection;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.mongo.ContractEventRepository;
@@ -20,33 +18,34 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
-public class ContractAnalyticsService implements ContractEventSubject {
+public class ContractAnalyticsService {
 
     private static final LocalTime END_OF_DAY_MILLIS = LocalTime.of(23, 59, 59, 999_000_000);
 
     private final ContractRepository contractRepository;
+    private final ContractEventSubject contractEventSubject;
     private final MongoDocumentAdapter mongoDocumentAdapter;
-    private final List<EntityObserver> observers = new CopyOnWriteArrayList<>();
 
     public ContractAnalyticsService(ContractRepository contractRepository,
                                     ContractEventRepository contractEventRepository,
+                                    ContractEventSubject contractEventSubject,
                                     ContractCacheEvictionService cacheEvictionService,
                                     MongoDocumentAdapter mongoDocumentAdapter) {
         this.contractRepository = contractRepository;
+        this.contractEventSubject = contractEventSubject;
         this.mongoDocumentAdapter = mongoDocumentAdapter;
-        register(new MongoEventLogger(contractEventRepository, cacheEvictionService));
     }
 
     public void recordAnalyticsViewed(LocalDate startDate, LocalDate endDate) {
-        notifyObservers(ObservabilityAction.ANALYTICS_VIEWED.name(), Map.of(
+        contractEventSubject.notifyObservers(ObservabilityAction.ANALYTICS_VIEWED.name(), Map.of(
+            "details", Map.of(
                 "startDate", startDate.toString(),
                 "endDate", endDate.toString(),
                 "source", "contract-analytics"
+            )
         ));
     }
 
@@ -88,22 +87,5 @@ public class ContractAnalyticsService implements ContractEventSubject {
             }
         }
         return orderedCounts;
-    }
-
-    @Override
-    public void register(EntityObserver observer) {
-        observers.add(observer);
-    }
-
-    @Override
-    public void unregister(EntityObserver observer) {
-        observers.remove(observer);
-    }
-
-    @Override
-    public void notifyObservers(String eventType, Object payload) {
-        for (EntityObserver observer : observers) {
-            observer.onEvent(eventType, payload);
-        }
     }
 }

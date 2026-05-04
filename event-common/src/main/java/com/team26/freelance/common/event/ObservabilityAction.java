@@ -1,11 +1,18 @@
-package com.team26.freelance.common;
+package com.team26.freelance.common.event;
 
 import java.util.Locale;
 import java.util.Optional;
 
 public enum ObservabilityAction {
     ANALYTICS_VIEWED,
-    DASHBOARD_VIEWED;
+    DASHBOARD_VIEWED,
+    MILESTONE_TRACKED,
+    PROGRESS_UPDATED,
+    BATCH_STATUS_UPDATED,
+    CONTRACT_CREATED,
+    CONTRACT_UPDATED,
+    CONTRACT_DELETED,
+    OLD_DATA_PURGED;
 
     public static Optional<ObservabilityAction> from(String action) {
         if (action == null || action.isBlank()) {

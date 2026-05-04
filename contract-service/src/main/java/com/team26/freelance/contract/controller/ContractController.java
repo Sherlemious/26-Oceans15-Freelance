@@ -23,6 +23,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+// TODO: add preauthorize('hasRole('FREELANCER/CLIENT')')
+
 @RestController
 @RequestMapping("/api/contracts")
 public class ContractController {
@@ -79,7 +81,6 @@ public class ContractController {
     }
 
     // POST /api/contracts
-    @PreAuthorize("hasRole('CLIENT')")
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -118,6 +119,8 @@ public class ContractController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startTime,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endTime) {
         return ResponseEntity.ok(contractService.getContractMilestoneTimeline(id, startTime, endTime));
+    }
+
     // GET /api/contracts/{id} ← used by job-service via RestTemplate
     @GetMapping("/{id}")
     public ResponseEntity<Contract> getContractById(@PathVariable Long id) {
