@@ -193,7 +193,13 @@ public class JobService {
         }
 
         job.setRequirements(existingRequirements);
-        return jobRepository.save(job);
+        Job updatedJob = jobRepository.save(job);
+
+        // Add observer notification
+        jobSearchService.indexJob(jobId, "requirements_update");
+        jobSearchService.notifyObservers("REQUIREMENTS_UPDATED", Map.of("jobId", jobId));
+
+        return updatedJob;
     }
     public List<Job> searchJobs(String status, Double minBudget, Double maxBudget) {
         if (minBudget != null && maxBudget != null && minBudget > maxBudget) {
