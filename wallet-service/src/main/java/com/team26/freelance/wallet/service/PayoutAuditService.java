@@ -51,11 +51,21 @@ public class PayoutAuditService {
         recordGenericEvent(ANALYTICS_VIEWED, Map.of("reason", "Payout method breakdown analytics viewed"));
     }
 
-    public void recordRefundResult(Payout payout, boolean approved, Double amountReturned, String strategyApplied, String reason) {
+    public void recordRefundResult(Payout payout,
+                                   boolean approved,
+                                   Double amountReturned,
+                                   String strategyApplied,
+                                   String reasonCode,
+                                   String reversalScope,
+                                   String refundReason) {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("amountReturned", amountReturned);
         details.put("strategyApplied", strategyApplied);
-        details.put("reason", reason);
+        details.put("reasonCode", reasonCode);
+        details.put("originalAmount", payout == null ? null : payout.getAmount());
+        details.put("reversalScope", reversalScope);
+        details.put("refundReason", refundReason);
+
         recordPayoutEvent(payout, approved ? REFUNDED : REFUND_DENIED, details);
     }
 

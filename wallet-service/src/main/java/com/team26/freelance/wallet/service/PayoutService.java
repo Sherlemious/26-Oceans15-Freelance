@@ -267,7 +267,7 @@ public class PayoutService {
     pendingPayout.setTransactionDetails(transactionDetails);
 
     Payout saved = payoutRepository.save(pendingPayout);
-    if (createdNewPayout) {
+    if (createdNewPayout && !simulateFailure) {
       Map<String, Object> createdDetails = new LinkedHashMap<>();
       createdDetails.put("contractId", contractId);
       createdDetails.put("freelancerId", freelancerId);
@@ -508,36 +508,63 @@ public class PayoutService {
   @Transactional
   public PayoutReversalResultDTO reversePayout(Long id, RefundRequest request) {
     Payout payout = payoutRepository.findByIdWithPromos(id).orElseThrow(
-        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
+            () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
 
     if (payout.getStatus() != PayoutStatus.COMPLETED) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-          "Only COMPLETED payouts can be reversed");
+              "Only COMPLETED payouts can be reversed");
     }
 
     RefundStrategy strategy = refundStrategySelector.select(payout, request);
     RefundResult result = strategy.calculateRefund(payout, request);
 
+    String reversalScope = request == null || request.getReversalScope() == null
+            ? null
+            : request.getReversalScope().toString();
+
+    String refundReason = request == null ? null : request.getReason();
+
     if (!result.isApproved()) {
-      payoutAuditService.recordRefundResult(payout, false, result.getAmount(), result.getStrategyName(), result.getReasonCode());
+      payoutAuditService.recordRefundResult(
+              payout,
+              false,
+              result.getAmount(),
+              result.getStrategyName(),
+              result.getReasonCode(),
+              reversalScope,
+              refundReason
+      );
+
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, result.getReasonCode());
     }
 
     payout.setStatus(PayoutStatus.REFUNDED);
+
     Map<String, Object> details = payout.getTransactionDetails();
     if (details == null) {
       details = new HashMap<>();
     }
+
     details.put("refundAmount", result.getAmount());
-    details.put("reversalScope", request.getReversalScope());
-    details.put("refundReason", request.getReason());
+    details.put("reversalScope", reversalScope);
+    details.put("refundReason", refundReason);
     details.put("refundedAt", LocalDateTime.now().toString());
+
     payout.setTransactionDetails(details);
-    payoutRepository.save(payout);
 
-    payoutAuditService.recordRefundResult(payout, true, result.getAmount(), result.getStrategyName(), result.getReasonCode());
+    Payout saved = payoutRepository.save(payout);
 
-    return new PayoutReversalResultDTO(payout, result);
+    payoutAuditService.recordRefundResult(
+            saved,
+            true,
+            result.getAmount(),
+            result.getStrategyName(),
+            result.getReasonCode(),
+            reversalScope,
+            refundReason
+    );
+
+    return new PayoutReversalResultDTO(saved, result);
   }
 
   @Cacheable(cacheNames = "wallet-service::S5-F9", key = "#limit")
