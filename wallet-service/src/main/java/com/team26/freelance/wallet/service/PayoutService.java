@@ -21,6 +21,10 @@ import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import com.team26.freelance.wallet.strategy.RefundResult;
 import com.team26.freelance.wallet.strategy.RefundStrategy;
 import com.team26.freelance.wallet.strategy.RefundStrategySelector;
+import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
+import com.team26.freelance.common.event.PayoutAuditEvent;
+import com.team26.freelance.wallet.repository.PayoutAuditEventRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
@@ -44,17 +48,27 @@ public class PayoutService {
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
   private final PayoutPromoRepository payoutPromoRepository;
+  private final ApplicationEventPublisher eventPublisher;
+  private final PlatformFeeAnalyticsService platformFeeAnalyticsService;
+  private final PayoutAuditEventRepository payoutAuditEventRepository;
   private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
 
   public PayoutService(PayoutRepository payoutRepository,
                        PromoCodeRepository promoCodeRepository,
                        PayoutPromoRepository payoutPromoRepository,
-                       RefundStrategySelector refundStrategySelector,
-                       PayoutAuditService payoutAuditService) {
+                       PayoutAuditService payoutAuditService,
+                       ApplicationEventPublisher eventPublisher,
+                       PlatformFeeAnalyticsService platformFeeAnalyticsService,
+                       PayoutAuditEventRepository payoutAuditEventRepository,
+                       RefundStrategySelector refundStrategySelector
+                       ) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
     this.payoutPromoRepository = payoutPromoRepository;
+    this.eventPublisher = eventPublisher;
+    this.platformFeeAnalyticsService = platformFeeAnalyticsService;
+    this.payoutAuditEventRepository = payoutAuditEventRepository;
     this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
   }
@@ -65,7 +79,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public PayoutResponseDTO applyPromoToPayout(Long payoutId, Long promoCodeId) {
@@ -162,7 +177,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public Payout createPayout(Payout payout) {
@@ -179,6 +195,7 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::payout", allEntries = true)
   })
   @Transactional
@@ -227,7 +244,6 @@ public class PayoutService {
 
     PayoutMethod method = normalizePayoutMethod(request != null ? request.getMethod() : null);
     String accountLastFour = request != null ? request.getAccountLastFour() : null;
-
     if (accountLastFour != null && !accountLastFour.isBlank() &&
         !accountLastFour.matches("\\d{4}")) {
       throw new ResponseStatusException(
@@ -296,7 +312,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public Payout updatePayout(Long id, Payout updated) {
@@ -320,7 +337,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public void deletePayout(Long id) {
@@ -354,7 +372,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public Payout processRefund(Long id, String reason) {
@@ -395,7 +414,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public Payout retryFailedPayout(Long id) {
@@ -503,7 +523,8 @@ public class PayoutService {
           @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
           @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
-          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true)
+          @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+          @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true)
   })
   @Transactional
   public PayoutReversalResultDTO reversePayout(Long id, RefundRequest request) {

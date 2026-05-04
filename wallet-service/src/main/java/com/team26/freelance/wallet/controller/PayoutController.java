@@ -7,8 +7,10 @@ import com.team26.freelance.wallet.dto.PayoutReversalResultDTO;
 import com.team26.freelance.wallet.dto.ProcessContractPayoutRequest;
 import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
+import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.service.PayoutService;
+import com.team26.freelance.wallet.service.PlatformFeeAnalyticsService;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,14 +25,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+
 @RestController
 @RequestMapping("/api/payouts")
 public class PayoutController {
 
   private final PayoutService payoutService;
+  private final PlatformFeeAnalyticsService platformFeeAnalyticsService;
 
-  public PayoutController(PayoutService payoutService) {
+  public PayoutController(PayoutService payoutService,
+                          PlatformFeeAnalyticsService platformFeeAnalyticsService) {
     this.payoutService = payoutService;
+    this.platformFeeAnalyticsService = platformFeeAnalyticsService;
   }
 
   @GetMapping
@@ -41,6 +47,15 @@ public class PayoutController {
   @GetMapping("/{id}")
   public ResponseEntity<Payout> getPayoutById(@PathVariable Long id) {
     return ResponseEntity.ok(payoutService.getPayoutById(id));
+  }
+
+  @GetMapping("/analytics/category")
+  public ResponseEntity<List<CategoryRevenueDTO>> getPlatformFeeAnalyticsByCategory(
+          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+    return ResponseEntity.ok(
+            platformFeeAnalyticsService.getPlatformFeeAnalytics(startDate, endDate)
+    );
   }
 
   @PostMapping
@@ -97,6 +112,7 @@ public class PayoutController {
                                                                @RequestBody RefundRequest request) {
     return ResponseEntity.ok(payoutService.reversePayout(id, request));
   }
+
   @GetMapping("/{payoutId}/details")
   public ResponseEntity<PayoutDetailsDTO>
   getPayoutDetails(@PathVariable Long payoutId) {
