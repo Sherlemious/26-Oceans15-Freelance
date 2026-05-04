@@ -39,6 +39,10 @@ public class JobService {
     public Job createJob(Job job) {
         Job saved = jobRepository.save(job);
         jobSearchService.indexJob(saved.getId(), "auto_crud_create");
+        jobSearchService.notifyObservers("JOB_CREATED", Map.of(
+                "jobId", saved.getId(),
+                "source", "auto_crud_create"
+        ));
         return saved;
     }
 
@@ -66,6 +70,10 @@ public class JobService {
 
         Job updated = jobRepository.save(existingJob);
         jobSearchService.indexJob(updated.getId(), "auto_crud_update");
+        jobSearchService.notifyObservers("JOB_UPDATED", Map.of(
+                "jobId", updated.getId(),
+                "source", "auto_crud_update"
+        ));
         return updated;
     }
 
@@ -90,6 +98,11 @@ public class JobService {
 
             job.setStatus(JobStatus.CLOSED);
             jobRepository.save(job);
+
+            jobSearchService.notifyObservers("JOB_CLOSED", Map.of(
+                    "jobId", id,
+                    "source", "close_endpoint"
+            ));
         }
     }
 
@@ -152,8 +165,18 @@ public class JobService {
         job.setRating(newRating);
         job.setTotalRatings(totalRatings + 1);
 
-        // 5. Save and return
-        return jobRepository.save(job);
+        Job updated = jobRepository.save(job);
+
+
+        jobSearchService.indexJob(jobId, "client_rating");
+        jobSearchService.notifyObservers("JOB_RATED", Map.of(
+                "jobId", jobId,
+                "newRating", newRating,
+                "totalRatings", updated.getTotalRatings(),
+                "source", "client_rating"
+        ));
+
+        return updated;
     }
 
     @Transactional

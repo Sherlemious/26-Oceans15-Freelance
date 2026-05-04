@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -19,12 +20,15 @@ public class JobAttachmentService {
 
     private final JobAttachmentRepository jobAttachmentRepository;
     private final JobRepository jobRepository;
+    private final JobSearchService jobSearchService;
     
 
     public JobAttachmentService(JobAttachmentRepository jobAttachmentRepository,
-                                JobRepository jobRepository) {
+                                JobRepository jobRepository,
+                                JobSearchService jobSearchService) {
         this.jobAttachmentRepository = jobAttachmentRepository;
-        this.jobRepository = jobRepository;;
+        this.jobRepository = jobRepository;
+        this.jobSearchService = jobSearchService;
     }
 
     public JobAttachment createAttachment(Long jobId, JobAttachment attachment) {
@@ -39,7 +43,13 @@ public class JobAttachmentService {
             attachment.setVerified(false);
         }
 
-        return jobAttachmentRepository.save(attachment);
+        JobAttachment saved = jobAttachmentRepository.save(attachment);
+        jobSearchService.notifyObservers("JOB_ATTACHMENT_CREATED", Map.of(
+                "jobId", jobId,
+                "attachmentId", saved.getId(),
+                "source", "auto_crud_create"
+        ));
+        return saved;
     }
 
     public List<JobAttachment> getAllAttachmentsForJob(Long jobId) {
@@ -66,7 +76,6 @@ public class JobAttachmentService {
     public JobAttachment updateAttachment(Long attachmentId, JobAttachment updatedAttachment, Long jobId) {
         JobAttachment existingAttachment = getAttachmentById(attachmentId, jobId);
 
-     
         if (updatedAttachment.getType() != null) {
             existingAttachment.setType(updatedAttachment.getType());
         }
@@ -83,12 +92,23 @@ public class JobAttachmentService {
             existingAttachment.getMetadata().putAll(updatedAttachment.getMetadata());
         }
 
-        return jobAttachmentRepository.save(existingAttachment);
+        JobAttachment updated = jobAttachmentRepository.save(existingAttachment);
+        jobSearchService.notifyObservers("JOB_ATTACHMENT_UPDATED", Map.of(
+                "jobId", jobId,
+                "attachmentId", attachmentId,
+                "source", "auto_crud_update"
+        ));
+        return updated;
     }
 
     public void deleteAttachment(Long attachmentId, Long jobId) {
         JobAttachment attachment = getAttachmentById(attachmentId, jobId);
         jobAttachmentRepository.delete(attachment);
+        jobSearchService.notifyObservers("JOB_ATTACHMENT_DELETED", Map.of(
+                "jobId", jobId,
+                "attachmentId", attachmentId,
+                "source", "auto_crud_delete"
+        ));
     }
 
     public void verifyUserRole(Long userId){
@@ -140,6 +160,12 @@ public class JobAttachmentService {
         attachment.setVerified(true);
         
         jobAttachmentRepository.save(attachment);
+
+        jobSearchService.notifyObservers("JOB_ATTACHMENT_VERIFIED", Map.of(
+                "jobId", jobId,
+                "attachmentId", attachmentId,
+                "source", "attachment_verification"
+        ));
 
         return attachment.getJob();
     }
