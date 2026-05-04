@@ -31,13 +31,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 public class ContractService {
-
     private final ContractRepository contractRepository;
     private final ContractCacheEvictionService cacheEvictionService;
     private final ContractMilestoneEventRepository contractMilestoneEventRepository;
@@ -144,6 +144,7 @@ public class ContractService {
 
         Contract saved = contractRepository.save(contract);
         cacheEvictionService.evictAfterContractMutation(saved.getId());
+        recordContractEvent(ObservabilityAction.CONTRACT_UPDATED, saved.getId(), buildUpdateDetails(contractDetails));
         return saved;
     }
 
@@ -151,6 +152,7 @@ public class ContractService {
         Contract contract = getContractById(id);
         contractRepository.delete(contract);
         cacheEvictionService.evictAfterContractMutation(id);
+        recordContractEvent(ObservabilityAction.CONTRACT_DELETED, id, buildContractSnapshot(contract));
     }
 
     @Transactional
@@ -197,6 +199,17 @@ public class ContractService {
 
         contractRepository.saveAll(toSave);
         cacheEvictionService.evictAfterContractsMutated(uniqueIds);
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("updatedCount", toSave.size());
+        details.put("contractIds", new ArrayList<>(uniqueIds));
+        List<String> statuses = request.stream()
+            .map(BatchStatusUpdateRequestDTO::getStatus)
+            .filter(Objects::nonNull)
+            .map(Enum::name)
+            .distinct()
+            .toList();
+        details.put("statuses", statuses);
+        recordContractEvent(ObservabilityAction.BATCH_STATUS_UPDATED, null, details);
         return toSave.size();
     }
 
@@ -234,6 +247,7 @@ public class ContractService {
         }
         Contract saved = contractRepository.save(contract);
         cacheEvictionService.evictAfterContractCreated();
+        recordContractEvent(ObservabilityAction.CONTRACT_CREATED, saved.getId(), buildContractSnapshot(saved));
         return saved;
     }
 
@@ -307,6 +321,9 @@ public class ContractService {
 
         Contract saved = contractRepository.save(contract);
         cacheEvictionService.evictAfterContractMutation(saved.getId());
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("metadata", incomingMetadata == null ? Map.of() : incomingMetadata);
+        recordContractEvent(ObservabilityAction.PROGRESS_UPDATED, saved.getId(), details);
         return saved;
     }
 
@@ -339,7 +356,7 @@ public class ContractService {
         details.put("summary", buildMilestoneSummary(contract.getId(), request.getMilestoneOrder(), milestoneStatus,
                 request.getRecordedBy(), request.getNotes()));
 
-        contractEventSubject.notifyObservers(ObservabilityAction.MILESTONE_TRACKED.name(), details);
+        recordContractEvent(ObservabilityAction.MILESTONE_TRACKED, contract.getId(), details);
         cacheEvictionService.evictMilestoneTimeline(contractId);
 
         return new MilestoneTrackingResponse(
@@ -362,6 +379,66 @@ public class ContractService {
             summary.append(": ").append(notes);
         }
         return summary.toString();
+    }
+
+    private void recordContractEvent(ObservabilityAction action, Long contractId, Map<String, Object> details) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("contractId", contractId);
+        payload.put("details", details == null ? Map.of() : details);
+        contractEventSubject.notifyObservers(action.name(), payload);
+    }
+
+    private Map<String, Object> buildContractSnapshot(Contract contract) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        if (contract == null) {
+            return details;
+        }
+        details.put("jobId", contract.getJobId());
+        details.put("freelancerId", contract.getFreelancerId());
+        details.put("clientId", contract.getClientId());
+        details.put("proposalId", contract.getProposalId());
+        details.put("agreedAmount", contract.getAgreedAmount());
+        details.put("status", contract.getStatus() == null ? null : contract.getStatus().name());
+        details.put("startDate", contract.getStartDate());
+        details.put("endDate", contract.getEndDate());
+        details.put("metadata", contract.getMetadata());
+        details.put("createdAt", contract.getCreatedAt());
+        return details;
+    }
+
+    private Map<String, Object> buildUpdateDetails(Contract contractDetails) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        if (contractDetails == null) {
+            return details;
+        }
+        if (contractDetails.getJobId() != null) {
+            details.put("jobId", contractDetails.getJobId());
+        }
+        if (contractDetails.getFreelancerId() != null) {
+            details.put("freelancerId", contractDetails.getFreelancerId());
+        }
+        if (contractDetails.getClientId() != null) {
+            details.put("clientId", contractDetails.getClientId());
+        }
+        if (contractDetails.getProposalId() != null) {
+            details.put("proposalId", contractDetails.getProposalId());
+        }
+        if (contractDetails.getAgreedAmount() != null) {
+            details.put("agreedAmount", contractDetails.getAgreedAmount());
+        }
+        if (contractDetails.getStatus() != null) {
+            details.put("status", contractDetails.getStatus().name());
+        }
+        if (contractDetails.getStartDate() != null) {
+            details.put("startDate", contractDetails.getStartDate());
+        }
+        if (contractDetails.getEndDate() != null) {
+            details.put("endDate", contractDetails.getEndDate());
+        }
+        if (contractDetails.getMetadata() != null) {
+            details.put("metadata", contractDetails.getMetadata());
+        }
+        return details;
     }
 
 }

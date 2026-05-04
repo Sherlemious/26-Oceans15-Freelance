@@ -79,7 +79,6 @@ public class ContractController {
     }
 
     // POST /api/contracts
-    @PreAuthorize("hasRole('CLIENT')")
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
         return ResponseEntity.status(HttpStatus.CREATED)
