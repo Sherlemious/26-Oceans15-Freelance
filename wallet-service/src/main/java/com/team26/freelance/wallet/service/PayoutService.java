@@ -485,17 +485,18 @@ public class PayoutService {
       totalDiscount += payoutPromo.getDiscountApplied();
     }
 
-    PayoutDetailsDTO dto = new PayoutDetailsDTO();
-    dto.setPayoutId(payout.getId());
-    dto.setContractId(payout.getContractId());
-    dto.setFreelancerId(payout.getFreelancerId());
-    dto.setOriginalAmount(payout.getAmount());
-    dto.setMethod(payout.getMethod().name());
-    dto.setStatus(payout.getStatus().name());
-    dto.setTransactionDetails(payout.getTransactionDetails());
-    dto.setAppliedPromoCodes(appliedPromoCodes);
-    dto.setTotalDiscount(totalDiscount);
-    dto.setFinalAmount(payout.getAmount() - totalDiscount);
+    PayoutDetailsDTO dto = PayoutDetailsDTO.builder()
+            .payoutId(payout.getId())
+            .contractId(payout.getContractId())
+            .freelancerId(payout.getFreelancerId())
+            .originalAmount(payout.getAmount())
+            .method(payout.getMethod().name())
+            .status(payout.getStatus().name())
+            .transactionDetails(payout.getTransactionDetails())
+            .appliedPromoCodes(appliedPromoCodes)
+            .totalDiscount(totalDiscount)
+            .finalAmount(payout.getAmount() - totalDiscount)
+            .build();
 
     return dto;
   }
@@ -514,8 +515,12 @@ public class PayoutService {
       totalPayouts += count;
       totalAmount += sum;
     }
-    return new FreelancerPayoutSummaryDTO(freelancerId, totalPayouts, totalAmount, methodBreakdown);
-  }
+    return FreelancerPayoutSummaryDTO.builder()
+            .freelancerId(freelancerId)
+            .totalPayouts(totalPayouts)
+            .totalAmount(totalAmount)
+            .methodBreakdown(methodBreakdown)
+            .build();  }
 
   @Caching(evict = {
           @CacheEvict(cacheNames = "wallet-service::payout", key = "#id"),
@@ -600,29 +605,29 @@ public class PayoutService {
     LocalDateTime now = LocalDateTime.now();
 
     for (Object[] row : rows) {
-      PromoCodeUsageDTO dto = new PromoCodeUsageDTO();
-
-      dto.setPromoCodeId(((Number)row[0]).longValue());
-      dto.setCode((String)row[1]);
-      dto.setDiscountType((String)row[2]);
-      dto.setDiscountValue(((Number)row[3]).doubleValue());
-      dto.setTimesUsed(((Number)row[4]).intValue());
-      dto.setTotalDiscountGiven(
-          row[5] == null ? 0.0 : ((Number)row[5]).doubleValue());
-      dto.setActive((Boolean)row[6]);
-
       LocalDateTime expiryDate;
+
       if (row[7] instanceof LocalDateTime localDateTime) {
         expiryDate = localDateTime;
       } else if (row[7] instanceof Timestamp timestamp) {
         expiryDate = timestamp.toLocalDateTime();
       } else {
         throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "Unexpected expiry date type returned from database");
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Unexpected expiry date type returned from database"
+        );
       }
 
-      dto.setExpired(expiryDate.isBefore(now));
+      PromoCodeUsageDTO dto = PromoCodeUsageDTO.builder()
+              .promoCodeId(((Number) row[0]).longValue())
+              .code((String) row[1])
+              .discountType((String) row[2])
+              .discountValue(((Number) row[3]).doubleValue())
+              .timesUsed(((Number) row[4]).intValue())
+              .totalDiscountGiven(row[5] == null ? 0.0 : ((Number) row[5]).doubleValue())
+              .active((Boolean) row[6])
+              .expired(expiryDate.isBefore(now))
+              .build();
 
       result.add(dto);
     }

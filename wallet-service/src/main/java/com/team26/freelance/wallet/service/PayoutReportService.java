@@ -47,6 +47,11 @@ public class PayoutReportService {
                 ? BigDecimal.ZERO
                 : totalRevenue.divide(BigDecimal.valueOf(totalTransactions), MathContext.DECIMAL64);
 
-        return new RevenueReportDTO(totalRevenue, totalTransactions, averagePayout, refundedAmount, refundCount);
-    }
+        return RevenueReportDTO.builder()
+                .totalRevenue(totalRevenue)
+                .totalTransactions(totalTransactions)
+                .averagePayout(averagePayout)
+                .refundedAmount(refundedAmount)
+                .refundCount(refundCount)
+                .build();    }
 }
