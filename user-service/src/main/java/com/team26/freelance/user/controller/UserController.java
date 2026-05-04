@@ -1,6 +1,7 @@
 package com.team26.freelance.user.controller;
 
 import com.team26.freelance.user.dto.TopFreelancerDTO;
+import com.team26.freelance.user.dto.UpdateRoleRequestDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
@@ -63,6 +64,11 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> update(@PathVariable Long id, @RequestBody User user) {
         return ResponseEntity.ok(userService.update(id, user));
+    }
+
+    @PutMapping("/{id}/role")
+    public ResponseEntity<UserResponseDTO> updateRole(@PathVariable Long id, @RequestBody UpdateRoleRequestDTO request) {
+        return ResponseEntity.ok(userService.updateRole(id, request == null ? null : request.getRole()));
     }
 
     @DeleteMapping("/{id}")
