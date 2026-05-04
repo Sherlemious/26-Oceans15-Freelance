@@ -41,7 +41,7 @@ public class MongoEventLogger implements EntityObserver {
 
             MongoEvent event = EventFactory.createEvent(this.eventType, params);
             auditEventRepository.save((PayoutAuditEvent) event);
-        } catch (RuntimeException ex) {
+        } catch (Exception ex) {
             log.warn("Failed to persist payout audit event {}", eventType, ex);
         }
     }
