@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.service;
 
+import com.team26.freelance.common.event.ObservabilityAction;
 import com.team26.freelance.contract.dto.BatchStatusUpdateRequestDTO;
 import com.team26.freelance.contract.dto.ContractDateRangeDTO;
 import com.team26.freelance.contract.dto.ContractSummaryDTO;
@@ -8,6 +9,7 @@ import com.team26.freelance.contract.dto.MilestoneTrackingResponse;
 import com.team26.freelance.contract.model.MilestoneStatus;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEvent;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEventKey;
+import com.team26.freelance.contract.observer.ContractEventSubject;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
@@ -25,7 +27,6 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -40,15 +41,15 @@ public class ContractService {
     private final ContractRepository contractRepository;
     private final ContractCacheEvictionService cacheEvictionService;
     private final ContractMilestoneEventRepository contractMilestoneEventRepository;
-    private final ContractAnalyticsService contractAnalyticsService;
+    private final ContractEventSubject contractEventSubject;
 
     public ContractService(ContractRepository contractRepository, ContractCacheEvictionService cacheEvictionService,
             ContractMilestoneEventRepository contractMilestoneEventRepository,
-            ContractAnalyticsService contractAnalyticsService) {
+            ContractEventSubject contractEventSubject) {
         this.contractRepository = contractRepository;
         this.cacheEvictionService = cacheEvictionService;
         this.contractMilestoneEventRepository = contractMilestoneEventRepository;
-        this.contractAnalyticsService = contractAnalyticsService;
+        this.contractEventSubject = contractEventSubject;
     }
 
     @Cacheable(value = "contract-s4-f6", key = "@contractCacheKeys.featureKey('S4-F6', #startDate, #endDate, #status)")
@@ -338,7 +339,7 @@ public class ContractService {
         details.put("summary", buildMilestoneSummary(contract.getId(), request.getMilestoneOrder(), milestoneStatus,
                 request.getRecordedBy(), request.getNotes()));
 
-        contractAnalyticsService.notifyObservers("MILESTONE_TRACKED", details);
+        contractEventSubject.notifyObservers(ObservabilityAction.MILESTONE_TRACKED.name(), details);
         cacheEvictionService.evictMilestoneTimeline(contractId);
 
         return new MilestoneTrackingResponse(

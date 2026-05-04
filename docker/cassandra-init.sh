@@ -9,7 +9,7 @@ until cqlsh -e 'DESCRIBE KEYSPACES' >/dev/null 2>&1; do
 done
 
 cqlsh -e "CREATE KEYSPACE IF NOT EXISTS ${CASSANDRA_KEYSPACE} WITH replication = {'class':'SimpleStrategy','replication_factor':1};"
-cqlsh -e "CREATE TABLE IF NOT EXISTS contract_milestone_events (
+cqlsh -e "USE ${CASSANDRA_KEYSPACE}; CREATE TABLE IF NOT EXISTS contract_milestone_events (
   contract_id     bigint,
   timestamp       timestamp,
   milestone_order int,

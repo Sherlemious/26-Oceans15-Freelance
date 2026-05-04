@@ -1,6 +1,6 @@
 package com.team26.freelance.contract.service;
 
-import com.team26.freelance.common.ObservabilityAction;
+import com.team26.freelance.common.event.ObservabilityAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.connection.RedisConnection;

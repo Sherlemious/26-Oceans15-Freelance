@@ -9,10 +9,12 @@ import com.team26.freelance.contract.repository.mongo.ContractEventRepository;
 import com.team26.freelance.contract.service.ContractCacheEvictionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
 
+@Component
 public class MongoEventLogger implements EntityObserver {
 
     private static final Logger log = LoggerFactory.getLogger(MongoEventLogger.class);
@@ -30,7 +32,19 @@ public class MongoEventLogger implements EntityObserver {
     @Override
     public void onEvent(String eventType, Object payload) {
         try {
-            Map<String, Object> details = toDetails(payload);
+            Map<String, Object> details = new HashMap<>();
+            details.put("action", eventType);
+
+            if (payload instanceof Map<?, ?> payloadMap) {
+                payloadMap.forEach((key, value) -> {
+                    if (key != null) {
+                        details.put(key.toString(), value);
+                    }
+                });
+            } else {
+                details.put("details", Map.of("payload", payload));
+            }
+
 
             MongoEvent event = EventFactory.createEvent(this.eventType, details);
             contractEventRepository.save((ContractEvent) event);
@@ -38,20 +52,5 @@ public class MongoEventLogger implements EntityObserver {
         } catch (Exception e) {
             log.warn("Failed to log contract event to MongoDB: {}", e.getMessage());
         }
-    }
-
-    private Map<String, Object> toDetails(Object payload) {
-        if (!(payload instanceof Map<?, ?> source)) {
-            return new HashMap<>();
-        }
-        Map<String, Object> details = new HashMap<>();
-        for (Map.Entry<?, ?> entry : source.entrySet()) {
-            if (entry.getKey() != null) {
-                details.put(entry.getKey().toString(), entry.getValue());
-            }
-        }
-        details.put("action", eventType);
-        
-        return details;
     }
 }
