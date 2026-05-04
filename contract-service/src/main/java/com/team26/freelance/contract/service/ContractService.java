@@ -62,9 +62,6 @@ public class ContractService {
         this.cacheEvictionService = cacheEvictionService;
         this.contractMilestoneEventRepository = contractMilestoneEventRepository;
         this.contractEventSubject = contractEventSubject;
-        this.contractRepository = contractRepository;
-        this.cacheEvictionService = cacheEvictionService;
-        this.contractMilestoneEventRepository = contractMilestoneEventRepository;
         this.contractAnalyticsService = contractAnalyticsService;
         this.cassandraTemplate = cassandraTemplate;
         this.cassandraRowAdapter = cassandraRowAdapter;

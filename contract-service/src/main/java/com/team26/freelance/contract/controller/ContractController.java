@@ -119,6 +119,8 @@ public class ContractController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startTime,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endTime) {
         return ResponseEntity.ok(contractService.getContractMilestoneTimeline(id, startTime, endTime));
+    }
+
     // GET /api/contracts/{id} ← used by job-service via RestTemplate
     @GetMapping("/{id}")
     public ResponseEntity<Contract> getContractById(@PathVariable Long id) {
