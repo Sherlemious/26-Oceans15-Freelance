@@ -39,6 +39,7 @@ public class UserService {
     public static final String USER_CREATED = "USER_CREATED";
     public static final String USER_UPDATED = "USER_UPDATED";
     public static final String USER_DELETED = "USER_DELETED";
+    public static final String ROLE_CHANGED = "ROLE_CHANGED";
 
     @Autowired
     private PasswordEncoder encoder;
@@ -47,15 +48,18 @@ public class UserService {
     private final UserSkillRepository userSkillRepository;
     private final AuthEventSubject authEventSubject;
     private final ObjectArrayDtoAdapter objectArrayDtoAdapter;
+    private final UserCacheEvictionService userCacheEvictionService;
 
     public UserService(UserRepository userRepository,
                        UserSkillRepository userSkillRepository,
                        AuthEventSubject authEventSubject,
-                       ObjectArrayDtoAdapter objectArrayDtoAdapter) {
+                       ObjectArrayDtoAdapter objectArrayDtoAdapter,
+                       UserCacheEvictionService userCacheEvictionService) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.authEventSubject = authEventSubject;
         this.objectArrayDtoAdapter = objectArrayDtoAdapter;
+        this.userCacheEvictionService = userCacheEvictionService;
     }
 
     public UserResponseDTO create(User user) {
@@ -134,6 +138,26 @@ public class UserService {
         existing.setPreferences(updated.getPreferences());
         User savedUser = userRepository.save(existing);
         recordUserEvent(savedUser, USER_UPDATED, userDetails(savedUser));
+        return UserResponseDTO.fromUser(savedUser);
+    }
+
+    @Transactional
+    public UserResponseDTO updateRole(Long id, String requestedRole) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        Role newRole = parseRequiredRole(requestedRole);
+        Role oldRole = user.getRole();
+
+        user.setRole(newRole);
+        User savedUser = userRepository.save(user);
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("oldRole", oldRole == null ? null : oldRole.name());
+        details.put("newRole", newRole.name());
+        recordUserEvent(savedUser, ROLE_CHANGED, details);
+        userCacheEvictionService.evictUserDetail(id);
+
         return UserResponseDTO.fromUser(savedUser);
     }
 
@@ -285,6 +309,14 @@ public class UserService {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid role value");
         }
+    }
+
+    private Role parseRequiredRole(String role) {
+        Role parsedRole = parseRole(role);
+        if (parsedRole == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid role value");
+        }
+        return parsedRole;
     }
 
     private boolean containsIgnoreCase(String source, String term) {
