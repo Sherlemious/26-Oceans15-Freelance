@@ -20,6 +20,23 @@ public class PayoutDetailsDTO {
     public PayoutDetailsDTO() {
     }
 
+    private PayoutDetailsDTO(Builder builder) {
+        this.payoutId = builder.payoutId;
+        this.contractId = builder.contractId;
+        this.freelancerId = builder.freelancerId;
+        this.originalAmount = builder.originalAmount;
+        this.method = builder.method;
+        this.status = builder.status;
+        this.transactionDetails = builder.transactionDetails;
+        this.appliedPromoCodes = builder.appliedPromoCodes;
+        this.totalDiscount = builder.totalDiscount;
+        this.finalAmount = builder.finalAmount;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public Long getPayoutId() {
         return payoutId;
     }
@@ -98,5 +115,72 @@ public class PayoutDetailsDTO {
 
     public void setFinalAmount(Double finalAmount) {
         this.finalAmount = finalAmount;
+    }
+
+    public static class Builder {
+        private Long payoutId;
+        private Long contractId;
+        private Long freelancerId;
+        private Double originalAmount;
+        private String method;
+        private String status;
+        private Map<String, Object> transactionDetails;
+        private List<AppliedPromoCodeDTO> appliedPromoCodes = new ArrayList<>();
+        private Double totalDiscount;
+        private Double finalAmount;
+
+        public Builder payoutId(Long payoutId) {
+            this.payoutId = payoutId;
+            return this;
+        }
+
+        public Builder contractId(Long contractId) {
+            this.contractId = contractId;
+            return this;
+        }
+
+        public Builder freelancerId(Long freelancerId) {
+            this.freelancerId = freelancerId;
+            return this;
+        }
+
+        public Builder originalAmount(Double originalAmount) {
+            this.originalAmount = originalAmount;
+            return this;
+        }
+
+        public Builder method(String method) {
+            this.method = method;
+            return this;
+        }
+
+        public Builder status(String status) {
+            this.status = status;
+            return this;
+        }
+
+        public Builder transactionDetails(Map<String, Object> transactionDetails) {
+            this.transactionDetails = transactionDetails;
+            return this;
+        }
+
+        public Builder appliedPromoCodes(List<AppliedPromoCodeDTO> appliedPromoCodes) {
+            this.appliedPromoCodes = appliedPromoCodes;
+            return this;
+        }
+
+        public Builder totalDiscount(Double totalDiscount) {
+            this.totalDiscount = totalDiscount;
+            return this;
+        }
+
+        public Builder finalAmount(Double finalAmount) {
+            this.finalAmount = finalAmount;
+            return this;
+        }
+
+        public PayoutDetailsDTO build() {
+            return new PayoutDetailsDTO(this);
+        }
     }
 }

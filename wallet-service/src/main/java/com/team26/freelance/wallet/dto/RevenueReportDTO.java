@@ -13,16 +13,16 @@ public class RevenueReportDTO {
     public RevenueReportDTO() {
     }
 
-    public RevenueReportDTO(BigDecimal totalRevenue,
-                            long totalTransactions,
-                            BigDecimal averagePayout,
-                            BigDecimal refundedAmount,
-                            long refundCount) {
-        this.totalRevenue = totalRevenue;
-        this.totalTransactions = totalTransactions;
-        this.averagePayout = averagePayout;
-        this.refundedAmount = refundedAmount;
-        this.refundCount = refundCount;
+    private RevenueReportDTO(Builder builder) {
+        this.totalRevenue = builder.totalRevenue;
+        this.totalTransactions = builder.totalTransactions;
+        this.averagePayout = builder.averagePayout;
+        this.refundedAmount = builder.refundedAmount;
+        this.refundCount = builder.refundCount;
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     public BigDecimal getTotalRevenue() {
@@ -63,5 +63,42 @@ public class RevenueReportDTO {
 
     public void setRefundCount(long refundCount) {
         this.refundCount = refundCount;
+    }
+
+    public static class Builder {
+        private BigDecimal totalRevenue;
+        private long totalTransactions;
+        private BigDecimal averagePayout;
+        private BigDecimal refundedAmount;
+        private long refundCount;
+
+        public Builder totalRevenue(BigDecimal totalRevenue) {
+            this.totalRevenue = totalRevenue;
+            return this;
+        }
+
+        public Builder totalTransactions(long totalTransactions) {
+            this.totalTransactions = totalTransactions;
+            return this;
+        }
+
+        public Builder averagePayout(BigDecimal averagePayout) {
+            this.averagePayout = averagePayout;
+            return this;
+        }
+
+        public Builder refundedAmount(BigDecimal refundedAmount) {
+            this.refundedAmount = refundedAmount;
+            return this;
+        }
+
+        public Builder refundCount(long refundCount) {
+            this.refundCount = refundCount;
+            return this;
+        }
+
+        public RevenueReportDTO build() {
+            return new RevenueReportDTO(this);
+        }
     }
 }
