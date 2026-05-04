@@ -173,11 +173,8 @@ public class JobService {
         Job updatedJob = jobRepository.save(job);
 
         // Add observer notification
-        Map<String, Object> eventData = new HashMap<>();
-        eventData.put("jobId", jobId);
-        eventData.put("eventType", "REQUIREMENTS_UPDATED");
-        eventData.put("timestamp", java.time.LocalDateTime.now().toString());
-        jobSearchService.notifyObservers("REQUIREMENTS_UPDATED", eventData);
+        jobSearchService.indexJob(jobId, "requirements_update");
+        jobSearchService.notifyObservers("REQUIREMENTS_UPDATED", Map.of("jobId", jobId));
 
         return updatedJob;
     }
