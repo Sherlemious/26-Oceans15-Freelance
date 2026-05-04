@@ -133,7 +133,6 @@ public class UserService {
         existing.setEmail(updated.getEmail());
         existing.setPassword(encoder.encode(updated.getPassword()));
         existing.setPhone(updated.getPhone());
-        existing.setRole(updated.getRole());
         existing.setStatus(updated.getStatus());
         existing.setPreferences(updated.getPreferences());
         User savedUser = userRepository.save(existing);
