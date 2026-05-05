@@ -18,6 +18,7 @@ import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.model.ProposalStatus;
 import com.team26.freelance.proposal.model.ProposalEvent;
+import com.team26.freelance.proposal.repository.Neo4jInteractionRepository;
 import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
@@ -44,6 +45,7 @@ import java.util.Set;
 @Service
 public class ProposalService {
 
+    private final Neo4jInteractionRepository neo4jInteractionRepository;
     private final ProposalEventSubject eventSubject;
     private final ProposalRepository proposalRepository;
     private final ProposalMilestoneRepository milestoneRepository;
@@ -65,7 +67,7 @@ public class ProposalService {
                            RedisTemplate<String, Object> redisTemplate,
                            ProposalEventRepository proposalEventRepository,
                            MongoDocumentAdapter mongoDocumentAdapter,
-                           ProposalEventSubject eventSubject) {
+                           ProposalEventSubject eventSubject, Neo4jInteractionRepository neo4jInteractionRepository) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
         this.cacheEvictionService = cacheEvictionService;
@@ -73,6 +75,7 @@ public class ProposalService {
         this.proposalEventRepository = proposalEventRepository;
         this.mongoDocumentAdapter = mongoDocumentAdapter;
         this.eventSubject = eventSubject;
+        this.neo4jInteractionRepository = neo4jInteractionRepository;
     }
 
     // ── CRUD (Reads Cached, Writes Evict) ──────────────────────────────────
@@ -461,4 +464,51 @@ public class ProposalService {
             // Redis soft dependency
         }
     }
+
+    @Transactional
+    public String recordInteraction(@NonNull Long proposalId) {
+        Proposal proposal = getProposalById(proposalId);
+
+        // a) Validate Status
+        if (proposal.getStatus() != ProposalStatus.SUBMITTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal must be in SUBMITTED status to record interaction");
+        }
+
+        // b) Idempotency check (Neo4j)
+        boolean alreadyRecorded = neo4jInteractionRepository.isInteractionRecorded(
+                proposal.getFreelancerId(), proposal.getJobId(), proposalId);
+
+        if (alreadyRecorded) {
+            return "Interaction already recorded in Neo4j (Idempotent)";
+        }
+
+        // c) Fetch missing data natively from Postgres
+        String freelancerName = proposalRepository.findFreelancerNameByIdNative(proposal.getFreelancerId());
+        if (freelancerName == null) freelancerName = "Unknown Freelancer";
+
+        List<Object[]> jobDetailsList = proposalRepository.findJobDetailsByIdNative(proposal.getJobId());
+        String jobTitle = "Unknown Job";
+        String jobCategory = "OTHER";
+        if (jobDetailsList != null && !jobDetailsList.isEmpty()) {
+            Object[] jobDetails = jobDetailsList.get(0);
+            jobTitle = jobDetails[0] != null ? jobDetails[0].toString() : "Unknown Job";
+            jobCategory = jobDetails[1] != null ? jobDetails[1].toString() : "OTHER";
+        }
+
+        // d) Mutate Neo4j Graph
+        neo4jInteractionRepository.recordInteraction(
+                proposal.getFreelancerId(), freelancerName,
+                proposal.getJobId(), jobTitle, jobCategory,
+                proposalId
+        );
+
+        // e) Log Mongo Event via Observer (Provides proposalId, freelancerId, jobId automatically)
+        eventSubject.notifyObservers("INTERACTION_RECORDED", proposal);
+
+        // f) Invalidate S3-F12 Cache
+        cacheEvictionService.evictS3F12Recommendations();
+
+        return "Interaction successfully recorded";
+    }
+
 }
