@@ -22,7 +22,9 @@ public interface Neo4jInteractionRepository extends Neo4jRepository<FreelancerNo
             "ON CREATE SET j.title = $jobTitle, j.category = $jobCategory " +
             "MERGE (f)-[r:PROPOSED_TO]->(j) " +
             "ON CREATE SET r.proposalCount = 1, r.lastProposalDate = datetime(), r.recorded_proposal_ids = [$proposalId] " +
-            "ON MATCH SET r.proposalCount = r.proposalCount + 1, r.lastProposalDate = datetime(), r.recorded_proposal_ids = r.recorded_proposal_ids + [$proposalId]")
+            "ON MATCH SET r.proposalCount = CASE WHEN NOT $proposalId IN r.recorded_proposal_ids THEN r.proposalCount + 1 ELSE r.proposalCount END, " +
+            "r.lastProposalDate = datetime(), " +
+            "r.recorded_proposal_ids = CASE WHEN NOT $proposalId IN r.recorded_proposal_ids THEN r.recorded_proposal_ids + [$proposalId] ELSE r.recorded_proposal_ids END")
     void recordInteraction(
             @Param("freelancerId") Long freelancerId,
             @Param("freelancerName") String freelancerName,
