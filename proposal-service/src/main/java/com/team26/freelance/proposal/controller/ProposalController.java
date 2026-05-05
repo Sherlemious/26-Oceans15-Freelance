@@ -168,6 +168,7 @@ public class ProposalController {
 
     // ── S3-F12: Recommendations ──────────────────────────────────────────
 
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
     @GetMapping("/recommendations")
     public ResponseEntity<List<JobRecommendationDTO>> getRecommendations(
             @RequestParam Long freelancerId,
