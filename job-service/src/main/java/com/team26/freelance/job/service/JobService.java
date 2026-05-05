@@ -4,18 +4,14 @@ import com.team26.freelance.job.dto.*;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
-import com.team26.freelance.job.model.mongo.JobEvent;
 import com.team26.freelance.job.repository.JobRepository;
 import com.team26.freelance.job.repository.mongo.JobEventRepository;
 import org.springframework.http.HttpStatus;
 
-<<<<<<< fix/job/DP-4-builder-regression/55-0837
 import org.springframework.security.core.context.SecurityContextHolder;
-=======
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
->>>>>>> main
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;

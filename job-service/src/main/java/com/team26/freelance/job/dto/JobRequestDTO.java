@@ -2,7 +2,7 @@ package com.team26.freelance.job.dto;
 
 import com.team26.freelance.job.model.JobCategory;
 import jakarta.validation.constraints.NotBlank;
-import org.antlr.v4.runtime.misc.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 public class JobRequestDTO {
 
