@@ -1,11 +1,13 @@
 package com.team26.freelance.job.service;
 
 import com.team26.freelance.job.dto.*;
+import com.team26.freelance.job.event.JobIndexEvent;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
 import com.team26.freelance.job.repository.mongo.JobEventRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,12 +30,16 @@ public class JobService {
     private final JobRepository jobRepository;
     private final JobSearchService jobSearchService;
     private final JobEventRepository jobEventRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-
-    public JobService(JobRepository jobRepository, JobSearchService jobSearchService, JobEventRepository jobEventRepository) {
+    public JobService(JobRepository jobRepository,
+                      JobSearchService jobSearchService,
+                      JobEventRepository jobEventRepository,
+                      ApplicationEventPublisher eventPublisher) {
         this.jobRepository = jobRepository;
         this.jobSearchService = jobSearchService;
         this.jobEventRepository = jobEventRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public JobSearchResultDTO createJob(JobRequestDTO request) {
@@ -52,7 +58,7 @@ public class JobService {
 
         Job saved = jobRepository.save(job);
 
-        jobSearchService.indexJob(saved.getId(), "auto_crud_create");
+        eventPublisher.publishEvent(new JobIndexEvent(saved.getId(), "auto_crud_create", false));
         jobSearchService.notifyObservers("JOB_CREATED", Map.of(
                 "jobId", saved.getId(),
                 "source", "auto_crud_create"
@@ -91,7 +97,7 @@ public class JobService {
         existingJob.setRequirements(updatedJob.getRequirements());
 
         Job updated = jobRepository.save(existingJob);
-        jobSearchService.indexJob(updated.getId(), "auto_crud_update");
+        eventPublisher.publishEvent(new JobIndexEvent(updated.getId(), "auto_crud_update", false));
         jobSearchService.notifyObservers("JOB_UPDATED", Map.of(
                 "jobId", updated.getId(),
                 "source", "auto_crud_update"
@@ -102,7 +108,7 @@ public class JobService {
     public void deleteJob(Long jobId) {
         Job job = getJobById(jobId);
         jobRepository.delete(job);
-        jobSearchService.removeFromIndex(jobId);
+        eventPublisher.publishEvent(new JobIndexEvent(jobId, "auto_crud_delete", true));
     }
 
     @Transactional
