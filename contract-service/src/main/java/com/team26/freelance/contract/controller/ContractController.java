@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -113,9 +114,17 @@ public class ContractController {
     @GetMapping("/{id}/milestones/timeline")
     public ResponseEntity<List<ContractMilestoneDTO>> getContractMilestoneTimeline(
             @PathVariable Long id,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant startTime,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant endTime) {
-        return ResponseEntity.ok(contractService.getContractMilestoneTimeline(id, startTime, endTime));
+            @RequestParam(required = false) String startTime,
+            @RequestParam(required = false) String endTime) {
+        Instant start = null;
+        Instant end = null;
+        try {
+            if (startTime != null) start = Instant.parse(startTime);
+            if (endTime != null) end = Instant.parse(endTime);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date format");
+        }
+        return ResponseEntity.ok(contractService.getContractMilestoneTimeline(id, start, end));
     }
 
     // GET /api/contracts/{id} ← used by job-service via RestTemplate
