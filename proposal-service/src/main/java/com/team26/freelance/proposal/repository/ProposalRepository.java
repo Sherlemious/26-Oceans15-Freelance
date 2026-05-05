@@ -161,6 +161,9 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         @Query(value = "SELECT name FROM users WHERE id = :freelancerId", nativeQuery = true)
         String findFreelancerNameByIdNative(@Param("freelancerId") Long freelancerId);
 
+        @Query(value = "SELECT COUNT(*) > 0 FROM users WHERE id = :userId", nativeQuery = true)
+        boolean existsUserByIdNative(@Param("userId") Long userId);
+
         @Query(value = "SELECT title, category FROM jobs WHERE id = :jobId", nativeQuery = true)
         List<Object[]> findJobDetailsByIdNative(@Param("jobId") Long jobId);
 
