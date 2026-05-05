@@ -71,6 +71,9 @@ public class PayoutAuditService {
         details.put("refundReason", refundReason);
 
         recordPayoutEvent(payout, approved ? REFUNDED : REFUND_DENIED, details);
+        if (payout != null) {
+            cacheService.evictPayoutDetail(payout.getId());
+        }
     }
 
     public void recordGenericEvent(String action, Map<String, Object> details) {
