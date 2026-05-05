@@ -2,6 +2,7 @@ package com.team26.freelance.user.service;
 
 import com.team26.freelance.user.adapter.ObjectArrayDtoAdapter;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
+import com.team26.freelance.user.dto.UserActivityFeedDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserProfileSkillDTO;
@@ -339,5 +340,23 @@ public class UserService {
         details.put("role", user.getRole() == null ? null : user.getRole().name());
         details.put("status", user.getStatus() == null ? null : user.getStatus().name());
         return details;
+    }
+
+    @Transactional(readOnly = true)
+    public UserActivityFeedDTO getUserActivityFeed(Long userId, int page, int size) {
+        // c) Find user by ID in PostgreSQL – throws 404 if user not found
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // Clamp size to 100 maximum
+        int clampedSize = Math.min(size, 100);
+        
+        // Build response structure
+        return UserActivityFeedDTO.builder()
+                .content(List.of())
+                .page(page)
+                .size(clampedSize)
+                .totalElements(0)
+                .build();
     }
 }

@@ -1,6 +1,8 @@
 package com.team26.freelance.user.service;
 
 import com.team26.freelance.user.model.User;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -35,6 +37,26 @@ public class JwtService {
                 .expiration(Date.from(expiresAt))
                 .signWith(signingKey, Jwts.SIG.HS256)
                 .compact();
+    }
+
+    public Claims validateAndExtractClaims(String token) throws JwtException {
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    public Long getUidFromClaims(Claims claims) {
+        Object uidObj = claims.get("uid");
+        if (uidObj instanceof String) {
+            return Long.parseLong((String) uidObj);
+        }
+        return ((Number) uidObj).longValue();
+    }
+
+    public String getRoleFromClaims(Claims claims) {
+        return claims.get("role", String.class);
     }
 
     public Long getExpiration() {
