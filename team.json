@@ -1,137 +1,140 @@
-[
-  {
-    "subteam": 1,
-    "studentId": "55-3410",
-    "name": "Yassin Mahmoud Ahmed",
-    "email": "yassin.bareh@student.guc.edu.eg",
-    "tutorialGroup": "T-27",
-    "githubUsername": "y-bareh",
-    "service": "user-service"
-  },
-  {
-    "subteam": 1,
-    "studentId": "55-2398",
-    "name": "Tarek Sherif Hamdy",
-    "email": "Tarek.soliman@student.guc.edu.eg",
-    "tutorialGroup": "T-10",
-    "githubUsername": "tareksherif64",
-    "service": "user-service"
-  },
-  {
-    "subteam": 1,
-    "studentId": "56-29212",
-    "name": "Youssef ahmed hussein abdelaziz",
-    "email": "Yosef.husein@student.guc.edu.eg",
-    "tutorialGroup": "T16",
-    "githubUsername": "yussefahmed",
-    "service": "user-service"
-  },
-  {
-    "subteam": 2,
-    "studentId": "55-0665",
-    "name": "Basmala Hesham Abdelrahman Abdullah",
-    "email": "basmala.abdullah@student.guc.edu.eg",
-    "tutorialGroup": "T-08",
-    "githubUsername": "BasmalaHesho",
-    "service": "job-service"
-  },
-  {
-    "subteam": 2,
-    "studentId": "55-0837",
-    "name": "Mariam Mostafa Mohamed Aslan",
-    "email": "mariam.aslan@student.guc.edu.eg",
-    "tutorialGroup": "T-08",
-    "githubUsername": "mariamM13",
-    "service": "job-service"
-  },
-  {
-    "subteam": 2,
-    "studentId": "55-8287",
-    "name": "Omar Magdy",
-    "email": "omar.shaalan@student.guc.edu.eg",
-    "tutorialGroup": "T19",
-    "githubUsername": "OmarKongo",
-    "service": "job-service"
-  },
-  {
-    "subteam": 3,
-    "studentId": "55-2962",
-    "name": "Mostafa Hisham Mohamed",
-    "email": "mostafa.hamdy@student.guc.edu.eg",
-    "tutorialGroup": "T13",
-    "githubUsername": "mostafahisham03",
-    "service": "proposal-service"
-  },
-  {
-    "subteam": 3,
-    "studentId": "55-25218",
-    "name": "Seifeldin Khaled Hassan Abbas",
-    "email": "seifeldin.abbas@student.guc.edu.eg",
-    "tutorialGroup": "T-9",
-    "githubUsername": "SeifAbbas",
-    "service": "proposal-service"
-  },
-  {
-    "subteam": 3,
-    "studentId": "55-4337",
-    "name": "Omar Abdelwahab Salah Ahmed",
-    "email": "Omar.salah@student.guc.edu.eg",
-    "tutorialGroup": "T20",
-    "githubUsername": "OelSawy",
-    "service": "proposal-service"
-  },
-  {
-    "subteam": 4,
-    "studentId": "55-4451",
-    "name": "Rasheed Walaa Atia",
-    "email": "Rasheed.atia@student.guc.edu.eg",
-    "tutorialGroup": "T20",
-    "githubUsername": "rasheed1203atia",
-    "service": "contract-service"
-  },
-  {
-    "subteam": 4,
-    "studentId": "55-3437",
-    "name": "Yousef Yasser Mohamed",
-    "email": "yousef.mostafa@student.guc.edu.eg",
-    "tutorialGroup": "T25",
-    "githubUsername": "yousefyasser",
-    "service": "contract-service"
-  },
-  {
-    "subteam": 4,
-    "studentId": "55-1585",
-    "name": "Seifeldin Mohamed Moheb",
-    "email": "seifeldin.mohamed@student.guc.edu.eg",
-    "tutorialGroup": "T-6",
-    "githubUsername": "seif495",
-    "service": "contract-service"
-  },
-  {
-    "subteam": 5,
-    "studentId": "55-4626",
-    "name": "Abdelrahman Mohammed Mahmoud",
-    "email": "abd-elrahman.mahmoud@student.guc.edu.eg",
-    "tutorialGroup": "T-16",
-    "githubUsername": "sherlemious",
-    "service": "wallet-service"
-  },
-  {
-    "subteam": 5,
-    "studentId": "55-1744",
-    "name": "Omar Yasser Abdelhalim",
-    "email": "omar.abdelhalim@student.guc.edu.eg",
-    "tutorialGroup": "T16",
-    "githubUsername": "Omar-Goba",
-    "service": "wallet-service"
-  },
-  {
-    "subteam": 5,
-    "studentId": "58-1752",
-    "name": "Abdelrahman Hesham",
-    "email": "abdulrahman.gowaily@student.guc.edu.eg",
-    "tutorialGroup": "T-11",
-    "githubUsername": "Abdelrahmangowaily",
-    "service": "wallet-service"
-  }
-]
+{
+  "theme": "FreelanceMarketplace",
+  "team": [
+    {
+      "subteam": 1,
+      "studentId": "55-3410",
+      "name": "Yassin Mahmoud Ahmed",
+      "email": "yassin.bareh@student.guc.edu.eg",
+      "tutorialGroup": "T-27",
+      "githubUsername": "y-bareh",
+      "service": "user-service"
+    },
+    {
+      "subteam": 1,
+      "studentId": "55-2398",
+      "name": "Tarek Sherif Hamdy",
+      "email": "Tarek.soliman@student.guc.edu.eg",
+      "tutorialGroup": "T-10",
+      "githubUsername": "tareksherif64",
+      "service": "user-service"
+    },
+    {
+      "subteam": 1,
+      "studentId": "56-29212",
+      "name": "Youssef ahmed hussein abdelaziz",
+      "email": "Yosef.husein@student.guc.edu.eg",
+      "tutorialGroup": "T16",
+      "githubUsername": "yussefahmed",
+      "service": "user-service"
+    },
+    {
+      "subteam": 2,
+      "studentId": "55-0665",
+      "name": "Basmala Hesham Abdelrahman Abdullah",
+      "email": "basmala.abdullah@student.guc.edu.eg",
+      "tutorialGroup": "T-08",
+      "githubUsername": "BasmalaHesho",
+      "service": "job-service"
+    },
+    {
+      "subteam": 2,
+      "studentId": "55-0837",
+      "name": "Mariam Mostafa Mohamed Aslan",
+      "email": "mariam.aslan@student.guc.edu.eg",
+      "tutorialGroup": "T-08",
+      "githubUsername": "mariamM13",
+      "service": "job-service"
+    },
+    {
+      "subteam": 2,
+      "studentId": "55-8287",
+      "name": "Omar Magdy",
+      "email": "omar.shaalan@student.guc.edu.eg",
+      "tutorialGroup": "T19",
+      "githubUsername": "OmarKongo",
+      "service": "job-service"
+    },
+    {
+      "subteam": 3,
+      "studentId": "55-2962",
+      "name": "Mostafa Hisham Mohamed",
+      "email": "mostafa.hamdy@student.guc.edu.eg",
+      "tutorialGroup": "T13",
+      "githubUsername": "mostafahisham03",
+      "service": "proposal-service"
+    },
+    {
+      "subteam": 3,
+      "studentId": "55-25218",
+      "name": "Seifeldin Khaled Hassan Abbas",
+      "email": "seifeldin.abbas@student.guc.edu.eg",
+      "tutorialGroup": "T-9",
+      "githubUsername": "SeifAbbas",
+      "service": "proposal-service"
+    },
+    {
+      "subteam": 3,
+      "studentId": "55-4337",
+      "name": "Omar Abdelwahab Salah Ahmed",
+      "email": "Omar.salah@student.guc.edu.eg",
+      "tutorialGroup": "T20",
+      "githubUsername": "OelSawy",
+      "service": "proposal-service"
+    },
+    {
+      "subteam": 4,
+      "studentId": "55-4451",
+      "name": "Rasheed Walaa Atia",
+      "email": "Rasheed.atia@student.guc.edu.eg",
+      "tutorialGroup": "T20",
+      "githubUsername": "rasheed1203atia",
+      "service": "contract-service"
+    },
+    {
+      "subteam": 4,
+      "studentId": "55-3437",
+      "name": "Yousef Yasser Mohamed",
+      "email": "yousef.mostafa@student.guc.edu.eg",
+      "tutorialGroup": "T25",
+      "githubUsername": "yousefyasser",
+      "service": "contract-service"
+    },
+    {
+      "subteam": 4,
+      "studentId": "55-1585",
+      "name": "Seifeldin Mohamed Moheb",
+      "email": "seifeldin.mohamed@student.guc.edu.eg",
+      "tutorialGroup": "T-6",
+      "githubUsername": "seif495",
+      "service": "contract-service"
+    },
+    {
+      "subteam": 5,
+      "studentId": "55-4626",
+      "name": "Abdelrahman Mohammed Mahmoud",
+      "email": "abd-elrahman.mahmoud@student.guc.edu.eg",
+      "tutorialGroup": "T-16",
+      "githubUsername": "sherlemious",
+      "service": "wallet-service"
+    },
+    {
+      "subteam": 5,
+      "studentId": "55-1744",
+      "name": "Omar Yasser Abdelhalim",
+      "email": "omar.abdelhalim@student.guc.edu.eg",
+      "tutorialGroup": "T16",
+      "githubUsername": "Omar-Goba",
+      "service": "wallet-service"
+    },
+    {
+      "subteam": 5,
+      "studentId": "58-1752",
+      "name": "Abdelrahman Hesham",
+      "email": "abdulrahman.gowaily@student.guc.edu.eg",
+      "tutorialGroup": "T-11",
+      "githubUsername": "Abdelrahmangowaily",
+      "service": "wallet-service"
+    }
+  ]
+}

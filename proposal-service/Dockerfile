@@ -5,6 +5,10 @@ COPY security-common/pom.xml security-common/pom.xml
 COPY security-common/src security-common/src
 RUN mvn -f security-common/pom.xml clean install -DskipTests --no-transfer-progress
 
+COPY event-common/pom.xml event-common/pom.xml
+COPY event-common/src event-common/src
+RUN mvn -f event-common/pom.xml clean install -DskipTests --no-transfer-progress
+
 COPY proposal-service/pom.xml proposal-service/pom.xml
 COPY proposal-service/src proposal-service/src
 RUN mvn -f proposal-service/pom.xml clean package -DskipTests --no-transfer-progress

@@ -108,16 +108,29 @@ services:
       CASSANDRA_CLUSTER_NAME: freelancecluster
       CASSANDRA_DC: datacenter1
       CASSANDRA_KEYSPACE: freelanceks
-      MAX_HEAP_SIZE: 512M
-      HEAP_NEWSIZE: 128M
+      JVM_OPTS: "-Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m"
     ports:
       - "9042:9042"
     volumes:
       - cassandradata:/var/lib/cassandra
-      - ./docker/cassandra-init.sh:/usr/local/bin/cassandra-init.sh:ro
-    command: ["bash", "/usr/local/bin/cassandra-init.sh"]
+    command: >
+      bash -c "
+      docker-entrypoint.sh cassandra -f &
+      until /opt/cassandra/bin/cqlsh -e 'DESCRIBE KEYSPACES' >/dev/null 2>&1; do sleep 5; done;
+      /opt/cassandra/bin/cqlsh -e \"CREATE KEYSPACE IF NOT EXISTS \$${CASSANDRA_KEYSPACE} WITH replication = {'class':'SimpleStrategy','replication_factor':1};\";
+      /opt/cassandra/bin/cqlsh -e \"USE \$${CASSANDRA_KEYSPACE}; CREATE TABLE IF NOT EXISTS contract_milestone_events (
+        contract_id     bigint,
+        timestamp       timestamp,
+        milestone_order int,
+        status          text,
+        recorded_by     text,
+        notes           text,
+        PRIMARY KEY (contract_id, timestamp)
+      ) WITH CLUSTERING ORDER BY (timestamp DESC);\";
+      wait
+      "
     healthcheck:
-      test: ["CMD-SHELL", 'cqlsh -e "DESCRIBE KEYSPACES" > /dev/null || exit 1']
+      test: ["CMD-SHELL", '/opt/cassandra/bin/cqlsh -e "DESCRIBE KEYSPACES" > /dev/null || exit 1']
       interval: 15s
       timeout: 10s
       retries: 10

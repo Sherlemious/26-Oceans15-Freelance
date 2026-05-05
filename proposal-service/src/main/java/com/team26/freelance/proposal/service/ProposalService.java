@@ -343,7 +343,7 @@ public class ProposalService {
         double totalBid = ((Number) row[3]).doubleValue();
 
         double averageBid = (total == 0) ? 0.0 : (totalBid / total);
-        double acceptanceRate = (total == 0) ? 0.0 : ((double) accepted / total) * 100.0;
+        double acceptanceRate = (total == 0) ? 0.0 : ((double) accepted / total);
 
         return ProposalAnalyticsDTO.builder()
                 .withTotalProposals(total)

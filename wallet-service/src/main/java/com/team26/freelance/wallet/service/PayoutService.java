@@ -1,5 +1,7 @@
 package com.team26.freelance.wallet.service;
 
+import com.team26.freelance.wallet.adapter.FreelancerPayoutSummaryObjectArrayAdapter;
+import com.team26.freelance.wallet.adapter.PromoCodeUsageObjectArrayAdapter;
 import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
 import com.team26.freelance.wallet.dto.ContractDataProjection;
 import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
@@ -53,6 +55,8 @@ public class PayoutService {
   private final PayoutAuditEventRepository payoutAuditEventRepository;
   private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
+  private final FreelancerPayoutSummaryObjectArrayAdapter freelancerPayoutSummaryObjectArrayAdapter;
+  private final PromoCodeUsageObjectArrayAdapter promoCodeUsageObjectArrayAdapter;
 
   public PayoutService(PayoutRepository payoutRepository,
                        PromoCodeRepository promoCodeRepository,
@@ -61,7 +65,9 @@ public class PayoutService {
                        ApplicationEventPublisher eventPublisher,
                        PlatformFeeAnalyticsService platformFeeAnalyticsService,
                        PayoutAuditEventRepository payoutAuditEventRepository,
-                       RefundStrategySelector refundStrategySelector
+                       RefundStrategySelector refundStrategySelector,
+                       FreelancerPayoutSummaryObjectArrayAdapter freelancerPayoutSummaryObjectArrayAdapter,
+                       PromoCodeUsageObjectArrayAdapter promoCodeUsageObjectArrayAdapter
                        ) {
     this.payoutRepository = payoutRepository;
     this.promoCodeRepository = promoCodeRepository;
@@ -71,6 +77,8 @@ public class PayoutService {
     this.payoutAuditEventRepository = payoutAuditEventRepository;
     this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
+    this.promoCodeUsageObjectArrayAdapter=promoCodeUsageObjectArrayAdapter;
+    this.freelancerPayoutSummaryObjectArrayAdapter=freelancerPayoutSummaryObjectArrayAdapter;
   }
 
   @Caching(evict = {
@@ -504,23 +512,29 @@ public class PayoutService {
   @Cacheable(cacheNames = "wallet-service::S5-F3", key = "#freelancerId")
   public FreelancerPayoutSummaryDTO getFreelancerPayoutSummary(Long freelancerId) {
     List<Object[]> rows = payoutRepository.getPayoutSummaryByFreelancer(freelancerId);
+
     Map<String, Double> methodBreakdown = new LinkedHashMap<>();
     long totalPayouts = 0;
     double totalAmount = 0.0;
+
     for (Object[] row : rows) {
-      String method = (String) row[0];
-      long count = ((Number) row[1]).longValue();
-      double sum = ((Number) row[2]).doubleValue();
-      methodBreakdown.put(method, sum);
-      totalPayouts += count;
-      totalAmount += sum;
+      FreelancerPayoutSummaryDTO adapted = freelancerPayoutSummaryObjectArrayAdapter.adapt(row);
+
+      totalPayouts += adapted.getTotalPayouts();
+      totalAmount += adapted.getTotalAmount();
+
+      if (adapted.getMethodBreakdown() != null) {
+        methodBreakdown.putAll(adapted.getMethodBreakdown());
+      }
     }
+
     return FreelancerPayoutSummaryDTO.builder()
             .freelancerId(freelancerId)
             .totalPayouts(totalPayouts)
             .totalAmount(totalAmount)
             .methodBreakdown(methodBreakdown)
-            .build();  }
+            .build();
+  }
 
   @Caching(evict = {
           @CacheEvict(cacheNames = "wallet-service::payout", key = "#id"),
@@ -592,44 +606,18 @@ public class PayoutService {
 
     return new PayoutReversalResultDTO(saved, result);
   }
-
   @Cacheable(cacheNames = "wallet-service::S5-F9", key = "#limit")
   public List<PromoCodeUsageDTO> getTopUsedPromoCodes(int limit) {
     if (limit <= 0) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                                        "Limit must be positive");
+              "Limit must be positive");
     }
 
     List<Object[]> rows = promoCodeRepository.findTopUsedPromoCodes(limit);
     List<PromoCodeUsageDTO> result = new ArrayList<>();
-    LocalDateTime now = LocalDateTime.now();
 
     for (Object[] row : rows) {
-      LocalDateTime expiryDate;
-
-      if (row[7] instanceof LocalDateTime localDateTime) {
-        expiryDate = localDateTime;
-      } else if (row[7] instanceof Timestamp timestamp) {
-        expiryDate = timestamp.toLocalDateTime();
-      } else {
-        throw new ResponseStatusException(
-                HttpStatus.INTERNAL_SERVER_ERROR,
-                "Unexpected expiry date type returned from database"
-        );
-      }
-
-      PromoCodeUsageDTO dto = PromoCodeUsageDTO.builder()
-              .promoCodeId(((Number) row[0]).longValue())
-              .code((String) row[1])
-              .discountType((String) row[2])
-              .discountValue(((Number) row[3]).doubleValue())
-              .timesUsed(((Number) row[4]).intValue())
-              .totalDiscountGiven(row[5] == null ? 0.0 : ((Number) row[5]).doubleValue())
-              .active((Boolean) row[6])
-              .expired(expiryDate.isBefore(now))
-              .build();
-
-      result.add(dto);
+      result.add(promoCodeUsageObjectArrayAdapter.adapt(row));
     }
 
     return result;
