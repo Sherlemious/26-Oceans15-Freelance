@@ -11,6 +11,8 @@ import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,16 @@ public class PayoutPromoService {
         this.payoutAuditService = payoutAuditService;
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "wallet-service::payout", key = "#request.payoutId"),
+            @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F11", allEntries = true)
+    })
     @Transactional
     public PayoutPromoDTO create(CreatePayoutPromoRequest request) {
         Payout payout = payoutRepository.findById(request.getPayoutId())
@@ -76,6 +88,16 @@ public class PayoutPromoService {
         return new PayoutPromoDTO(pp);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "wallet-service::payout", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F11", allEntries = true)
+    })
     @Transactional
     public void delete(Long id) {
         PayoutPromo payoutPromo = payoutPromoRepository.findById(id)

@@ -82,7 +82,7 @@ public class PayoutAuditService {
     private void record(String action, Map<String, Object> payload) {
         payoutAuditSubject.notifyObservers(action, payload);
         if (invalidatesAnalyticsCache(action)) {
-            cacheService.evictMethodBreakdown();
+            cacheService.evictAnalyticsCaches();
         }
     }
 
