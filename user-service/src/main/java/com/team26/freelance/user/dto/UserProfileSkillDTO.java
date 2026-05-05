@@ -11,6 +11,9 @@ public class UserProfileSkillDTO {
     private Boolean isPrimary;
     private Map<String, Object> metadata;
 
+    public UserProfileSkillDTO() {
+    }
+
     public UserProfileSkillDTO(String skillName, String category, Integer yearsOfExperience,
                                ProficiencyLevel proficiencyLevel, Boolean isPrimary,
                                Map<String, Object> metadata) {

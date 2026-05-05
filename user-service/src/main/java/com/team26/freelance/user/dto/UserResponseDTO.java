@@ -19,6 +19,9 @@ public class UserResponseDTO {
     private LocalDateTime createdAt;
     private List<UserSkillResponseDTO> userSkills;
 
+    public UserResponseDTO() {
+    }
+
     public UserResponseDTO(Long id, String name, String email, String phone,
                            Role role, Status status, Map<String, Object> preferences,
                            LocalDateTime createdAt, List<UserSkillResponseDTO> userSkills) {

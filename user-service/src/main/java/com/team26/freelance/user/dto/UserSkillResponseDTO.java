@@ -14,6 +14,9 @@ public class UserSkillResponseDTO {
     private Map<String, Object> metadata;
     private LocalDateTime createdAt;
 
+    public UserSkillResponseDTO() {
+    }
+
     public UserSkillResponseDTO(Long id, String skillName, String category,
                                 Integer yearsOfExperience, ProficiencyLevel proficiencyLevel,
                                 Boolean isPrimary, Map<String, Object> metadata,

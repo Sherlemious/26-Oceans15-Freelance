@@ -6,6 +6,9 @@ public class TopFreelancerDTO {
     private Double totalEarnings;
     private Long contractCount;
 
+    public TopFreelancerDTO() {
+    }
+
     public TopFreelancerDTO(Long userId, String name, Double totalEarnings, Long contractCount) {
         this.userId = userId;
         this.name = name;

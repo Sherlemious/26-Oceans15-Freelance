@@ -1,5 +1,7 @@
 package com.team26.freelance.job.service;
 
+import com.team26.freelance.job.adapter.ElasticsearchHitAdapter;
+import com.team26.freelance.job.dto.JobSearchResultDTO;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.elastic.JobSearchDocument;
 import com.team26.freelance.job.observer.EntityObserver;
@@ -35,14 +37,17 @@ public class JobSearchService implements JobEventSubject {
     private final JobRepository jobRepository;
     private final List<EntityObserver> observers = new ArrayList<>();
     private final ElasticsearchOperations elasticsearchOperations;
+    private final ElasticsearchHitAdapter elasticsearchHitAdapter;
 
     public JobSearchService(JobSearchRepository jobSearchRepository,
                             JobRepository jobRepository,
                             JobEventRepository jobEventRepository,
-                            ElasticsearchOperations elasticsearchOperations ) {
+                            ElasticsearchOperations elasticsearchOperations,
+                            ElasticsearchHitAdapter elasticsearchHitAdapter) {
         this.jobSearchRepository = jobSearchRepository;
         this.jobRepository = jobRepository;
         this.elasticsearchOperations = elasticsearchOperations; 
+        this.elasticsearchHitAdapter = elasticsearchHitAdapter;
         // register the per-service MongoEventLogger instance
         register(new MongoEventLogger(jobEventRepository));
     }
@@ -105,95 +110,71 @@ public class JobSearchService implements JobEventSubject {
         return doc;
     }
 
-    /**
-     * Searches Elasticsearch using a bool query:
-     *   - MUST:   multi_match on title + description (relevance-ranked)
-     *   - FILTER: optional term filters (category, status)
-     *             optional budget-overlap range filter
-     *
-     * Budget overlap: a job overlaps [minBudget, maxBudget] when
-     *   job.budgetMin <= maxBudget  AND  job.budgetMax >= minBudget
-     */
-    public List<Job> fullTextSearch(String query,
-                                    String category,
-                                    String status,
-                                    Double minBudget,
-                                    Double maxBudget) {
+    
+        /**
+         * Returns raw search results as DTOs from Elasticsearch (keeps ES relevance order).
+         */
+        public List<JobSearchResultDTO> fullTextSearchResults(String query,
+                                                  String category,
+                                                  String status,
+                                                  Double minBudget,
+                                                  Double maxBudget) {
 
         if (minBudget != null && maxBudget != null && minBudget > maxBudget) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "minBudget cannot be greater than maxBudget");
+                HttpStatus.BAD_REQUEST, "minBudget cannot be greater than maxBudget");
         }
 
-        // ── 1. Build the bool query ───────────────────────────────────────────
         List<Query> filters = new ArrayList<>();
 
-        // category filter
         if (category != null && !category.isBlank()) {
             filters.add(Query.of(q -> q
-                    .term(t -> t.field("category").value(category.toUpperCase()))));
+                .term(t -> t.field("category").value(category.toUpperCase()))));
         }
 
-        // status filter
         if (status != null && !status.isBlank()) {
             filters.add(Query.of(q -> q
-                    .term(t -> t.field("status").value(status.toUpperCase()))));
+                .term(t -> t.field("status").value(status.toUpperCase()))));
         }
 
-        // budget overlap:  budgetMin <= maxBudget  AND  budgetMax >= minBudget
         if (minBudget != null) {
             final double min = minBudget;
             filters.add(Query.of(q -> q
-                    .range(r -> r.number(n -> n.field("budgetMax").gte(min)))));
+                .range(r -> r.number(n -> n.field("budgetMax").gte(min)))));
         }
         if (maxBudget != null) {
             final double max = maxBudget;
             filters.add(Query.of(q -> q
-                    .range(r -> r.number(n -> n.field("budgetMin").lte(max)))));
+                .range(r -> r.number(n -> n.field("budgetMin").lte(max)))));
         }
 
-        // multi_match on title + description (drives relevance score)
         final String finalQuery = query;
         Query multiMatch = Query.of(q -> q
-                .multiMatch(m -> m
-                        .query(finalQuery)
-                        .fields(List.of("title", "description"))
-                        .type(TextQueryType.BestFields)
-                        .fuzziness("AUTO")));
+            .multiMatch(m -> m
+                .query(finalQuery)
+                .fields(List.of("title", "description"))
+                .type(TextQueryType.BestFields)
+                .fuzziness("AUTO")));
 
         Query boolQuery = Query.of(q -> q
-                .bool(b -> {
-                    b.must(multiMatch);
-                    if (!filters.isEmpty()) b.filter(filters);
-                    return b;
-                }));
+            .bool(b -> {
+                b.must(multiMatch);
+                if (!filters.isEmpty()) b.filter(filters);
+                return b;
+            }));
 
-        // ── 2. Execute against Elasticsearch ─────────────────────────────────
         NativeQuery nativeQuery = NativeQuery.builder()
-                .withQuery(boolQuery)
-                .build();
+            .withQuery(boolQuery)
+            .build();
 
         SearchHits<JobSearchDocument> hits =
-                elasticsearchOperations.search(nativeQuery, JobSearchDocument.class);
+            elasticsearchOperations.search(nativeQuery, JobSearchDocument.class);
 
         if (hits.isEmpty()) return Collections.emptyList();
 
-        // ── 3. Collect matching IDs (order preserved = relevance order) ───────
-        List<Long> ids = hits.getSearchHits()
-                             .stream()
-                             .map(SearchHit::getContent)
-                             .map(JobSearchDocument::getId)
-                             .collect(Collectors.toList());
-
-        // ── 4. Fetch full Job entities from PostgreSQL ────────────────────────
-        Map<Long, Job> jobMap = jobRepository.findAllById(ids)
-                                             .stream()
-                                             .collect(Collectors.toMap(Job::getId, j -> j));
-
-        // Re-apply ES relevance order
-        return ids.stream()
-                  .map(jobMap::get)
-                  .filter(Objects::nonNull)
-                  .collect(Collectors.toList());
-    }
+        return hits.getSearchHits()
+            .stream()
+            .map(elasticsearchHitAdapter::adapt)
+            .collect(Collectors.toList());
+        }
 }
