@@ -9,6 +9,7 @@ import com.team26.freelance.job.service.JobSearchService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
+import com.team26.freelance.job.dto.JobSearchResultDTO;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.service.JobService;
 
@@ -160,14 +161,14 @@ public class JobController {
         key    = "'job-service::S2-F10::' + #query + ':' + #category + ':' + #status + ':' + #minBudget + ':' + #maxBudget",
         unless = "#result.body == null || #result.body.isEmpty()"
     )
-    public ResponseEntity<List<Job>> fullTextSearch(
+    public ResponseEntity<List<JobSearchResultDTO>> fullTextSearch(
             @RequestParam String query,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Double minBudget,
             @RequestParam(required = false) Double maxBudget
         ) {
-        return ResponseEntity.ok(jobSearchService.fullTextSearch(query, category, status, minBudget, maxBudget));
+        return ResponseEntity.ok(jobSearchService.fullTextSearchResults(query, category, status, minBudget, maxBudget));
     }
 
     @PreAuthorize("hasRole('USER')")
