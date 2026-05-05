@@ -12,7 +12,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 
-public class TokenValidationHandler extends AbstractJwtHandler {
+public class TokenValidationHandler extends AuthHandler {
 
     private final JwtConfigurationManager config;
 

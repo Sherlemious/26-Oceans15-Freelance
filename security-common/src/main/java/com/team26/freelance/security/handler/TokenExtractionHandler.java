@@ -4,7 +4,7 @@ import com.team26.freelance.security.JwtAuthContext;
 import com.team26.freelance.security.JwtAuthException;
 import org.springframework.http.HttpHeaders;
 
-public class TokenExtractionHandler extends AbstractJwtHandler {
+public class TokenExtractionHandler extends AuthHandler {
 
     private static final String BEARER_PREFIX = "Bearer ";
 

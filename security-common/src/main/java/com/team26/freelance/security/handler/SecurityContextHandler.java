@@ -9,7 +9,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
-public class SecurityContextHandler extends AbstractJwtHandler {
+public class SecurityContextHandler extends AuthHandler {
 
     @Override
     public void handle(JwtAuthContext context) throws JwtAuthException {
