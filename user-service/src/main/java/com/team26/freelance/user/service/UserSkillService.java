@@ -1,5 +1,6 @@
 package com.team26.freelance.user.service;
 
+import com.team26.freelance.user.config.CacheConfig;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.observer.AuthEventSubject;
@@ -8,6 +9,7 @@ import com.team26.freelance.user.repository.UserSkillRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,13 +24,16 @@ public class UserSkillService {
     private final UserSkillRepository userSkillRepository;
     private final UserRepository userRepository;
     private final AuthEventSubject authEventSubject;
+    private final UserCacheEvictionService userCacheEvictionService;
 
     public UserSkillService(UserSkillRepository userSkillRepository,
                             UserRepository userRepository,
-                            AuthEventSubject authEventSubject) {
+                            AuthEventSubject authEventSubject,
+                            UserCacheEvictionService userCacheEvictionService) {
         this.userSkillRepository = userSkillRepository;
         this.userRepository = userRepository;
         this.authEventSubject = authEventSubject;
+        this.userCacheEvictionService = userCacheEvictionService;
     }
 
     public UserSkill create(Long userId, UserSkill skill) {
@@ -37,9 +42,12 @@ public class UserSkillService {
         skill.setUser(user);
         UserSkill savedSkill = userSkillRepository.save(skill);
         recordUserSkillEvent(savedSkill, USER_SKILL_CREATED);
+        userCacheEvictionService.evictUserSkillMutationCaches(savedSkill.getId(), userId);
         return savedSkill;
     }
 
+    @Cacheable(cacheNames = CacheConfig.USER_SKILL_DETAIL_CACHE,
+            key = "T(com.team26.freelance.user.service.UserCacheKeys).userSkill(#id)")
     public UserSkill findById(Long id) {
         return userSkillRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UserSkill not found"));
@@ -66,6 +74,7 @@ public class UserSkillService {
         existing.setMetadata(updated.getMetadata());
         UserSkill savedSkill = userSkillRepository.save(existing);
         recordUserSkillEvent(savedSkill, USER_SKILL_UPDATED);
+        userCacheEvictionService.evictUserSkillMutationCaches(savedSkill.getId(), savedSkill.getUser().getId());
         return savedSkill;
     }
 
@@ -75,6 +84,7 @@ public class UserSkillService {
         Map<String, Object> details = userSkillDetails(skill);
         userSkillRepository.delete(skill);
         recordUserSkillEvent(userId, USER_SKILL_DELETED, details);
+        userCacheEvictionService.evictUserSkillMutationCaches(id, userId);
     }
 
     public void deleteByUserSkill(Long userId, Long skillId) {
@@ -89,6 +99,7 @@ public class UserSkillService {
         Map<String, Object> details = userSkillDetails(skill);
         userSkillRepository.delete(skill);
         recordUserSkillEvent(userId, USER_SKILL_DELETED, details);
+        userCacheEvictionService.evictUserSkillMutationCaches(skillId, userId);
     }
 
     private void recordUserSkillEvent(UserSkill skill, String action) {

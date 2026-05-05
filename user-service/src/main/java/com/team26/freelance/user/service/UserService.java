@@ -6,6 +6,7 @@ import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserProfileSkillDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
+import com.team26.freelance.user.config.CacheConfig;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
@@ -15,6 +16,7 @@ import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -70,15 +72,21 @@ public class UserService {
         user.setPassword(encoder.encode(user.getPassword()));
         User savedUser = userRepository.save(user);
         recordUserEvent(savedUser, USER_CREATED, userDetails(savedUser));
+        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
         return UserResponseDTO.fromUser(savedUser);
     }
 
+    @Cacheable(cacheNames = CacheConfig.USER_DETAIL_CACHE,
+            key = "T(com.team26.freelance.user.service.UserCacheKeys).user(#id)")
+    @Transactional(readOnly = true)
     public UserResponseDTO findById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         return UserResponseDTO.fromUser(user);
     }
 
+    @Cacheable(cacheNames = CacheConfig.S1_F8_CACHE,
+            key = "T(com.team26.freelance.user.service.UserCacheKeys).userProfile(#id)")
     @Transactional(readOnly = true)
     public UserProfileDTO getUserProfile(Long id) {
         User user = userRepository.findById(id)
@@ -112,6 +120,8 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(cacheNames = CacheConfig.S1_F1_CACHE,
+            key = "T(com.team26.freelance.user.service.UserCacheKeys).userSearch(#name, #email, #role)")
     @Transactional(readOnly = true)
     public List<UserResponseDTO> searchUsers(String name, String email, String role) {
         String normalizedName = normalizeFilter(name);
@@ -137,6 +147,7 @@ public class UserService {
         existing.setPreferences(updated.getPreferences());
         User savedUser = userRepository.save(existing);
         recordUserEvent(savedUser, USER_UPDATED, userDetails(savedUser));
+        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
         return UserResponseDTO.fromUser(savedUser);
     }
 
@@ -155,7 +166,7 @@ public class UserService {
         details.put("oldRole", oldRole == null ? null : oldRole.name());
         details.put("newRole", newRole.name());
         recordUserEvent(savedUser, ROLE_CHANGED, details);
-        userCacheEvictionService.evictUserDetail(id);
+        userCacheEvictionService.evictUserMutationCaches(id);
 
         return UserResponseDTO.fromUser(savedUser);
     }
@@ -166,6 +177,7 @@ public class UserService {
         Map<String, Object> details = userDetails(user);
         userRepository.delete(user);
         recordUserEvent(id, USER_DELETED, details);
+        userCacheEvictionService.evictUserMutationCaches(id);
     }
 
     @Transactional
@@ -180,9 +192,12 @@ public class UserService {
         userRepository.withdrawSubmittedProposals(id);
         User savedUser = userRepository.save(user);
         recordUserEvent(savedUser, USER_DEACTIVATED, userDetails(savedUser));
+        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
         return UserResponseDTO.fromUser(savedUser);
     }
 
+    @Cacheable(cacheNames = CacheConfig.S1_F5_CACHE,
+            key = "T(com.team26.freelance.user.service.UserCacheKeys).preferenceSearch(#key, #value)")
     @Transactional(readOnly = true)
     public List<UserResponseDTO> filterByPreference(String key, String value) {
         if (key == null || key.isBlank() || value == null || value.isBlank()) {
@@ -192,8 +207,12 @@ public class UserService {
         String prefJson = String.format("{\"%s\": \"%s\"}", key, value);
         return userRepository.findByPreference(prefJson).stream()
                 .map(UserResponseDTO::fromUser)
-                .toList();
+                .collect(Collectors.toList());
     }
+
+    @Cacheable(cacheNames = CacheConfig.S1_F6_CACHE,
+            key = "T(com.team26.freelance.user.service.UserCacheKeys).topFreelancers(#startDate, #endDate, #limit)")
+    @Transactional(readOnly = true)
     public List<TopFreelancerDTO> getTopFreelancers(LocalDate startDate, LocalDate endDate, int limit) {
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -211,6 +230,8 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(cacheNames = CacheConfig.S1_F9_CACHE,
+            key = "T(com.team26.freelance.user.service.UserCacheKeys).languagePreference(#lang, #minContracts)")
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByLanguageWithMinCompletedContracts(String lang, int minContracts) {
         if (lang == null || lang.isBlank()) {
@@ -225,6 +246,8 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(cacheNames = CacheConfig.S1_F3_CACHE,
+            key = "T(com.team26.freelance.user.service.UserCacheKeys).contractSummary(#userId)")
     @Transactional(readOnly = true)
     public UserContractSummaryDTO getUserContractSummary(Long userId) {
         userRepository.findById(userId)
@@ -258,6 +281,7 @@ public class UserService {
         details.put("updatedKeys", incomingPreferences.keySet());
         details.put("preferences", savedUser.getPreferences());
         recordUserEvent(savedUser, PREFERENCES_UPDATED, details);
+        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
         return UserResponseDTO.fromUser(savedUser);
     }
 
@@ -284,8 +308,8 @@ public class UserService {
         details.put("skillName", targetSkill.getSkillName());
         details.put("category", targetSkill.getCategory());
         recordUserEvent(savedUser, PRIMARY_SKILL_SET, details);
+        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
         return UserResponseDTO.fromUser(savedUser);
-        //done 
     }
 
     private String normalizeFilter(String value) {
