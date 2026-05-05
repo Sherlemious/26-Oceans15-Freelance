@@ -185,7 +185,7 @@ public class ProposalController {
 
         Long callerUid;
         try {
-            callerUid = Long.valueOf(String.valueOf(authentication.getCredentials()));
+            callerUid = Long.valueOf(authentication.getName());
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid uid claim");
         }
