@@ -24,15 +24,15 @@ public interface PromoCodeRepository extends JpaRepository<PromoCode, Long> {
                pc.discount_type,
                pc.discount_value,
                pc.current_uses,
-               COALESCE(SUM(pp.discount_applied), 0),
+               COALESCE(SUM(pp.discount_applied), 0) AS total_discount_given,
                pc.active,
                pc.expiry_date
         FROM promo_codes pc
         LEFT JOIN payout_promos pp ON pp.promo_code_id = pc.id
         GROUP BY pc.id, pc.code, pc.discount_type, pc.discount_value,
                  pc.current_uses, pc.active, pc.expiry_date
-        ORDER BY pc.current_uses DESC, pc.id ASC
-         LIMIT :limit
-         """, nativeQuery = true)
+        ORDER BY total_discount_given DESC, pc.current_uses DESC, pc.id ASC
+        LIMIT :limit
+        """, nativeQuery = true)
     List<Object[]> findTopUsedPromoCodes(@Param("limit") int limit);
 }

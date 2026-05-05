@@ -84,6 +84,13 @@ public class JobController {
             @RequestParam String key,
             @RequestParam String value,
             @RequestParam(required = false) JobStatus status) {
+
+        if (key == null || key.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Key parameter cannot be blank");
+        }
+        if (value == null || value.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Value parameter cannot be blank");
+        }
         return ResponseEntity.ok(jobService.filterByRequirement(key, value, status));
     }
 

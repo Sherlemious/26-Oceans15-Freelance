@@ -9,7 +9,13 @@ import com.team26.freelance.job.repository.JobRepository;
 import com.team26.freelance.job.repository.mongo.JobEventRepository;
 import org.springframework.http.HttpStatus;
 
+<<<<<<< fix/job/DP-4-builder-regression/55-0837
 import org.springframework.security.core.context.SecurityContextHolder;
+=======
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+>>>>>>> main
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -127,9 +133,16 @@ public class JobService {
     }
 
 
+    private static final Logger log = LoggerFactory.getLogger(JobService.class);
+
     public List<Job> filterByRequirement(String key, String value, JobStatus status) {
-        String statusStr = status != null ? status.name() : null;
-        return jobRepository.findByRequirementAndStatus(key, value, statusStr);
+        try {
+            String statusStr = status != null ? status.name() : null;
+            return jobRepository.findByRequirementAndStatus(key, value, statusStr);
+        } catch (Exception e) {
+            log.error("Error filtering jobs by requirement: key={}, value={}", key, value, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Database error occurred");
+        }
     }
 
     private void validateRating(int rating) {
