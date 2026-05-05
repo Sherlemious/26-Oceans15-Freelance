@@ -104,6 +104,16 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
                                           @Param("endDate") LocalDateTime endDate);
 
     @Query(value = """
+        SELECT id, CAST(status AS VARCHAR), agreed_amount, start_date, end_date
+        FROM contracts
+        WHERE start_date >= :startDate
+          AND start_date <= :endDate
+        ORDER BY id
+    """, nativeQuery = true)
+    List<Object[]> findContractAnalyticsSourceSignatures(@Param("startDate") LocalDateTime startDate,
+                                                         @Param("endDate") LocalDateTime endDate);
+
+    @Query(value = """
         SELECT 
             c.id as contractId,
             u.name as freelancerName,
