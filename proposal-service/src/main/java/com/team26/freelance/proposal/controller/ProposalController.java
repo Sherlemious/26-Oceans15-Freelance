@@ -155,4 +155,12 @@ public class ProposalController {
         return ResponseEntity.ok(
                 proposalService.getProposalAnalyticsDashboard(startDate, endDate));
     }
+
+    @PostMapping("/{proposalId}/record-interaction")
+    public ResponseEntity<String> recordInteraction(@PathVariable Long proposalId) {
+        String result = proposalService.recordInteraction(proposalId);
+        return ResponseEntity.ok(result);
+    }
+
+
 }

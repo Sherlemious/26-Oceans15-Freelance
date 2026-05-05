@@ -25,4 +25,15 @@ public class ProposalCacheEvictionService {
             redisTemplate.delete(keysToDelete);
         }
     }
+
+    public void evictS3F12Recommendations() {
+        try {
+            Set<String> keys = redisTemplate.keys("proposal-service::S3-F12::*");
+            if (keys != null && !keys.isEmpty()) {
+                redisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            // Redis soft dependency
+        }
+    }
 }
