@@ -87,7 +87,7 @@ public class ProposalController {
     @PostMapping("/estimate")
     public ResponseEntity<FeeEstimateDTO> estimateFee(@Valid @RequestBody FeeEstimateRequest request) {
         return ResponseEntity.ok(proposalService.estimateFee(
-                request.getBidAmount(), request.getCompetingProposals()));
+                request.getBidAmount(), request.getEstimatedDays()));
     }
 
     // ── S3-F4: Complete Proposal's Contract ─────────────────────────────────
