@@ -13,14 +13,14 @@ public class FeeEstimateRequest {
     @Positive(message = "bidAmount must be positive")
     private Double bidAmount;
 
-    @NotNull(message = "competingProposals is required")
-    @PositiveOrZero(message = "competingProposals must be zero or positive")
-    private Integer competingProposals;
+    @NotNull(message = "estimatedDays is required")
+    @PositiveOrZero(message = "estimatedDays must be zero or positive")
+    private Integer estimatedDays;
 
     public Long getJobId() { return jobId; }
     public void setJobId(Long jobId) { this.jobId = jobId; }
     public Double getBidAmount() { return bidAmount; }
     public void setBidAmount(Double bidAmount) { this.bidAmount = bidAmount; }
-    public Integer getCompetingProposals() { return competingProposals; }
-    public void setCompetingProposals(Integer competingProposals) { this.competingProposals = competingProposals; }
+    public Integer getEstimatedDays() { return estimatedDays; }
+    public void setEstimatedDays(Integer estimatedDays) { this.estimatedDays = estimatedDays; }
 }

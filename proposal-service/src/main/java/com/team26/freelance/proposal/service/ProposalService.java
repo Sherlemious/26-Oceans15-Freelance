@@ -174,13 +174,13 @@ public class ProposalService {
     }
 
     // MERGED FEE ESTIMATE (Keeps CC-3 Cache, Uses Main Builder)
-    @Cacheable(value = "proposal-service::S3-F3", key = "#bidAmount + '-' + #competingProposals")
-    public FeeEstimateDTO estimateFee(double bidAmount, int competingProposals) {
-        if (bidAmount <= 0 || competingProposals < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidAmount must be positive and competingProposals must be zero or positive");
+    @Cacheable(value = "proposal-service::S3-F3", key = "#bidAmount + '-' + #estimatedDays")
+    public FeeEstimateDTO estimateFee(double bidAmount, int estimatedDays) {
+        if (bidAmount <= 0 || estimatedDays < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidAmount must be positive and estimatedDays must be zero or positive");
         }
 
-        double feePercentage = (competingProposals <= 5) ? 20.0 : (competingProposals <= 15) ? 15.0 : 10.0;
+        double feePercentage = (estimatedDays <= 5) ? 20.0 : (estimatedDays <= 15) ? 15.0 : 10.0;
         double platformFee = bidAmount * feePercentage / 100;
         double freelancerPayout = bidAmount - platformFee;
         double estimatedDailyRate = freelancerPayout; // Ensures builder doesn't break
