@@ -157,4 +157,11 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                 @Param("endDate") LocalDateTime endDate
         );
 
+        // Native lookups for Neo4j synchronization
+        @Query(value = "SELECT name FROM users WHERE id = :freelancerId", nativeQuery = true)
+        String findFreelancerNameByIdNative(@Param("freelancerId") Long freelancerId);
+
+        @Query(value = "SELECT title, category FROM jobs WHERE id = :jobId", nativeQuery = true)
+        List<Object[]> findJobDetailsByIdNative(@Param("jobId") Long jobId);
+
 }
