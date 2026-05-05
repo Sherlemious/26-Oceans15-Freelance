@@ -1,10 +1,10 @@
 package com.team26.freelance.user.service;
 
+import com.team26.freelance.security.JwtConfigurationManager;
 import com.team26.freelance.user.model.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -17,10 +17,10 @@ public class JwtService {
     private final SecretKey signingKey;
     private final Long expiration;
 
-    public JwtService(@Value("${jwt.secret}") String secret,
-                      @Value("${jwt.expiration}") Long expiration) {
-        this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
-        this.expiration = expiration;
+    public JwtService() {
+        JwtConfigurationManager jwtConfigurationManager = JwtConfigurationManager.getInstance();
+        this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtConfigurationManager.getSecret()));
+        this.expiration = jwtConfigurationManager.getExpiration();
     }
 
     public String generateToken(User user) {
