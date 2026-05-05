@@ -6,6 +6,7 @@ import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.model.User;
+import com.team26.freelance.user.security.UserAuthorizationService;
 import com.team26.freelance.user.service.UserService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -27,9 +28,11 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final UserAuthorizationService userAuthorizationService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, UserAuthorizationService userAuthorizationService) {
         this.userService = userService;
+        this.userAuthorizationService = userAuthorizationService;
     }
 
     @PostMapping
@@ -40,6 +43,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
+        userAuthorizationService.requireOwnerOrAdmin(id);
         return ResponseEntity.ok(userService.findById(id));
     }
 
@@ -63,6 +67,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> update(@PathVariable Long id, @RequestBody User user) {
+        userAuthorizationService.requireOwnerOrAdmin(id);
         return ResponseEntity.ok(userService.update(id, user));
     }
 
@@ -73,6 +78,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        userAuthorizationService.requireOwnerOrAdmin(id);
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }
