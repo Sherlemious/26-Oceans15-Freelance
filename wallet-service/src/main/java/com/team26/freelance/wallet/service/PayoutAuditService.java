@@ -48,7 +48,11 @@ public class PayoutAuditService {
     }
 
     public void recordAnalyticsViewed() {
-        recordGenericEvent(ANALYTICS_VIEWED, Map.of("reason", "Payout method breakdown analytics viewed"));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("payoutId", null);
+        payload.put("action", ANALYTICS_VIEWED);
+        payload.put("details", Map.of("reason", "Payout analytics viewed"));
+        record(ANALYTICS_VIEWED, payload);
     }
 
     public void recordRefundResult(Payout payout,
@@ -83,7 +87,10 @@ public class PayoutAuditService {
     }
 
     private boolean invalidatesAnalyticsCache(String action) {
-        return !ANALYTICS_VIEWED.equals(action);
+        if (ANALYTICS_VIEWED.equals(action)) {
+            return false;
+        }
+        return true;
     }
 
     private String methodName(Payout payout) {
