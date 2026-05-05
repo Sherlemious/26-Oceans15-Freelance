@@ -1,18 +1,32 @@
 package com.team26.freelance.user.controller;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UpdateRoleRequestDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
+import com.team26.freelance.user.model.AuthEvent;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.service.JwtService;
 import com.team26.freelance.user.service.UserService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +40,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.Map;
 import java.time.LocalDate;
+import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 @RestController
@@ -33,10 +49,22 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final MongoTemplate mongoTemplate;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final byte[] jwtSecret;
     private final JwtService jwtService;
 
-    public UserController(UserService userService, JwtService jwtService) {
+    public UserController(UserService userService,
+                          MongoTemplate mongoTemplate,
+                          StringRedisTemplate redisTemplate,
+                          ObjectMapper objectMapper,
+                          @Value("${jwt.secret}") String jwtSecret) {
         this.userService = userService;
+        this.mongoTemplate = mongoTemplate;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.jwtSecret = Decoders.BASE64.decode(jwtSecret);
         this.jwtService = jwtService;
     }
 
@@ -127,39 +155,89 @@ public class UserController {
     }
 
     @GetMapping("/{id}/activity")
-    public ResponseEntity<?> getUserActivityFeed(
+    public ResponseEntity<Map<String, Object>> getActivityFeed(
             @PathVariable Long id,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        
-        // a) Validate JWT token - throws 401 if missing or invalid
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "10") int size,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+
+        if (authorizationHeader == null || authorizationHeader.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing Authorization header");
         }
-        
-        String token = authHeader.substring("Bearer ".length());
+
+        String token = authorizationHeader.startsWith("Bearer ")
+                ? authorizationHeader.substring(7)
+                : authorizationHeader;
+
         Claims claims;
         try {
-            claims = jwtService.validateAndExtractClaims(token);
-        } catch (JwtException e) {
+            claims = Jwts.parser()
+                    .verifyWith(Keys.hmacShaKeyFor(jwtSecret))
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
         }
-        
-        // b) Ownership check: Verify uid == id OR role == ADMIN
-        Long callerUid = jwtService.getUidFromClaims(claims);
-        String callerRole = jwtService.getRoleFromClaims(claims);
-        
-        boolean isOwner = callerUid.equals(id);
-        boolean isAdmin = "ADMIN".equals(callerRole);
-        
-        if (!isOwner && !isAdmin) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
+
+        long callerId;
+        try {
+            callerId = Long.parseLong(String.valueOf(claims.get("uid")));
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token claims");
         }
-        
-        // Clamp size to 100 maximum (d)
-        int clampedSize = Math.min(size, 100);
-        
-        return ResponseEntity.ok(userService.getUserActivityFeed(id, page, clampedSize));
+
+        String role = String.valueOf(claims.get("role"));
+        if (!"ADMIN".equals(role) && callerId != id) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden");
+        }
+
+        userService.findById(id);
+
+        int resolvedPage = Math.max(page, 0);
+        int resolvedSize = size <= 0 ? 10 : Math.min(size, 100);
+        String cacheKey = "user-service::S1-F12::" + id + ":" + resolvedPage + ":" + resolvedSize;
+
+        try {
+            String cachedBody = redisTemplate.opsForValue().get(cacheKey);
+            if (cachedBody != null) {
+                Map<String, Object> cachedResponse = objectMapper.readValue(
+                        cachedBody,
+                        new TypeReference<Map<String, Object>>() {
+                        });
+                return ResponseEntity.ok(cachedResponse);
+            }
+        } catch (Exception ignored) {
+            // Cache is an optimization; fall through to a live lookup if Redis or serialization fails.
+        }
+
+        Query countQuery = Query.query(Criteria.where("userId").is(id));
+        long totalElements = mongoTemplate.count(countQuery, AuthEvent.class);
+
+        Query eventsQuery = Query.query(Criteria.where("userId").is(id))
+                .with(PageRequest.of(resolvedPage, resolvedSize, Sort.by(Sort.Direction.DESC, "timestamp")));
+        List<AuthEvent> events = mongoTemplate.find(eventsQuery, AuthEvent.class);
+
+        List<Map<String, Object>> content = events.stream().map(event -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("action", event.getAction());
+            item.put("timestamp", event.getTimestamp());
+            item.put("details", event.getDetails() != null ? event.getDetails() : Map.of());
+            return item;
+        }).toList();
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("content", content);
+        response.put("page", resolvedPage);
+        response.put("size", resolvedSize);
+        response.put("totalElements", totalElements);
+
+        try {
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(response), Duration.ofMinutes(5));
+        } catch (Exception ignored) {
+            // Keep the endpoint functional even if Redis is temporarily unavailable.
+        }
+
+        return ResponseEntity.ok(response);
     }
 }
