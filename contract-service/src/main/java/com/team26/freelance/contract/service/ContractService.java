@@ -464,10 +464,10 @@ public class ContractService {
         Object[] args;
 
         if (startTime != null && endTime != null) {
-            cql = "SELECT * FROM contract_milestone_events WHERE contract_id = ? AND timestamp >= ? AND timestamp <= ?";
+            cql = "SELECT * FROM contract_milestone_events WHERE contract_id = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp DESC";
             args = new Object[]{contractId, startTime, endTime};
         } else {
-            cql = "SELECT * FROM contract_milestone_events WHERE contract_id = ?";
+            cql = "SELECT * FROM contract_milestone_events WHERE contract_id = ? ORDER BY timestamp DESC";
             args = new Object[]{contractId};
         }
 

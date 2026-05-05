@@ -1,6 +1,6 @@
 package com.team26.freelance.security;
 
-import com.team26.freelance.security.handler.AbstractJwtHandler;
+import com.team26.freelance.security.handler.AuthHandler;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,7 +16,7 @@ import java.util.Set;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final AbstractJwtHandler chainHead;
+    private final AuthHandler chainHead;
 
     private static final Set<String> EXEMPT_PATHS = Set.of(
             "/api/auth/register",
@@ -28,7 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/wallets/health"
     );
 
-    public JwtAuthenticationFilter(AbstractJwtHandler chainHead) {
+    public JwtAuthenticationFilter(AuthHandler chainHead) {
         this.chainHead = chainHead;
     }
 

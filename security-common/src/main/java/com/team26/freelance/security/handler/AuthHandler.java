@@ -3,11 +3,11 @@ package com.team26.freelance.security.handler;
 import com.team26.freelance.security.JwtAuthContext;
 import com.team26.freelance.security.JwtAuthException;
 
-public abstract class AbstractJwtHandler {
+public abstract class AuthHandler {
 
-    private AbstractJwtHandler next;
+    private AuthHandler next;
 
-    public AbstractJwtHandler setNext(AbstractJwtHandler next) {
+    public AuthHandler setNext(AuthHandler next) {
         this.next = next;
         return next;
     }

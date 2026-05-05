@@ -4,7 +4,7 @@ import com.team26.freelance.security.JwtAuthContext;
 import com.team26.freelance.security.JwtAuthException;
 import io.jsonwebtoken.Claims;
 
-public class ClaimsExtractionHandler extends AbstractJwtHandler {
+public class ClaimsExtractionHandler extends AuthHandler {
 
     @Override
     public void handle(JwtAuthContext context) throws JwtAuthException {
@@ -15,7 +15,8 @@ public class ClaimsExtractionHandler extends AbstractJwtHandler {
         }
 
         String subject = claims.getSubject();
-        String uid = claims.get("uid", String.class);
+        Object uidClaim = claims.get("uid");
+        String uid = uidClaim == null ? null : String.valueOf(uidClaim);
         String role = claims.get("role", String.class);
 
         if (subject == null || subject.isBlank())
