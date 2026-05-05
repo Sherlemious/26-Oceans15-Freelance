@@ -59,7 +59,8 @@ public class UserController {
                           MongoTemplate mongoTemplate,
                           StringRedisTemplate redisTemplate,
                           ObjectMapper objectMapper,
-                          @Value("${jwt.secret}") String jwtSecret) {
+                          @Value("${jwt.secret}") String jwtSecret,
+                          JwtService jwtService) {
         this.userService = userService;
         this.mongoTemplate = mongoTemplate;
         this.redisTemplate = redisTemplate;
