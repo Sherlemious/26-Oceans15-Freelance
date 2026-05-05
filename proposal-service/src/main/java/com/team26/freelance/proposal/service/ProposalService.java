@@ -5,6 +5,7 @@ import com.team26.freelance.common.event.EventType;
 import com.team26.freelance.common.event.MongoEvent;
 import com.team26.freelance.proposal.observer.ProposalEventSubject;
 import com.team26.freelance.proposal.adapter.MongoDocumentAdapter;
+import com.team26.freelance.proposal.adapter.Neo4jRecordAdapter;
 import com.team26.freelance.proposal.dto.CreateProposalDTO;
 import com.team26.freelance.proposal.dto.FeeEstimateDTO;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
@@ -13,6 +14,7 @@ import com.team26.freelance.proposal.dto.ProposalMilestoneDTO;
 import com.team26.freelance.proposal.dto.UpdateProposalDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDashboardDTO;
+import com.team26.freelance.proposal.dto.JobRecommendationDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
@@ -22,6 +24,7 @@ import com.team26.freelance.proposal.repository.Neo4jInteractionRepository;
 import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
+import org.springframework.data.neo4j.core.Neo4jClient;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
@@ -58,6 +61,8 @@ public class ProposalService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final ProposalEventRepository proposalEventRepository;
     private final MongoDocumentAdapter mongoDocumentAdapter;
+    private final Neo4jClient neo4jClient;
+    private final Neo4jRecordAdapter neo4jRecordAdapter;
 
 
     // MERGED CONSTRUCTOR
@@ -67,7 +72,10 @@ public class ProposalService {
                            RedisTemplate<String, Object> redisTemplate,
                            ProposalEventRepository proposalEventRepository,
                            MongoDocumentAdapter mongoDocumentAdapter,
-                           ProposalEventSubject eventSubject, Neo4jInteractionRepository neo4jInteractionRepository) {
+                           ProposalEventSubject eventSubject,
+                           Neo4jInteractionRepository neo4jInteractionRepository,
+                           Neo4jClient neo4jClient,
+                           Neo4jRecordAdapter neo4jRecordAdapter) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
         this.cacheEvictionService = cacheEvictionService;
@@ -76,6 +84,8 @@ public class ProposalService {
         this.mongoDocumentAdapter = mongoDocumentAdapter;
         this.eventSubject = eventSubject;
         this.neo4jInteractionRepository = neo4jInteractionRepository;
+        this.neo4jClient = neo4jClient;
+        this.neo4jRecordAdapter = neo4jRecordAdapter;
     }
 
     // ── CRUD (Reads Cached, Writes Evict) ──────────────────────────────────
@@ -509,6 +519,58 @@ public class ProposalService {
         cacheEvictionService.evictS3F12Recommendations();
 
         return "Interaction successfully recorded";
+    }
+
+    // ── S3-F12: Get Recommended Jobs for Freelancer ──────────────────────
+
+    @Cacheable(value = "proposal-service::S3-F12", key = "#freelancerId + '-' + #limit")
+    public List<JobRecommendationDTO> getRecommendedJobsForFreelancer(@NonNull Long freelancerId, int limit) {
+        if (!proposalRepository.existsUserByIdNative(freelancerId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
+        }
+
+        // Traverse recommendation graph in Neo4j (DP-7 Adapter maps Record -> DTO)
+        List<JobRecommendationDTO> rawRecommendations;
+        try {
+            String cypher = "MATCH (f:Freelancer {userId: $freelancerId})-[:PROPOSED_TO]->(common:Job)<-[:PROPOSED_TO]-(similar:Freelancer) " +
+                    "WHERE similar.userId <> f.userId " +
+                    "MATCH (similar)-[:PROPOSED_TO]->(rec:Job) " +
+                    "WHERE NOT (f)-[:PROPOSED_TO]->(rec) " +
+                    "RETURN rec.jobId AS jobId, count(DISTINCT similar) AS score " +
+                    "ORDER BY score DESC " +
+                    "LIMIT $limit";
+
+            java.util.Collection<JobRecommendationDTO> raw = neo4jClient.query(cypher)
+                    .bind(freelancerId).to("freelancerId")
+                    .bind(limit).to("limit")
+                    .fetchAs(JobRecommendationDTO.class)
+                    .mappedBy((typeSystem, record) -> neo4jRecordAdapter.adapt(record))
+                    .all();
+
+            rawRecommendations = (raw == null) ? List.of() : List.copyOf(raw);
+        } catch (Exception e) {
+            // Neo4j soft dependency — degrade gracefully
+            return List.of();
+        }
+
+        if (rawRecommendations == null || rawRecommendations.isEmpty()) {
+            return List.of();
+        }
+
+        // Enrich with job details from PostgreSQL (title, category) using a single batch query
+        List<Long> jobIds = rawRecommendations.stream().map(JobRecommendationDTO::getJobId).toList();
+        Map<Long, Object[]> jobDetailsMap = new java.util.HashMap<>();
+        if (!jobIds.isEmpty()) {
+            proposalRepository.findJobDetailsByIdsNative(jobIds)
+                    .forEach(row -> jobDetailsMap.put(((Number) row[0]).longValue(), row));
+        }
+
+        return rawRecommendations.stream().map(rec -> {
+            Object[] details = jobDetailsMap.get(rec.getJobId());
+            String jobTitle = (details != null && details[1] != null) ? details[1].toString() : "Unknown Job";
+            String jobCategory = (details != null && details[2] != null) ? details[2].toString() : "OTHER";
+            return new JobRecommendationDTO(rec.getJobId(), jobTitle, jobCategory, rec.getScore());
+        }).toList();
     }
 
 }

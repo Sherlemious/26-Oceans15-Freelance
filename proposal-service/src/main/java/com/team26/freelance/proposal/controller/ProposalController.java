@@ -7,6 +7,7 @@ import com.team26.freelance.proposal.dto.FeeEstimateRequest;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDashboardDTO;
+import com.team26.freelance.proposal.dto.JobRecommendationDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
@@ -17,7 +18,10 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -160,6 +164,43 @@ public class ProposalController {
     public ResponseEntity<String> recordInteraction(@PathVariable Long proposalId) {
         String result = proposalService.recordInteraction(proposalId);
         return ResponseEntity.ok(result);
+    }
+
+    // ── S3-F12: Recommendations ──────────────────────────────────────────
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @GetMapping("/recommendations")
+    public ResponseEntity<List<JobRecommendationDTO>> getRecommendations(
+            @RequestParam Long freelancerId,
+            @RequestParam(required = false) Integer limit,
+            Authentication authentication
+    ) {
+        if (authentication == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        int effectiveLimit = (limit == null) ? 5 : limit;
+        if (effectiveLimit <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be a positive integer");
+        }
+
+        Long callerUid;
+        try {
+            callerUid = Long.valueOf(authentication.getName());
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid uid claim");
+        }
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
+
+        if (!isAdmin && !callerUid.equals(freelancerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ownership violation");
+        }
+
+        return ResponseEntity.ok(
+                proposalService.getRecommendedJobsForFreelancer(freelancerId, effectiveLimit)
+        );
     }
 
 

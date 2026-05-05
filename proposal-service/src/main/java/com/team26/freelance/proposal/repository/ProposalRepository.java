@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -161,7 +162,16 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         @Query(value = "SELECT name FROM users WHERE id = :freelancerId", nativeQuery = true)
         String findFreelancerNameByIdNative(@Param("freelancerId") Long freelancerId);
 
+        @Query(value = "SELECT COUNT(*) > 0 FROM users WHERE id = :userId", nativeQuery = true)
+        boolean existsUserByIdNative(@Param("userId") Long userId);
+
+        @Query(value = "SELECT id, title, category FROM jobs WHERE id IN :jobIds", nativeQuery = true)
+        List<Object[]> findJobDetailsByIdsNative(@Param("jobIds") List<Long> jobIds);
+
         @Query(value = "SELECT title, category FROM jobs WHERE id = :jobId", nativeQuery = true)
         List<Object[]> findJobDetailsByIdNative(@Param("jobId") Long jobId);
+
+        @Query(value = "SELECT id, title, category FROM jobs WHERE id IN (:jobIds)", nativeQuery = true)
+        List<Object[]> findJobDetailsByIdsNative(@Param("jobIds") Collection<Long> jobIds);
 
 }
