@@ -1,9 +1,6 @@
 package com.team26.freelance.job.service;
 
-import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
-import com.team26.freelance.job.dto.JobDashboardDTO;
-import com.team26.freelance.job.dto.TopBudgetJobDTO;
-import com.team26.freelance.job.dto.JobProposalSummaryDTO;
+import com.team26.freelance.job.dto.*;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
@@ -12,6 +9,7 @@ import com.team26.freelance.job.repository.JobRepository;
 import com.team26.freelance.job.repository.mongo.JobEventRepository;
 import org.springframework.http.HttpStatus;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,14 +34,36 @@ public class JobService {
         this.jobEventRepository = jobEventRepository;
     }
 
-    public Job createJob(Job job) {
+    public JobSearchResultDTO createJob(JobRequestDTO request) {
+        Long clientId = Long.parseLong(
+                SecurityContextHolder.getContext().getAuthentication().getCredentials().toString()
+        );
+
+        Job job = new Job();
+        job.setClientId(clientId);
+        job.setStatus(JobStatus.OPEN);
+        job.setTitle(request.getTitle());
+        job.setDescription(request.getDescription());
+        job.setCategory(request.getCategory());
+        job.setBudgetMin(request.getBudgetMin());
+        job.setBudgetMax(request.getBudgetMax());
+
         Job saved = jobRepository.save(job);
+
         jobSearchService.indexJob(saved.getId(), "auto_crud_create");
         jobSearchService.notifyObservers("JOB_CREATED", Map.of(
                 "jobId", saved.getId(),
                 "source", "auto_crud_create"
         ));
-        return saved;
+
+        return JobSearchResultDTO.builder()
+                .id(saved.getId())
+                .title(saved.getTitle())
+                .description(saved.getDescription())
+                .category(saved.getCategory() != null ? saved.getCategory().name() : null)
+                .budgetMin(saved.getBudgetMin())
+                .budgetMax(saved.getBudgetMax())
+                .build();
     }
 
     public List<Job> getAllJobs() {
