@@ -12,6 +12,9 @@ public class UserProfileDTO {
     private List<UserProfileSkillDTO> skills;
     private Integer totalSkills;
 
+    public UserProfileDTO() {
+    }
+
     public UserProfileDTO(Long userId, String name, String email, String phone,
                           Map<String, Object> preferences, List<UserProfileSkillDTO> skills,
                           Integer totalSkills) {
