@@ -1,7 +1,9 @@
 package com.team26.freelance.user.service;
 
+import com.team26.freelance.common.event.AuthEvent;
 import com.team26.freelance.user.adapter.ObjectArrayDtoAdapter;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
+import com.team26.freelance.user.dto.UserActivityDTO;
 import com.team26.freelance.user.dto.UserActivityFeedDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
@@ -12,10 +14,14 @@ import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.observer.AuthEventSubject;
+import com.team26.freelance.user.repository.AuthEventRepository;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -47,17 +53,20 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
+    private final AuthEventRepository authEventRepository;
     private final AuthEventSubject authEventSubject;
     private final ObjectArrayDtoAdapter objectArrayDtoAdapter;
     private final UserCacheEvictionService userCacheEvictionService;
 
     public UserService(UserRepository userRepository,
                        UserSkillRepository userSkillRepository,
+                       AuthEventRepository authEventRepository,
                        AuthEventSubject authEventSubject,
                        ObjectArrayDtoAdapter objectArrayDtoAdapter,
                        UserCacheEvictionService userCacheEvictionService) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
+        this.authEventRepository = authEventRepository;
         this.authEventSubject = authEventSubject;
         this.objectArrayDtoAdapter = objectArrayDtoAdapter;
         this.userCacheEvictionService = userCacheEvictionService;
@@ -343,20 +352,37 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UserActivityFeedDTO getUserActivityFeed(Long userId, int page, int size) {
+    public UserActivityFeedDTO getUserActivityFeed(Long userId, Integer pageParam, Integer sizeParam) {
         // c) Find user by ID in PostgreSQL – throws 404 if user not found
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        // Clamp size to 100 maximum
-        int clampedSize = Math.min(size, 100);
+        // d) Handle page and size parameters with defaults
+        int page = (pageParam != null) ? pageParam : 0;
+        int size = (sizeParam != null) ? sizeParam : 10;
+
+        // cap size at 100
+        size = Math.min(size, 100);
+        
+        // Query MongoDB for auth_events sorted by timestamp descending
+        Pageable pageable = PageRequest.of(page, size);
+        Page<AuthEvent> eventPage = authEventRepository.findByUserId(userId, pageable);
+        
+        // Convert AuthEvent to UserActivityDTO
+        List<UserActivityDTO> activities = eventPage.getContent().stream()
+                .map(event -> UserActivityDTO.builder()
+                        .action(event.getAction())
+                        .timestamp(event.getTimestamp())
+                        .details(event.getDetails() != null ? event.getDetails() : Map.of())
+                        .build())
+                .collect(Collectors.toList());
         
         // Build response structure
         return UserActivityFeedDTO.builder()
-                .content(List.of())
+                .content(activities)
                 .page(page)
-                .size(clampedSize)
-                .totalElements(0)
+                .size(size)
+                .totalElements(eventPage.getTotalElements())
                 .build();
     }
 }
