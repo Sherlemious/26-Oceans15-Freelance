@@ -512,6 +512,10 @@ public class PayoutService {
   @Cacheable(cacheNames = "wallet-service::S5-F3", key = "#freelancerId")
   public FreelancerPayoutSummaryDTO getFreelancerPayoutSummary(Long freelancerId) {
     List<Object[]> rows = payoutRepository.getPayoutSummaryByFreelancer(freelancerId);
+    if (rows.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "Freelancer not found or has no payouts");
+    }
 
     Map<String, Double> methodBreakdown = new LinkedHashMap<>();
     long totalPayouts = 0;
