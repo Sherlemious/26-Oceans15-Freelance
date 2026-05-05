@@ -432,9 +432,19 @@ public class ProposalService {
             params.put("startDate", startDate.toString());
             params.put("endDate", endDate.toString());
 
-
+            // Create common event via Factory
             MongoEvent event = EventFactory.createEvent(EventType.PROPOSAL, params);
-            proposalEventRepository.save((com.team26.freelance.proposal.model.ProposalEvent) event);
+
+            // Map it to the local Database Entity
+            com.team26.freelance.proposal.model.ProposalEvent dbEntity =
+                    new com.team26.freelance.proposal.model.ProposalEvent(
+                            null,
+                            event.getAction(),
+                            event.getTimestamp(),
+                            event.getDetails()
+                    );
+
+            proposalEventRepository.save(dbEntity);
         } catch (Exception e) {
             System.err.println("WARN: Failed to log ANALYTICS_VIEWED event: " + e.getMessage());
         }

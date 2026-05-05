@@ -34,9 +34,19 @@ public class MongoEventLogger implements EntityObserver {
                 if (p.getStatus() != null) params.put("status", p.getStatus().name());
             }
 
-            // Capital 'E' for the static method call!
+            // Create common event via Factory
             MongoEvent event = EventFactory.createEvent(EventType.PROPOSAL, params);
-            repository.save((com.team26.freelance.proposal.model.ProposalEvent) event);
+
+            // Map it to the local Database Entity to avoid ClassCastException
+            com.team26.freelance.proposal.model.ProposalEvent dbEntity =
+                    new com.team26.freelance.proposal.model.ProposalEvent(
+                            null,
+                            event.getAction(),
+                            event.getTimestamp(),
+                            event.getDetails()
+                    );
+
+            repository.save(dbEntity);
 
         } catch (Exception e) {
             System.err.println("WARN: Mongo Event Logging Failed: " + e.getMessage());
