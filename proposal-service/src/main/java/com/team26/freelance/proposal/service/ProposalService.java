@@ -557,22 +557,19 @@ public class ProposalService {
             return List.of();
         }
 
-        // Enrich with job details from PostgreSQL (title, category)
+        // Enrich with job details from PostgreSQL (title, category) using a single batch query
+        List<Long> jobIds = rawRecommendations.stream().map(JobRecommendationDTO::getJobId).toList();
+        Map<Long, Object[]> jobDetailsMap = new java.util.HashMap<>();
+        if (!jobIds.isEmpty()) {
+            proposalRepository.findJobDetailsByIdsNative(jobIds)
+                    .forEach(row -> jobDetailsMap.put(((Number) row[0]).longValue(), row));
+        }
+
         return rawRecommendations.stream().map(rec -> {
-            Long jobId = rec.getJobId();
-            long score = rec.getScore();
-
-            String jobTitle = "Unknown Job";
-            String jobCategory = "OTHER";
-
-            List<Object[]> jobDetailsList = proposalRepository.findJobDetailsByIdNative(jobId);
-            if (jobDetailsList != null && !jobDetailsList.isEmpty()) {
-                Object[] jobDetails = jobDetailsList.get(0);
-                jobTitle = jobDetails[0] != null ? jobDetails[0].toString() : jobTitle;
-                jobCategory = jobDetails[1] != null ? jobDetails[1].toString() : jobCategory;
-            }
-
-            return new JobRecommendationDTO(jobId, jobTitle, jobCategory, score);
+            Object[] details = jobDetailsMap.get(rec.getJobId());
+            String jobTitle = (details != null && details[1] != null) ? details[1].toString() : "Unknown Job";
+            String jobCategory = (details != null && details[2] != null) ? details[2].toString() : "OTHER";
+            return new JobRecommendationDTO(rec.getJobId(), jobTitle, jobCategory, rec.getScore());
         }).toList();
     }
 
