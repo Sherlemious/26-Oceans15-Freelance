@@ -1,5 +1,7 @@
 package com.team26.freelance.wallet.service;
 
+import com.team26.freelance.common.event.EventFactory;
+import com.team26.freelance.common.event.EventType;
 import com.team26.freelance.common.event.PayoutAuditEvent;
 import com.team26.freelance.wallet.repository.PayoutAuditEventRepository;
 import java.util.HashMap;
@@ -27,6 +29,6 @@ public class PayoutAuditEventListener {
         params.put("amount", event.getAmount());
         params.put("details", event.getDetails());
 
-        auditEventRepository.save(new PayoutAuditEvent(params));
+        auditEventRepository.save((PayoutAuditEvent) EventFactory.createEvent(EventType.PAYOUT_AUDIT, params));
     }
 }
