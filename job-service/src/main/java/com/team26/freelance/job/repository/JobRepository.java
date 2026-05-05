@@ -30,8 +30,13 @@ public interface JobRepository extends JpaRepository<Job, Long> {
                          @Param("minBudget") Double minBudget,
                          @Param("maxBudget") Double maxBudget);
 
-    @Query(value = "SELECT * FROM jobs WHERE requirements ->> :key = :value AND (:status IS NULL OR status = :status)", nativeQuery = true)
-    List<Job> findByRequirementAndStatus(@Param("key") String key, @Param("value") String value, @Param("status") String status);
+    @Query(value = "SELECT * FROM jobs j WHERE " +
+            "j.requirements @> jsonb_build_object(:key, :value) AND " +
+            "(:status IS NULL OR j.status = :status)",
+            nativeQuery = true)
+    List<Job> findByRequirementAndStatus(@Param("key") String key,
+                                         @Param("value") String value,
+                                         @Param("status") String status);
 
     @Query(value = "SELECT j.id AS jobId, j.title, j.budget_max AS budgetMax, COUNT(p.id) AS totalProposals " +
             "FROM jobs j LEFT JOIN proposals p ON p.job_id = j.id " +
