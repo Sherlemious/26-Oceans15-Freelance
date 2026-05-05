@@ -81,28 +81,20 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
 
 
     @Query(value = """
-            SELECT
-                j.category::text AS "category",
-                COALESCE(
-                    SUM(
-                        COALESCE(
-                            (p.transaction_details ->> 'platformFee')::numeric,
-                            p.amount * 0.10
-                        )
-                    ),
-                    0
-                ) AS "platformFeeRevenue",
-                COALESCE(SUM(p.amount), 0) AS "totalRevenue",
-                COUNT(DISTINCT p.id) AS "payoutCount"
-            FROM payouts p
-            JOIN contracts c ON c.id = p.contract_id
-            JOIN jobs j ON j.id = c.job_id
-            WHERE p.created_at >= :startDate
-              AND p.created_at < :endExclusive
-              AND p.status = 'COMPLETED'
-            GROUP BY j.category
-            ORDER BY "totalRevenue" DESC
-            """, nativeQuery = true)
+    SELECT
+        j.category::text AS "category",
+        COALESCE(SUM(p.amount), 0) AS "totalRevenue",
+        COALESCE(SUM(COALESCE((p.transaction_details ->> 'platformFee')::numeric, p.amount * 0.10)), 0) AS "platformFeeRevenue",
+        COUNT(*) AS "payoutCount"
+    FROM payouts p
+    JOIN contracts c ON c.id = p.contract_id
+    JOIN jobs j ON j.id = c.job_id
+    WHERE p.status = 'COMPLETED'
+      AND p.created_at >= :startDate
+      AND p.created_at < :endExclusive
+    GROUP BY j.category
+    ORDER BY "totalRevenue" DESC
+    """, nativeQuery = true)
     List<CategoryRevenueProjection> getCategoryRevenueAnalytics(
             @Param("startDate") LocalDateTime startDate,
             @Param("endExclusive") LocalDateTime endExclusive

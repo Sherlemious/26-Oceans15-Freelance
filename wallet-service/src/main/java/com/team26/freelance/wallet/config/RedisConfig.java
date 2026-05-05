@@ -51,6 +51,9 @@ public class RedisConfig {
         cacheConfigs.put("wallet-service::S5-F10",
                 defaultConfig.entryTtl(Duration.ofMinutes(10)));
 
+        cacheConfigs.put("wallet-service::S5-F11",
+                defaultConfig.entryTtl(Duration.ofMinutes(10)));
+
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigs)

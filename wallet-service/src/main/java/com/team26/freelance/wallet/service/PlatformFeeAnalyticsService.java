@@ -26,7 +26,6 @@ public class PlatformFeeAnalyticsService {
             key = "#startDate + ':' + #endDate"
     )
     public List<CategoryRevenueDTO> getPlatformFeeAnalytics(LocalDate startDate, LocalDate endDate) {
-        
 
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -42,20 +41,20 @@ public class PlatformFeeAnalyticsService {
         List<CategoryRevenueDTO> result = new ArrayList<>();
 
         for (CategoryRevenueProjection row : rows) {
-            BigDecimal platformFeeRevenue = row.getPlatformFeeRevenue() == null
-                    ? BigDecimal.ZERO
-                    : row.getPlatformFeeRevenue();
-
             BigDecimal totalRevenue = row.getTotalRevenue() == null
                     ? BigDecimal.ZERO
                     : row.getTotalRevenue();
+
+            BigDecimal platformFeeRevenue = row.getPlatformFeeRevenue() == null
+                    ? BigDecimal.ZERO
+                    : row.getPlatformFeeRevenue();
 
             BigDecimal netPayoutRevenue = totalRevenue.subtract(platformFeeRevenue);
 
             CategoryRevenueDTO dto = CategoryRevenueDTO.builder()
                     .category(row.getCategory())
-                    .platformFeeRevenue(platformFeeRevenue.doubleValue())
                     .totalRevenue(totalRevenue.doubleValue())
+                    .platformFeeRevenue(platformFeeRevenue.doubleValue())
                     .netPayoutRevenue(netPayoutRevenue.doubleValue())
                     .payoutCount(row.getPayoutCount() == null ? 0L : row.getPayoutCount())
                     .build();

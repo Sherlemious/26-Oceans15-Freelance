@@ -84,6 +84,8 @@
             <artifactId>event-common</artifactId>
             <version>1.0.0</version>
             <scope>compile</scope>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
     </dependencies>
     <build>
