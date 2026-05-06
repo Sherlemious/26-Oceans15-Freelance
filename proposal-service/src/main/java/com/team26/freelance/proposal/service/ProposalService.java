@@ -28,6 +28,7 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Duration;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -64,18 +66,17 @@ public class ProposalService {
     private final Neo4jClient neo4jClient;
     private final Neo4jRecordAdapter neo4jRecordAdapter;
 
-
     // MERGED CONSTRUCTOR
     public ProposalService(ProposalRepository proposalRepository,
-                           ProposalMilestoneRepository milestoneRepository,
-                           ProposalCacheEvictionService cacheEvictionService,
-                           RedisTemplate<String, Object> redisTemplate,
-                           ProposalEventRepository proposalEventRepository,
-                           MongoDocumentAdapter mongoDocumentAdapter,
-                           ProposalEventSubject eventSubject,
-                           Neo4jInteractionRepository neo4jInteractionRepository,
-                           Neo4jClient neo4jClient,
-                           Neo4jRecordAdapter neo4jRecordAdapter) {
+            ProposalMilestoneRepository milestoneRepository,
+            ProposalCacheEvictionService cacheEvictionService,
+            RedisTemplate<String, Object> redisTemplate,
+            ProposalEventRepository proposalEventRepository,
+            MongoDocumentAdapter mongoDocumentAdapter,
+            ProposalEventSubject eventSubject,
+            Neo4jInteractionRepository neo4jInteractionRepository,
+            Neo4jClient neo4jClient,
+            Neo4jRecordAdapter neo4jRecordAdapter) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
         this.cacheEvictionService = cacheEvictionService;
@@ -141,19 +142,44 @@ public class ProposalService {
 
     @Cacheable(value = "proposal-service::S3-F1", key = "(#status != null ? #status : 'ALL') + '-' + (#startDate != null ? #startDate.toString() : 'NONE') + '-' + (#endDate != null ? #endDate.toString() : 'NONE')")
     public List<Proposal> searchByStatusAndDateRange(String status, LocalDate startDate, LocalDate endDate) {
+        String normalizedStatus = (status == null || status.isBlank()) ? null : status.trim().toUpperCase();
+        ProposalStatus statusEnum = null;
+        if (normalizedStatus != null) {
+            try {
+                statusEnum = ProposalStatus.valueOf(normalizedStatus);
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + normalizedStatus);
+            }
+        }
+
+        LocalDate effectiveStartDate = startDate;
+        LocalDate effectiveEndDate = endDate;
+        if (effectiveStartDate != null && effectiveEndDate == null) {
+            effectiveEndDate = effectiveStartDate;
+        } else if (effectiveStartDate == null && effectiveEndDate != null) {
+            effectiveStartDate = effectiveEndDate;
+        }
+
         LocalDateTime start = null;
         LocalDateTime end = null;
-
-        if (startDate != null && endDate != null) {
-            if (startDate.isAfter(endDate)) {
+        if (effectiveStartDate != null && effectiveEndDate != null) {
+            if (effectiveStartDate.isAfter(effectiveEndDate)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Start date must be before end date");
             }
-            start = startDate.atStartOfDay();
-            end = endDate.atTime(23, 59, 59);
+            start = effectiveStartDate.atStartOfDay();
+            end = effectiveEndDate.atTime(LocalTime.MAX);
         }
-        return status == null ? proposalRepository.searchByDateRange(start, end)
-                : startDate == null && endDate == null ? proposalRepository.searchByStatus(status)
-                : proposalRepository.searchByStatusAndDateRange(status, start, end);
+
+        if (statusEnum == null && start == null) {
+            return proposalRepository.findAll(Sort.by(Sort.Direction.DESC, "submittedAt"));
+        }
+        if (statusEnum != null && start == null) {
+            return proposalRepository.findByStatusOrderBySubmittedAtDesc(statusEnum);
+        }
+        if (statusEnum == null) {
+            return proposalRepository.findBySubmittedAtBetweenOrderBySubmittedAtDesc(start, end);
+        }
+        return proposalRepository.findByStatusAndSubmittedAtBetweenOrderBySubmittedAtDesc(statusEnum, start, end);
     }
 
     private void validateFreelancer(Long freelancerId) {
@@ -173,7 +199,8 @@ public class ProposalService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal is already accepted");
         }
         if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
         }
 
         proposal.setStatus(ProposalStatus.ACCEPTED);
@@ -190,7 +217,8 @@ public class ProposalService {
     @Cacheable(value = "proposal-service::S3-F3", key = "#bidAmount + '-' + #estimatedDays")
     public FeeEstimateDTO estimateFee(double bidAmount, int estimatedDays) {
         if (bidAmount <= 0 || estimatedDays < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidAmount must be positive and estimatedDays must be zero or positive");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "bidAmount must be positive and estimatedDays must be zero or positive");
         }
 
         double feePercentage = (estimatedDays <= 5) ? 20.0 : (estimatedDays <= 15) ? 15.0 : 10.0;
@@ -213,7 +241,8 @@ public class ProposalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         if (proposal.getStatus() != ProposalStatus.ACCEPTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal status must be ACCEPTED to complete work");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Proposal status must be ACCEPTED to complete work");
         }
 
         Long activeContractId = proposalRepository.findActiveContractIdByProposalId(proposalId);
@@ -239,7 +268,8 @@ public class ProposalService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only SUBMITTED or SHORTLISTED proposals can be withdrawn");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Only SUBMITTED or SHORTLISTED proposals can be withdrawn");
         }
 
         proposal.setStatus(ProposalStatus.WITHDRAWN);
@@ -261,7 +291,8 @@ public class ProposalService {
         Proposal proposal = getProposalById(proposalId);
 
         if (proposal.getStatus() != ProposalStatus.SUBMITTED && proposal.getStatus() != ProposalStatus.SHORTLISTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestones can only be added to SUBMITTED or SHORTLISTED proposals");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Milestones can only be added to SUBMITTED or SHORTLISTED proposals");
         }
         if (milestones == null || milestones.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one milestone is required");
@@ -269,10 +300,12 @@ public class ProposalService {
 
         int milestoneOrder = milestoneRepository.findMaxMilestoneOrderByProposalId(proposalId);
         double currentMilestoneSum = milestoneRepository.sumAmountsByProposalId(proposalId);
-        double newMilestoneSum = milestones.stream().peek(this::validateMilestoneInput).mapToDouble(ProposalMilestone::getAmount).sum();
+        double newMilestoneSum = milestones.stream().peek(this::validateMilestoneInput)
+                .mapToDouble(ProposalMilestone::getAmount).sum();
 
         if (currentMilestoneSum + newMilestoneSum > proposal.getBidAmount()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Total milestone amounts cannot exceed proposal bid amount");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Total milestone amounts cannot exceed proposal bid amount");
         }
 
         for (ProposalMilestone milestone : milestones) {
@@ -290,10 +323,14 @@ public class ProposalService {
     }
 
     private void validateMilestoneInput(ProposalMilestone milestone) {
-        if (milestone == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone item cannot be null");
-        if (milestone.getTitle() == null || milestone.getTitle().isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone title is required");
-        if (milestone.getDescription() == null || milestone.getDescription().isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone description is required");
-        if (milestone.getAmount() == null || milestone.getAmount() <= 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone amount must be greater than 0");
+        if (milestone == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone item cannot be null");
+        if (milestone.getTitle() == null || milestone.getTitle().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone title is required");
+        if (milestone.getDescription() == null || milestone.getDescription().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone description is required");
+        if (milestone.getAmount() == null || milestone.getAmount() <= 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Milestone amount must be greater than 0");
     }
 
     // MERGED PROPOSAL DETAILS (Keeps CC-3 Cache, Uses Main Builder)
@@ -302,12 +339,16 @@ public class ProposalService {
         Proposal proposal = proposalRepository.findByIdWithMilestones(proposalId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
-        List<ProposalMilestone> milestones = proposal.getProposalMilestones().stream().sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder)).toList();
+        List<ProposalMilestone> milestones = proposal.getProposalMilestones().stream()
+                .sorted(Comparator.comparing(ProposalMilestone::getMilestoneOrder)).toList();
         int totalMilestones = milestones.size();
-        int completedMilestones = (int) milestones.stream().filter(m -> (m.getStatus() == MilestoneStatus.COMPLETED || m.getStatus() == MilestoneStatus.APPROVED)).count();
+        int completedMilestones = (int) milestones.stream()
+                .filter(m -> (m.getStatus() == MilestoneStatus.COMPLETED || m.getStatus() == MilestoneStatus.APPROVED))
+                .count();
 
         List<ProposalMilestoneDTO> milestoneDTOs = milestones.stream()
-                .map(m -> new ProposalMilestoneDTO(m.getId(), m.getMilestoneOrder(), m.getTitle(), m.getDescription(), m.getAmount(), m.getStatus(), m.getMetadata()))
+                .map(m -> new ProposalMilestoneDTO(m.getId(), m.getMilestoneOrder(), m.getTitle(), m.getDescription(),
+                        m.getAmount(), m.getStatus(), m.getMetadata()))
                 .toList();
 
         return ProposalDetailsDTOBuilder.builder()
@@ -444,8 +485,7 @@ public class ProposalService {
             params.put("action", "ANALYTICS_VIEWED");
             params.put("details", Map.of(
                     "startDate", startDate.toString(),
-                    "endDate", endDate.toString()
-            ));
+                    "endDate", endDate.toString()));
 
             // Create common event via Factory
             MongoEvent event = EventFactory.createEvent(EventType.PROPOSAL, params);
@@ -478,20 +518,25 @@ public class ProposalService {
 
         // a) Validate Status
         if (proposal.getStatus() != ProposalStatus.SUBMITTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Proposal must be in SUBMITTED status to record interaction");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Proposal must be in SUBMITTED status to record interaction");
         }
 
-        // b) Idempotency check (Neo4j)
-        boolean alreadyRecorded = neo4jInteractionRepository.isInteractionRecorded(
-                proposal.getFreelancerId(), proposal.getJobId(), proposalId);
-
-        if (alreadyRecorded) {
-            return "Interaction already recorded in Neo4j (Idempotent)";
+        // b) Idempotency check (Neo4j) — do NOT return early; still ensure edge
+        // properties exist
+        boolean alreadyRecorded;
+        try {
+            alreadyRecorded = neo4jInteractionRepository.isInteractionRecorded(
+                    proposal.getFreelancerId(), proposal.getJobId(), proposalId);
+        } catch (Exception e) {
+            // Neo4j soft dependency — degrade gracefully
+            return "Neo4j unavailable; interaction not recorded";
         }
 
         // c) Fetch missing data natively from Postgres
         String freelancerName = proposalRepository.findFreelancerNameByIdNative(proposal.getFreelancerId());
-        if (freelancerName == null) freelancerName = "Unknown Freelancer";
+        if (freelancerName == null)
+            freelancerName = "Unknown Freelancer";
 
         List<Object[]> jobDetailsList = proposalRepository.findJobDetailsByIdNative(proposal.getJobId());
         String jobTitle = "Unknown Job";
@@ -503,19 +548,25 @@ public class ProposalService {
         }
 
         // d) Mutate Neo4j Graph
-        neo4jInteractionRepository.recordInteraction(
-                proposal.getFreelancerId(), freelancerName,
-                proposal.getJobId(), jobTitle, jobCategory,
-                proposalId
-        );
+        try {
+            neo4jInteractionRepository.recordInteraction(
+                    proposal.getFreelancerId(), freelancerName,
+                    proposal.getJobId(), jobTitle, jobCategory,
+                    proposalId);
+        } catch (Exception e) {
+            // Neo4j soft dependency — degrade gracefully
+            return "Neo4j unavailable; interaction not recorded";
+        }
 
-        // e) Log Mongo Event via Observer (Provides proposalId, freelancerId, jobId automatically)
+        // e) Log Mongo Event via Observer (Provides proposalId, freelancerId, jobId
+        // automatically)
         eventSubject.notifyObservers("INTERACTION_RECORDED", proposal);
 
         // f) Invalidate S3-F12 Cache
         cacheEvictionService.evictS3F12Recommendations();
 
-        return "Interaction successfully recorded";
+        return alreadyRecorded ? "Interaction already recorded in Neo4j (Idempotent)"
+                : "Interaction successfully recorded";
     }
 
     // ── S3-F12: Get Recommended Jobs for Freelancer ──────────────────────
@@ -529,7 +580,8 @@ public class ProposalService {
         // Traverse recommendation graph in Neo4j (DP-7 Adapter maps Record -> DTO)
         List<JobRecommendationDTO> rawRecommendations;
         try {
-            String cypher = "MATCH (f:Freelancer {userId: $freelancerId})-[:PROPOSED_TO]->(common:Job)<-[:PROPOSED_TO]-(similar:Freelancer) " +
+            String cypher = "MATCH (f:Freelancer {userId: $freelancerId})-[:PROPOSED_TO]->(common:Job)<-[:PROPOSED_TO]-(similar:Freelancer) "
+                    +
                     "WHERE similar.userId <> f.userId " +
                     "MATCH (similar)-[:PROPOSED_TO]->(rec:Job) " +
                     "WHERE NOT (f)-[:PROPOSED_TO]->(rec) " +
@@ -554,7 +606,8 @@ public class ProposalService {
             return List.of();
         }
 
-        // Enrich with job details from PostgreSQL (title, category) using a single batch query
+        // Enrich with job details from PostgreSQL (title, category) using a single
+        // batch query
         List<Long> jobIds = rawRecommendations.stream().map(JobRecommendationDTO::getJobId).toList();
         Map<Long, Object[]> jobDetailsMap = new java.util.HashMap<>();
         if (!jobIds.isEmpty()) {
