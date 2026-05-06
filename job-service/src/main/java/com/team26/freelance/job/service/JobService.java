@@ -150,17 +150,17 @@ public class JobService {
     }
 
     private void validateContractForJob(Long jobId, Long contractId) {
-        var rowOpt = jobRepository.findContractJobIdAndStatusById(contractId);
-        if (rowOpt == null || rowOpt.isEmpty()) {
+        List<Object[]> rows = jobRepository.findContractJobIdAndStatusById(contractId);
+        if (rows == null || rows.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
         }
 
-        Object[] row = (Object[]) rowOpt.get()[0];
+        Object[] row = rows.get(0);
         if (row == null || row.length == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
         }
 
-        Long contractJobId = ((Long) row[0]).longValue();
+        Long contractJobId = ((Number) row[0]).longValue();
         String status = (String) row[1];
 
         if (!jobId.equals(contractJobId)) {
