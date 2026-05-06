@@ -7,22 +7,25 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.web.SecurityFilterChain;
 
+import javax.sql.DataSource;
+
 @AutoConfiguration
 @ConditionalOnClass(SecurityFilterChain.class)
 public class JwtSecurityAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+    public JwtAuthenticationFilter jwtAuthenticationFilter(DataSource dataSource) {
 
         JwtConfigurationManager config = JwtConfigurationManager.getInstance();
 
         TokenExtractionHandler  h1 = new TokenExtractionHandler();
         TokenValidationHandler  h2 = new TokenValidationHandler(config);
         ClaimsExtractionHandler h3 = new ClaimsExtractionHandler();
-        SecurityContextHandler  h4 = new SecurityContextHandler();
+        UserLoaderHandler       h4 = new UserLoaderHandler(dataSource);
+        SecurityContextHandler  h5 = new SecurityContextHandler();
 
-        h1.setNext(h2).setNext(h3).setNext(h4);
+        h1.setNext(h2).setNext(h3).setNext(h4).setNext(h5);
 
         return new JwtAuthenticationFilter(h1);
     }

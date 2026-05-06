@@ -23,36 +23,35 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         """)
         Optional<Proposal> findByIdWithMilestones(@Param("proposalId") Long proposalId);
 
-        @Query(value = """
-                        SELECT * FROM proposals
-                        WHERE status = :status
-                          AND submitted_at BETWEEN :startDate AND :endDate
-                        ORDER BY submitted_at DESC
-                        """, nativeQuery = true)
-        List<Proposal> searchByStatusAndDateRange(
-                        @Param("status") String status,
+        List<Proposal> findByStatusAndSubmittedAtBetweenOrderBySubmittedAtDesc(
+                        @Param("status") com.team26.freelance.proposal.model.ProposalStatus status,
                         @Param("startDate") LocalDateTime startDate,
                         @Param("endDate") LocalDateTime endDate);
 
-        @Query(value = """
-                        SELECT * FROM proposals
-                        WHERE submitted_at BETWEEN :startDate AND :endDate
-                        ORDER BY submitted_at DESC
-                        """, nativeQuery = true)
-        List<Proposal> searchByDateRange(
+        List<Proposal> findBySubmittedAtBetweenOrderBySubmittedAtDesc(
                         @Param("startDate") LocalDateTime startDate,
                         @Param("endDate") LocalDateTime endDate);
 
-        @Query(value = """
-                        SELECT * FROM proposals
-                        WHERE status = :status
-                        ORDER BY submitted_at DESC
-                        """, nativeQuery = true)
-        List<Proposal> searchByStatus(
-                        @Param("status") String status);
+        List<Proposal> findByStatusOrderBySubmittedAtDesc(
+                        @Param("status") com.team26.freelance.proposal.model.ProposalStatus status);
 
         @Query(value = "SELECT role FROM users WHERE id = :freelancerId", nativeQuery = true)
         String findFreelancerRole(@Param("freelancerId") Long freelancerId);
+
+        // ── Authorization helpers (Postgres is shared across services) ─────
+
+        @Query(value = "SELECT COUNT(*) > 0 FROM proposals WHERE id = :proposalId AND freelancer_id = :freelancerId", nativeQuery = true)
+        boolean isProposalOwnedByFreelancer(@Param("proposalId") Long proposalId,
+                        @Param("freelancerId") Long freelancerId);
+
+        @Query(value = """
+                        SELECT COUNT(*) > 0
+                        FROM proposals p
+                        JOIN jobs j ON j.id = p.job_id
+                        WHERE p.id = :proposalId
+                                AND j.client_id = :clientId
+                        """, nativeQuery = true)
+        boolean isProposalOwnedByClient(@Param("proposalId") Long proposalId, @Param("clientId") Long clientId);
 
         @Modifying
         @Transactional
@@ -119,7 +118,11 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         @Query(value = "UPDATE jobs SET status = 'OPEN' WHERE id = :jobId AND status = 'IN_PROGRESS'", nativeQuery = true)
         void reopenJob(@Param("jobId") Long jobId);
 
-        @Query(value = "SELECT * FROM proposals WHERE metadata @> jsonb_build_object(:jsonKey, :jsonValue)", nativeQuery = true)
+        @Query(value = """
+                        SELECT *
+                        FROM proposals
+                        WHERE metadata @> jsonb_build_object(CAST(:jsonKey AS text), CAST(:jsonValue AS text))
+                        """, nativeQuery = true)
         List<Proposal> findByMetadataField(@Param("jsonKey") String key, @Param("jsonValue") String value);
 
         @Query(value = """
@@ -133,6 +136,7 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         """, nativeQuery = true)
         List<Object[]> getProposalAnalyticsRawData(@Param("startDate") LocalDateTime startDate,
                         @Param("endDate") LocalDateTime endDate);
+
         @Query(value = """
                         SELECT status, COUNT(*) as count
                         FROM proposals
@@ -140,23 +144,21 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         GROUP BY status
                         """, nativeQuery = true)
         List<Object[]> countByStatusInRange(
-                @Param("startDate") LocalDateTime startDate,
-                @Param("endDate") LocalDateTime endDate
-        );
+                        @Param("startDate") LocalDateTime startDate,
+                        @Param("endDate") LocalDateTime endDate);
 
         @Query(value = """
-                       SELECT 
-                        COUNT(*) as total,
-                        AVG(bid_amount) as avgBid,
-                        AVG(estimated_days) as avgDays,
-                        SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END) as accepted
-                       FROM proposals
-                       WHERE submitted_at BETWEEN :startDate AND :endDate
-                       """, nativeQuery = true)
+                        SELECT
+                         COUNT(*) as total,
+                         AVG(bid_amount) as avgBid,
+                         AVG(estimated_days) as avgDays,
+                         SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END) as accepted
+                        FROM proposals
+                        WHERE submitted_at BETWEEN :startDate AND :endDate
+                        """, nativeQuery = true)
         List<Object[]> getAggregateStats(
-                @Param("startDate") LocalDateTime startDate,
-                @Param("endDate") LocalDateTime endDate
-        );
+                        @Param("startDate") LocalDateTime startDate,
+                        @Param("endDate") LocalDateTime endDate);
 
         // Native lookups for Neo4j synchronization
         @Query(value = "SELECT name FROM users WHERE id = :freelancerId", nativeQuery = true)

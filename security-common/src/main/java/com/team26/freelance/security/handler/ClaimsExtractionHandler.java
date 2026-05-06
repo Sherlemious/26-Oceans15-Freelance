@@ -20,11 +20,11 @@ public class ClaimsExtractionHandler extends AuthHandler {
         String role = claims.get("role", String.class);
 
         if (subject == null || subject.isBlank())
-            throw new JwtAuthException("Missing 'sub' claim");
+            throw new JwtAuthException("Invalid token claims");
         if (uid == null || uid.isBlank())
-            throw new JwtAuthException("Missing 'uid' claim");
+            throw new JwtAuthException("Invalid token claims");
         if (role == null || role.isBlank())
-            throw new JwtAuthException("Missing 'role' claim");
+            throw new JwtAuthException("Invalid token claims");
 
         context.setSubject(subject);
         context.setUid(uid);
