@@ -34,9 +34,9 @@ public class TokenValidationHandler extends AuthHandler {
             context.getRequest().setAttribute("jwt_claims", claims);
 
         } catch (ExpiredJwtException e) {
-            throw new JwtAuthException("JWT token has expired");
+            throw new JwtAuthException("Token expired");
         } catch (JwtException e) {
-            throw new JwtAuthException("JWT signature validation failed: " + e.getMessage());
+            throw new JwtAuthException("Invalid token");
         }
 
         passToNext(context);

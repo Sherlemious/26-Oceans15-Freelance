@@ -9,6 +9,7 @@ import com.team26.freelance.wallet.dto.PromoCodeUsageDTO;
 import com.team26.freelance.wallet.dto.RefundRequest;
 import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
 import com.team26.freelance.wallet.model.Payout;
+import com.team26.freelance.wallet.service.PayoutAuditService;
 import com.team26.freelance.wallet.service.PayoutService;
 import com.team26.freelance.wallet.service.PlatformFeeAnalyticsService;
 import java.time.LocalDate;
@@ -32,11 +33,14 @@ public class PayoutController {
 
   private final PayoutService payoutService;
   private final PlatformFeeAnalyticsService platformFeeAnalyticsService;
+  private final PayoutAuditService payoutAuditService;
 
   public PayoutController(PayoutService payoutService,
-                          PlatformFeeAnalyticsService platformFeeAnalyticsService) {
+                          PlatformFeeAnalyticsService platformFeeAnalyticsService,
+                          PayoutAuditService payoutAuditService) {
     this.payoutService = payoutService;
     this.platformFeeAnalyticsService = platformFeeAnalyticsService;
+    this.payoutAuditService = payoutAuditService;
   }
 
   @GetMapping
@@ -53,6 +57,7 @@ public class PayoutController {
   public ResponseEntity<List<CategoryRevenueDTO>> getPlatformFeeAnalyticsByCategory(
           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+    payoutAuditService.recordAnalyticsViewed();
     return ResponseEntity.ok(
             platformFeeAnalyticsService.getPlatformFeeAnalytics(startDate, endDate)
     );

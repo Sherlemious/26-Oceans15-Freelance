@@ -7,6 +7,7 @@ import com.team26.freelance.proposal.dto.FeeEstimateRequest;
 import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDashboardDTO;
+import com.team26.freelance.proposal.dto.JobRecommendationDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
@@ -17,7 +18,10 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -42,19 +46,19 @@ public class ProposalController {
         return ResponseEntity.ok(proposalService.getAllProposals());
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN') and @proposalAuthorization.canViewProposal(#id, authentication)")
     @GetMapping("/{id}")
     public ResponseEntity<Proposal> getProposalById(@NonNull @PathVariable Long id) {
         return ResponseEntity.ok(proposalService.getProposalById(id));
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and (@proposalAuthorization.isAdmin(authentication) or @proposalAuthorization.getUid(authentication) == #request.freelancerId())")
     @PostMapping
     public ResponseEntity<Proposal> createProposal(@Valid @RequestBody CreateProposalDTO request) {
         return ResponseEntity.status(201).body(proposalService.createProposal(request));
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
     @PutMapping("/{id}")
     public ResponseEntity<Proposal> updateProposal(@NonNull @PathVariable Long id,
                                                    @Valid @RequestBody UpdateProposalDTO proposal) {
@@ -77,7 +81,7 @@ public class ProposalController {
         return ResponseEntity.ok(proposalService.searchByStatusAndDateRange(status, startDate, endDate));
     }
 
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN') and @proposalAuthorization.canAcceptProposal(#proposalId, authentication)")
     @PutMapping("/{proposalId}/accept")
     public ResponseEntity<Proposal> acceptProposal(@NonNull @PathVariable Long proposalId) {
         return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
@@ -92,21 +96,21 @@ public class ProposalController {
 
     // ── S3-F4: Complete Proposal's Contract ─────────────────────────────────
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
     @PutMapping("/{id}/complete")
     public ResponseEntity<Proposal> completeProposalContract(@NonNull @PathVariable Long id) {
         Proposal completedProposal = proposalService.completeProposalContract(id);
         return ResponseEntity.ok(completedProposal);
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
     @PutMapping("/{id}/withdraw")
     public ResponseEntity<Proposal> withdrawProposal(@NonNull @PathVariable Long id) {
         Proposal withdrawnProposal = proposalService.withdrawProposal(id);
         return ResponseEntity.ok(withdrawnProposal);
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#proposalId, authentication)")
     @PostMapping("/{proposalId}/milestones")
     public ResponseEntity<Proposal> addMilestonesToProposal(@NonNull @PathVariable Long proposalId,
             @RequestBody List<ProposalMilestone> milestones) {
@@ -114,7 +118,7 @@ public class ProposalController {
         return ResponseEntity.ok(updatedProposal);
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN') and @proposalAuthorization.canViewProposal(#proposalId, authentication)")
     @GetMapping("/{proposalId}/details")
     public ResponseEntity<ProposalDetailsDTO> getProposalDetails(@NonNull @PathVariable Long proposalId) {
         return ResponseEntity.ok(proposalService.getProposalDetails(proposalId));
@@ -156,10 +160,48 @@ public class ProposalController {
                 proposalService.getProposalAnalyticsDashboard(startDate, endDate));
     }
 
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#proposalId, authentication)")
     @PostMapping("/{proposalId}/record-interaction")
     public ResponseEntity<String> recordInteraction(@PathVariable Long proposalId) {
         String result = proposalService.recordInteraction(proposalId);
         return ResponseEntity.ok(result);
+    }
+
+    // ── S3-F12: Recommendations ──────────────────────────────────────────
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @GetMapping("/recommendations")
+    public ResponseEntity<List<JobRecommendationDTO>> getRecommendations(
+            @RequestParam Long freelancerId,
+            @RequestParam(required = false) Integer limit,
+            Authentication authentication
+    ) {
+        if (authentication == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthorized");
+        }
+
+        int effectiveLimit = (limit == null) ? 5 : limit;
+        if (effectiveLimit <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be a positive integer");
+        }
+
+        Long callerUid;
+        try {
+            callerUid = Long.valueOf(String.valueOf(authentication.getCredentials()));
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid uid claim");
+        }
+
+        boolean isAdmin = authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equalsIgnoreCase(a.getAuthority()));
+
+        if (!isAdmin && !callerUid.equals(freelancerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Ownership violation");
+        }
+
+        return ResponseEntity.ok(
+                proposalService.getRecommendedJobsForFreelancer(freelancerId, effectiveLimit)
+        );
     }
 
 

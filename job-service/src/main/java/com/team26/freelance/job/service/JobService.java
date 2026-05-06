@@ -1,16 +1,16 @@
 package com.team26.freelance.job.service;
 
-import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
-import com.team26.freelance.job.dto.JobDashboardDTO;
-import com.team26.freelance.job.dto.TopBudgetJobDTO;
-import com.team26.freelance.job.dto.JobProposalSummaryDTO;
+import com.team26.freelance.job.dto.*;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
-import com.team26.freelance.job.model.mongo.JobEvent;
 import com.team26.freelance.job.repository.JobRepository;
 import com.team26.freelance.job.repository.mongo.JobEventRepository;
 import org.springframework.http.HttpStatus;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,14 +36,36 @@ public class JobService {
         this.jobEventRepository = jobEventRepository;
     }
 
-    public Job createJob(Job job) {
+    public JobSearchResultDTO createJob(JobRequestDTO request) {
+        Long clientId = Long.parseLong(
+                SecurityContextHolder.getContext().getAuthentication().getCredentials().toString()
+        );
+
+        Job job = new Job();
+        job.setClientId(clientId);
+        job.setStatus(JobStatus.OPEN);
+        job.setTitle(request.getTitle());
+        job.setDescription(request.getDescription());
+        job.setCategory(request.getCategory());
+        job.setBudgetMin(request.getBudgetMin());
+        job.setBudgetMax(request.getBudgetMax());
+
         Job saved = jobRepository.save(job);
+
         jobSearchService.indexJob(saved.getId(), "auto_crud_create");
         jobSearchService.notifyObservers("JOB_CREATED", Map.of(
                 "jobId", saved.getId(),
                 "source", "auto_crud_create"
         ));
-        return saved;
+
+        return JobSearchResultDTO.builder()
+                .id(saved.getId())
+                .title(saved.getTitle())
+                .description(saved.getDescription())
+                .category(saved.getCategory() != null ? saved.getCategory().name() : null)
+                .budgetMin(saved.getBudgetMin())
+                .budgetMax(saved.getBudgetMax())
+                .build();
     }
 
     public List<Job> getAllJobs() {
@@ -107,9 +129,16 @@ public class JobService {
     }
 
 
+    private static final Logger log = LoggerFactory.getLogger(JobService.class);
+
     public List<Job> filterByRequirement(String key, String value, JobStatus status) {
-        String statusStr = status != null ? status.name() : null;
-        return jobRepository.findByRequirementAndStatus(key, value, statusStr);
+        try {
+            String statusStr = status != null ? status.name() : null;
+            return jobRepository.findByRequirementAndStatus(key, value, statusStr);
+        } catch (Exception e) {
+            log.error("Error filtering jobs by requirement: key={}, value={}", key, value, e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Database error occurred");
+        }
     }
 
     private void validateRating(int rating) {
@@ -121,17 +150,17 @@ public class JobService {
     }
 
     private void validateContractForJob(Long jobId, Long contractId) {
-        var rowOpt = jobRepository.findContractJobIdAndStatusById(contractId);
-        if (rowOpt == null || rowOpt.isEmpty()) {
+        List<Object[]> rows = jobRepository.findContractJobIdAndStatusById(contractId);
+        if (rows == null || rows.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
         }
 
-        Object[] row = (Object[]) rowOpt.get()[0];
+        Object[] row = rows.get(0);
         if (row == null || row.length == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
         }
 
-        Long contractJobId = ((Long) row[0]).longValue();
+        Long contractJobId = ((Number) row[0]).longValue();
         String status = (String) row[1];
 
         if (!jobId.equals(contractJobId)) {

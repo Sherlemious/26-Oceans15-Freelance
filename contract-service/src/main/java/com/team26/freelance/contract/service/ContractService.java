@@ -456,7 +456,7 @@ public class ContractService {
         return details;
     }
   
-    @Cacheable(value = "contract-s4-f12", key = "'contract-service::S4-F12::' + #contractId")
+    @Cacheable(value = "contract-s4-f12", key = "@contractCacheKeys.featureKeyWithId('S4-F12', #contractId, #startTime, #endTime)")
     public List<ContractMilestoneDTO> getContractMilestoneTimeline(Long contractId, Instant startTime, Instant endTime) {
         getContractById(contractId);
 

@@ -37,20 +37,20 @@ public class ProposalMilestoneController {
         return ResponseEntity.ok(proposalMilestoneService.getAllMilestones());
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN') and @proposalAuthorization.canViewMilestone(#id, authentication)")
     @GetMapping("/{id}")
     public ResponseEntity<ProposalMilestone> getMilestoneById(@NonNull @PathVariable Long id) {
         return ResponseEntity.ok(proposalMilestoneService.getMilestoneById(id));
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
     @PostMapping("/proposal/{id}")
     public ResponseEntity<ProposalMilestone> createMilestone(@NonNull @PathVariable Long id,
                                                              @Valid @RequestBody CreateProposalMilestoneDTO milestone) {
         return ResponseEntity.status(201).body(proposalMilestoneService.createMilestone(id, milestone));
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyMilestone(#id, authentication)")
     @PutMapping("/{id}")
     public ResponseEntity<ProposalMilestone> updateMilestone(@NonNull @PathVariable Long id,
                                                              @RequestBody ProposalMilestone milestone) {

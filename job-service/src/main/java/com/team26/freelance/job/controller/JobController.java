@@ -1,15 +1,12 @@
 package com.team26.freelance.job.controller;
 
-import com.team26.freelance.job.dto.JobDashboardDTO;
+import com.team26.freelance.job.dto.*;
 import com.team26.freelance.job.service.CacheEvictionService;
-import com.team26.freelance.job.dto.JobAttachmentAlertDTO;
-import com.team26.freelance.job.dto.TopBudgetJobDTO;
-import com.team26.freelance.job.dto.JobProposalSummaryDTO;
 import com.team26.freelance.job.service.JobSearchService;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
-import com.team26.freelance.job.dto.JobSearchResultDTO;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.service.JobService;
 
@@ -40,7 +37,8 @@ public class JobController {
     }
 
     @PostMapping
-    public Job createJob(@RequestBody Job job) {
+    @ResponseStatus(HttpStatus.CREATED)
+    public JobSearchResultDTO createJob(@Valid @RequestBody JobRequestDTO job) {
         return jobService.createJob(job);
     }
 
@@ -86,6 +84,13 @@ public class JobController {
             @RequestParam String key,
             @RequestParam String value,
             @RequestParam(required = false) JobStatus status) {
+
+        if (key == null || key.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Key parameter cannot be blank");
+        }
+        if (value == null || value.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Value parameter cannot be blank");
+        }
         return ResponseEntity.ok(jobService.filterByRequirement(key, value, status));
     }
 

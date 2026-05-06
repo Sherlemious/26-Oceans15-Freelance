@@ -30,6 +30,7 @@ public class RedisCacheConfig {
         specificConfigs.put("proposal-service::S3-F5", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         specificConfigs.put("proposal-service::S3-F6", defaultConfig.entryTtl(Duration.ofMinutes(10)));
         specificConfigs.put("proposal-service::S3-F9", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+        specificConfigs.put("proposal-service::S3-F12", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         specificConfigs.put("proposal-service::proposal", defaultConfig.entryTtl(Duration.ofMinutes(15)));
 
         return RedisCacheManager.builder(connectionFactory)

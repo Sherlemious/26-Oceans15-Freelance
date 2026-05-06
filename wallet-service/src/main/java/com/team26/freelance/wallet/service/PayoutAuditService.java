@@ -48,7 +48,11 @@ public class PayoutAuditService {
     }
 
     public void recordAnalyticsViewed() {
-        recordGenericEvent(ANALYTICS_VIEWED, Map.of("reason", "Payout method breakdown analytics viewed"));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("payoutId", null);
+        payload.put("action", ANALYTICS_VIEWED);
+        payload.put("details", Map.of("reason", "Payout analytics viewed"));
+        record(ANALYTICS_VIEWED, payload);
     }
 
     public void recordRefundResult(Payout payout,
@@ -67,6 +71,9 @@ public class PayoutAuditService {
         details.put("refundReason", refundReason);
 
         recordPayoutEvent(payout, approved ? REFUNDED : REFUND_DENIED, details);
+        if (payout != null) {
+            cacheService.evictPayoutDetail(payout.getId());
+        }
     }
 
     public void recordGenericEvent(String action, Map<String, Object> details) {
@@ -78,12 +85,15 @@ public class PayoutAuditService {
     private void record(String action, Map<String, Object> payload) {
         payoutAuditSubject.notifyObservers(action, payload);
         if (invalidatesAnalyticsCache(action)) {
-            cacheService.evictMethodBreakdown();
+            cacheService.evictAnalyticsCaches();
         }
     }
 
     private boolean invalidatesAnalyticsCache(String action) {
-        return !ANALYTICS_VIEWED.equals(action);
+        if (ANALYTICS_VIEWED.equals(action)) {
+            return false;
+        }
+        return true;
     }
 
     private String methodName(Payout payout) {

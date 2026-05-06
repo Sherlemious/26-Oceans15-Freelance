@@ -5,7 +5,10 @@ import com.team26.freelance.user.dto.UpdateRoleRequestDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
+import com.team26.freelance.user.dto.ActivityFeedResponseDTO;
 import com.team26.freelance.user.model.User;
+import com.team26.freelance.user.security.UserAuthorizationService;
+import com.team26.freelance.user.service.UserActivityService;
 import com.team26.freelance.user.service.UserService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -27,9 +30,15 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final UserActivityService userActivityService;
+    private final UserAuthorizationService userAuthorizationService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService,
+                          UserActivityService userActivityService,
+                          UserAuthorizationService userAuthorizationService) {
         this.userService = userService;
+        this.userActivityService = userActivityService;
+        this.userAuthorizationService = userAuthorizationService;
     }
 
     @PostMapping
@@ -40,7 +49,17 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
+        userAuthorizationService.requireOwnerOrAdmin(id);
         return ResponseEntity.ok(userService.findById(id));
+    }
+
+    @GetMapping("/{id}/activity")
+    public ResponseEntity<ActivityFeedResponseDTO> getActivityFeed(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        userAuthorizationService.requireOwnerOrAdmin(id);
+        return ResponseEntity.ok(userActivityService.getActivityFeed(id, page, size));
     }
 
     @GetMapping("/{id}/profile")
@@ -63,6 +82,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> update(@PathVariable Long id, @RequestBody User user) {
+        userAuthorizationService.requireOwnerOrAdmin(id);
         return ResponseEntity.ok(userService.update(id, user));
     }
 
@@ -73,6 +93,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        userAuthorizationService.requireOwnerOrAdmin(id);
         userService.delete(id);
         return ResponseEntity.noContent().build();
     }

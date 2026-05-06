@@ -5,6 +5,8 @@ import com.team26.freelance.wallet.repository.PromoCodeRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,16 @@ public class PromoCodeService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "PromoCode not found"));
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "wallet-service::payout", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F11", allEntries = true)
+    })
     @Transactional
     public PromoCode create(PromoCode promoCode) {
         promoCode.setId(null);
@@ -40,6 +52,16 @@ public class PromoCodeService {
         return saved;
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "wallet-service::payout", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F11", allEntries = true)
+    })
     @Transactional
     public PromoCode update(Long id, PromoCode updated) {
         PromoCode existing = getById(id);
@@ -57,6 +79,16 @@ public class PromoCodeService {
         return saved;
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "wallet-service::payout", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F1", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F3", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F6", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F8", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F9", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F10", allEntries = true),
+            @CacheEvict(cacheNames = "wallet-service::S5-F11", allEntries = true)
+    })
     @Transactional
     public void delete(Long id) {
         PromoCode existing = getById(id);
