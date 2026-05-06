@@ -8,7 +8,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface JobRepository extends JpaRepository<Job, Long> {
@@ -70,7 +69,7 @@ public interface JobRepository extends JpaRepository<Job, Long> {
                                       @Param("endDate") String endDate);
 
         @Query(value = "SELECT job_id, status FROM contracts WHERE id = :id", nativeQuery = true)
-        Optional<Object[]> findContractJobIdAndStatusById(@Param("id") Long id);
+        List<Object[]> findContractJobIdAndStatusById(@Param("id") Long id);
 
     @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId", nativeQuery = true)
     Long countTotalProposalsByJobId(@Param("jobId") Long jobId);
