@@ -54,6 +54,20 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         @Query(value = "SELECT role FROM users WHERE id = :freelancerId", nativeQuery = true)
         String findFreelancerRole(@Param("freelancerId") Long freelancerId);
 
+                                // ── Authorization helpers (Postgres is shared across services) ─────
+
+                                @Query(value = "SELECT COUNT(*) > 0 FROM proposals WHERE id = :proposalId AND freelancer_id = :freelancerId", nativeQuery = true)
+                                boolean isProposalOwnedByFreelancer(@Param("proposalId") Long proposalId, @Param("freelancerId") Long freelancerId);
+
+                                @Query(value = """
+                                                                                                SELECT COUNT(*) > 0
+                                                                                                FROM proposals p
+                                                                                                JOIN jobs j ON j.id = p.job_id
+                                                                                                WHERE p.id = :proposalId
+                                                                                                        AND j.client_id = :clientId
+                                                                                                """, nativeQuery = true)
+                                boolean isProposalOwnedByClient(@Param("proposalId") Long proposalId, @Param("clientId") Long clientId);
+
         @Modifying
         @Transactional
         @Query(value = "UPDATE jobs SET status = 'IN_PROGRESS' WHERE id = :jobId", nativeQuery = true)

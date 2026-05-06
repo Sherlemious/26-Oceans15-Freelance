@@ -16,4 +16,25 @@ public interface ProposalMilestoneRepository extends JpaRepository<ProposalMiles
 
     @Query("SELECT COALESCE(SUM(pm.amount), 0) FROM ProposalMilestone pm WHERE pm.proposal.id = :proposalId")
     double sumAmountsByProposalId(@Param("proposalId") Long proposalId);
+
+        // ── Authorization helpers ────────────────────────────────────────────
+
+        @Query(value = """
+                        SELECT COUNT(*) > 0
+                        FROM proposal_milestones pm
+                        JOIN proposals p ON p.id = pm.proposal_id
+                        WHERE pm.id = :milestoneId
+                            AND p.freelancer_id = :freelancerId
+                        """, nativeQuery = true)
+        boolean isMilestoneOwnedByFreelancer(@Param("milestoneId") Long milestoneId, @Param("freelancerId") Long freelancerId);
+
+        @Query(value = """
+                        SELECT COUNT(*) > 0
+                        FROM proposal_milestones pm
+                        JOIN proposals p ON p.id = pm.proposal_id
+                        JOIN jobs j ON j.id = p.job_id
+                        WHERE pm.id = :milestoneId
+                            AND j.client_id = :clientId
+                        """, nativeQuery = true)
+        boolean isMilestoneRelatedToClient(@Param("milestoneId") Long milestoneId, @Param("clientId") Long clientId);
 }

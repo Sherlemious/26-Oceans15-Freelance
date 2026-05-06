@@ -3,6 +3,7 @@ package com.team26.freelance.proposal.service;
 import com.team26.freelance.common.event.EventFactory;
 import com.team26.freelance.common.event.EventType;
 import com.team26.freelance.common.event.MongoEvent;
+import com.team26.freelance.common.event.ProposalEvent;
 import com.team26.freelance.proposal.observer.ProposalEventSubject;
 import com.team26.freelance.proposal.adapter.MongoDocumentAdapter;
 import com.team26.freelance.proposal.adapter.Neo4jRecordAdapter;
@@ -19,7 +20,6 @@ import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.model.ProposalStatus;
-import com.team26.freelance.proposal.model.ProposalEvent;
 import com.team26.freelance.proposal.repository.Neo4jInteractionRepository;
 import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
@@ -442,22 +442,19 @@ public class ProposalService {
         try {
             Map<String, Object> params = new java.util.HashMap<>();
             params.put("action", "ANALYTICS_VIEWED");
-            params.put("startDate", startDate.toString());
-            params.put("endDate", endDate.toString());
+            params.put("details", Map.of(
+                    "startDate", startDate.toString(),
+                    "endDate", endDate.toString()
+            ));
 
             // Create common event via Factory
             MongoEvent event = EventFactory.createEvent(EventType.PROPOSAL, params);
 
-            // Map it to the local Database Entity
-            com.team26.freelance.proposal.model.ProposalEvent dbEntity =
-                    new com.team26.freelance.proposal.model.ProposalEvent(
-                            null,
-                            event.getAction(),
-                            event.getTimestamp(),
-                            event.getDetails()
-                    );
-
-            proposalEventRepository.save(dbEntity);
+            if (event instanceof ProposalEvent proposalEvent) {
+                proposalEventRepository.save(proposalEvent);
+            } else {
+                System.err.println("WARN: Expected ProposalEvent but got " + event.getClass().getSimpleName());
+            }
         } catch (Exception e) {
             System.err.println("WARN: Failed to log ANALYTICS_VIEWED event: " + e.getMessage());
         }
