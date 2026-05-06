@@ -34,6 +34,7 @@ public class CacheConfig implements CachingConfigurer {
     public static final String S1_F6_CACHE = "s1-f6-top-freelancers";
     public static final String S1_F8_CACHE = "s1-f8-user-profile";
     public static final String S1_F9_CACHE = "s1-f9-language-preferences";
+    public static final String S1_F12_CACHE = "s1-f12-activity-feed";
 
     private final RedisConnectionFactory connectionFactory;
 
@@ -54,7 +55,8 @@ public class CacheConfig implements CachingConfigurer {
                 S1_F5_CACHE, redisCacheConfiguration(Duration.ofMinutes(5)),
                 S1_F6_CACHE, redisCacheConfiguration(Duration.ofMinutes(10)),
                 S1_F8_CACHE, redisCacheConfiguration(Duration.ofMinutes(15)),
-                S1_F9_CACHE, redisCacheConfiguration(Duration.ofMinutes(10))
+                S1_F9_CACHE, redisCacheConfiguration(Duration.ofMinutes(10)),
+                S1_F12_CACHE, redisCacheConfiguration(Duration.ofMinutes(5))
         );
 
         return RedisCacheManager.builder(connectionFactory)
