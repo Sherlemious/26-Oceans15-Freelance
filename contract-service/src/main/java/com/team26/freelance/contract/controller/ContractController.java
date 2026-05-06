@@ -20,6 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -119,8 +121,8 @@ public class ContractController {
         Instant start = null;
         Instant end = null;
         try {
-            if (startTime != null) start = Instant.parse(startTime);
-            if (endTime != null) end = Instant.parse(endTime);
+            if (startTime != null) start = LocalDateTime.parse(startTime).atZone(ZoneId.of("UTC")).toInstant();
+            if (endTime != null) end = LocalDateTime.parse(endTime).atZone(ZoneId.of("UTC")).toInstant();
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date format");
         }
