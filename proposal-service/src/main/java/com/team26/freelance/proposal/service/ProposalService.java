@@ -170,16 +170,17 @@ public class ProposalService {
             end = effectiveEndDate.atTime(LocalTime.MAX);
         }
 
-        if (statusEnum == null && start == null) {
-            return proposalRepository.findAll(Sort.by(Sort.Direction.DESC, "submittedAt"));
-        }
-        if (statusEnum != null && start == null) {
-            return proposalRepository.findByStatusOrderBySubmittedAtDesc(statusEnum);
-        }
-        if (statusEnum == null) {
-            return proposalRepository.findBySubmittedAtBetweenOrderBySubmittedAtDesc(start, end);
-        }
-        return proposalRepository.findByStatusAndSubmittedAtBetweenOrderBySubmittedAtDesc(statusEnum, start, end);
+        final ProposalStatus finalStatusEnum = statusEnum;
+        final LocalDateTime finalStart = start;
+        final LocalDateTime finalEnd = end;
+
+        return proposalRepository.findAll().stream()
+            .filter(proposal -> finalStatusEnum == null || proposal.getStatus() == finalStatusEnum)
+            .filter(proposal -> finalStart == null || proposal.getSubmittedAt() != null)
+            .filter(proposal -> finalStart == null || !proposal.getSubmittedAt().isBefore(finalStart))
+            .filter(proposal -> finalEnd == null || !proposal.getSubmittedAt().isAfter(finalEnd))
+                .sorted(Comparator.comparing(Proposal::getSubmittedAt).reversed())
+                .toList();
     }
 
     private void validateFreelancer(Long freelancerId) {
@@ -221,10 +222,11 @@ public class ProposalService {
                     "bidAmount must be positive and estimatedDays must be zero or positive");
         }
 
-        double feePercentage = (estimatedDays <= 5) ? 20.0 : (estimatedDays <= 15) ? 15.0 : 10.0;
-        double platformFee = bidAmount * feePercentage / 100;
+        double feePercentageValue = (estimatedDays <= 5) ? 20.0 : (estimatedDays <= 15) ? 15.0 : 10.0;
+        double platformFee = bidAmount * feePercentageValue / 100;
         double freelancerPayout = bidAmount - platformFee;
-        double estimatedDailyRate = freelancerPayout; // Ensures builder doesn't break
+        double estimatedDailyRate = (estimatedDays > 0) ? (bidAmount / estimatedDays) : 0.0;
+        double feePercentage = feePercentageValue / 100.0;
 
         return FeeEstimateDTO.builder()
                 .withBidAmount(bidAmount)
@@ -376,7 +378,11 @@ public class ProposalService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid metadata key");
         }
 
-        return proposalRepository.findByMetadataField(normalizedKey, normalizedValue);
+        return proposalRepository.findAll().stream()
+                .filter(proposal -> proposal.getMetadata() != null)
+                .filter(proposal -> proposal.getMetadata().containsKey(normalizedKey))
+                .filter(proposal -> normalizedValue.equals(String.valueOf(proposal.getMetadata().get(normalizedKey))))
+                .toList();
     }
 
     @Cacheable(value = "proposal-service::S3-F6", key = "#startDate.toString() + '-' + #endDate.toString()")
