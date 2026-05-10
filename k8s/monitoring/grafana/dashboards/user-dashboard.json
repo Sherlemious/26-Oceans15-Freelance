@@ -1,0 +1,100 @@
+{
+  "title": "User Service Dashboard",
+  "uid": "user-service",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Error Rate (errors/min)",
+      "description": "Count of ERROR-level log lines per minute — spike detection",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"ERROR\"}[1m]))",
+          "legendFormat": "errors/min"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Feign Call Outcomes",
+      "description": "Successful Feign responses vs FeignException catches per minute",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\"} |= \"returned successfully\" [1m]))",
+          "legendFormat": "Feign success/min"
+        },
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\"} |= \"Feign call to\" |= \"failed\" [1m]))",
+          "legendFormat": "Feign errors/min"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Correlation ID Trace",
+      "description": "All log lines across user-service filtered by X-Correlation-ID for request tracing",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{app=\"freelance\", service=\"user-service\"} | json | correlationId != \"\"",
+          "legendFormat": ""
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "HTTP Request Rate (req/s)",
+      "description": "Requests per second per endpoint",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "rate(http_server_requests_seconds_count{job=\"user-service\"}[1m])",
+          "legendFormat": "{{uri}} {{method}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "HTTP Latency P99 (s)",
+      "description": "P99 latency per endpoint",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{job=\"user-service\"}[5m])) by (le, uri))",
+          "legendFormat": "P99 {{uri}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "JVM Heap Usage (bytes)",
+      "description": "Heap memory pressure — memory usage before potential OOM",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "jvm_memory_used_bytes{job=\"user-service\", area=\"heap\"}",
+          "legendFormat": "heap used"
+        }
+      ]
+    }
+  ]
+}

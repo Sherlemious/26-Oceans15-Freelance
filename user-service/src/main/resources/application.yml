@@ -8,7 +8,7 @@ spring:
   application:
     name: user-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://user-postgres:5432/freelancedb-users}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
   jpa:
@@ -34,11 +34,21 @@ jwt:
   secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
   expiration: ${JWT_EXPIRATION:86400000}
 
+feign:
+  contract-service:
+    url: ${FEIGN_CONTRACT_SERVICE_URL:http://contract-service:8080}
+  wallet-service:
+    url: ${FEIGN_WALLET_SERVICE_URL:http://wallet-service:8080}
+
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: "prometheus,health,info"
   endpoint:
     health:
       show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
