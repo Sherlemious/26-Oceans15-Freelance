@@ -34,13 +34,16 @@ import org.springframework.web.server.ResponseStatusException;
  * <p>Tests wallet-service participation in the Proposal-Payment Choreography Saga:
  * <ul>
  *   <li>Scenario A — happy path: payout created and reaches COMPLETED
- *   <li>Scenario B — payout failure + compensation: FAILED → REFUNDED
+ *   <li>Scenario B — payout failure + compensation: FAILED → REFUNDED via
+ *       {@link PayoutService#compensateFailedPayout(Long)} (the proposal.cancelled consumer
+ *       entry point) — no direct test-side {@code setStatus()} mutation
  *   <li>Scenario C — pre-check failure (no contract): synchronous 404, no payout created
+ *   <li>Edge cases: PENDING reuse, compensation idempotency, state-order guarantee
  * </ul>
  *
- * <p>All async state verifications use {@code Awaitility.await().atMost(5, SECONDS)} as required
- * by §8.6. Uses {@link java.lang.reflect.Proxy} for interface test-doubles (JPA repositories) and
- * anonymous subclasses for concrete service test-doubles — consistent with the project's Java 25
+ * <p>Every async state assertion uses {@code Awaitility.await().atMost(5, SECONDS)} per §8.6.
+ * Uses {@link java.lang.reflect.Proxy} for interface test-doubles (JPA repositories) and
+ * anonymous subclasses for concrete service test-doubles — consistent with the Java 25
  * testing pattern established in {@code PayoutServiceTest}.
  */
 class ProposalPaymentSagaE2ETest {
@@ -93,7 +96,8 @@ class ProposalPaymentSagaE2ETest {
 
     /**
      * JDK dynamic proxy for {@link PayoutRepository}.
-     * Interfaces extend JpaRepository — Proxy works because only interface types are listed.
+     * All repository calls route to the configurable stub fields on this test class.
+     * No Mockito — consistent with the project's Java 25 testing pattern.
      */
     private PayoutRepository buildPayoutRepositoryProxy() {
         return (PayoutRepository) Proxy.newProxyInstance(
@@ -117,13 +121,11 @@ class ProposalPaymentSagaE2ETest {
     }
 
     /**
-     * Concrete subclass of {@link PayoutAuditService} with null infrastructure deps.
-     * Overrides only the two methods called by {@code processContractPayout}.
+     * Anonymous subclass of {@link PayoutAuditService} — concrete class, not interface,
+     * so Proxy cannot be used. Overrides only the two methods exercised by the saga paths.
      */
     private PayoutAuditService buildRecordingAuditService() {
-        // PayoutAuditSubject is a class — pass empty-observer instance directly
         PayoutAuditSubject noopSubject = new PayoutAuditSubject(Collections.emptyList());
-
         return new PayoutAuditService(noopSubject, null) {
             @Override
             public void recordPayoutEvent(Payout payout, String action,
@@ -143,7 +145,6 @@ class ProposalPaymentSagaE2ETest {
 
     // ── Fixture helpers ───────────────────────────────────────────────────────
 
-    /** A COMPLETED contract row — eligible for payout processing. */
     private static ContractDataProjection completedContractRow() {
         return new ContractDataProjection() {
             public String getContractStatus() { return "COMPLETED"; }
@@ -152,7 +153,6 @@ class ProposalPaymentSagaE2ETest {
         };
     }
 
-    /** An ACTIVE contract row — NOT yet eligible for payout. */
     private static ContractDataProjection activeContractRow() {
         return new ContractDataProjection() {
             public String getContractStatus() { return "ACTIVE"; }
@@ -169,20 +169,14 @@ class ProposalPaymentSagaE2ETest {
      * Scenario A: proposal.completed → PAYMENT_PENDING →
      * {@code POST /api/payouts/contract/{id}} (simulateFailure=false) →
      * payment.completed → {@code Payout=COMPLETED}.
-     *
-     * <p>Awaitility verifies eventual-consistency: the payout status reaches COMPLETED
-     * within 5 s before downstream saga consumers read the final state.
      */
     @Test
     void scenarioA_happyPath_payoutReachesCompleted() {
-        // Given: valid COMPLETED contract, no duplicate payout
         stubContractRows = List.of(completedContractRow());
         stubAlreadyPaid  = false;
 
-        // When: wallet-service processes the payment (payment.initiated)
         Payout result = payoutService.processContractPayout(CONTRACT_ID, null, false);
 
-        // Then: await payment.completed — Payout=COMPLETED within 5 s
         await().atMost(5, SECONDS)
                .until(() -> lastSaved.get() != null
                          && lastSaved.get().getStatus() == PayoutStatus.COMPLETED);
@@ -198,11 +192,11 @@ class ProposalPaymentSagaE2ETest {
     }
 
     /**
-     * Scenario A (idempotency): second POST for the same contract returns 400 synchronously.
-     * Ensures the saga cannot double-pay a completed contract.
+     * Scenario A (idempotency): second POST for the same contract → 400 synchronously.
+     * Duplicate POST must not persist a payout and must not publish any audit event.
      */
     @Test
-    void scenarioA_alreadyPaid_synchronously400_noPayoutPersisted() {
+    void scenarioA_alreadyPaid_synchronously400_noAuditPublished() {
         stubContractRows = List.of(completedContractRow());
         stubAlreadyPaid  = true;
 
@@ -210,7 +204,7 @@ class ProposalPaymentSagaE2ETest {
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex ->
                         assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
 
-        // No payout saved — await confirms no async side-effect
+        // No payout saved and no audit event — duplicate POST cannot publish twice
         await().atMost(5, SECONDS).until(() -> lastSaved.get() == null);
         assertThat(auditedActions).isEmpty();
     }
@@ -220,21 +214,16 @@ class ProposalPaymentSagaE2ETest {
     // ═════════════════════════════════════════════════════════════════════════
 
     /**
-     * Scenario B (part 1): reach PAYMENT_PENDING →
-     * {@code POST} with {@code ?simulateFailure=true} → payment.failed → {@code Payout=FAILED}.
-     *
-     * <p>Awaitility confirms the failure state is observable within 5 s before the
-     * compensation choreography begins.
+     * Scenario B (part 1): simulateFailure=true → payment.failed → {@code Payout=FAILED}.
+     * FAILED state must be observable by Awaitility before compensation starts.
      */
     @Test
     void scenarioB_simulateFailure_payoutReachesFailed() {
         stubContractRows = List.of(completedContractRow());
         stubAlreadyPaid  = false;
 
-        // When: gateway rejects the payment
         Payout failed = payoutService.processContractPayout(CONTRACT_ID, null, true);
 
-        // Then: await payment.failed — Payout=FAILED within 5 s
         await().atMost(5, SECONDS)
                .until(() -> lastSaved.get() != null
                          && lastSaved.get().getStatus() == PayoutStatus.FAILED);
@@ -248,44 +237,46 @@ class ProposalPaymentSagaE2ETest {
 
     /**
      * Scenario B (part 2): saga compensation choreography.
-     * payment.failed → Proposal=PAYMENT_FAILED → proposal.cancelled →
-     * (all 4 consumers) → {@code Payout=REFUNDED}.
+     * payment.failed → proposal.cancelled → {@code compensateFailedPayout()} →
+     * {@code Payout=REFUNDED}.
      *
-     * <p>The M3 RabbitMQ {@code proposal.cancelled} consumer in wallet-service
-     * transitions a FAILED payout to REFUNDED. This test verifies the observable
-     * end-state after full compensation.
+     * <p>Compensation is driven entirely through
+     * {@link PayoutService#compensateFailedPayout(Long)} — the method the
+     * proposal.cancelled consumer calls. No direct {@code setStatus()} mutation.
+     * Awaitility guards both the FAILED gate and the final REFUNDED state.
+     * State order is asserted: FAILED must be recorded before REFUNDED.
      */
     @Test
     void scenarioB_compensationPath_failedPayoutEventuallyRefunded() {
-        // Given: a FAILED payout already persisted after gateway rejection
-        Payout failedPayout = new Payout();
-        failedPayout.setId(200L);
-        failedPayout.setContractId(CONTRACT_ID);
-        failedPayout.setFreelancerId(FREELANCER_ID);
-        failedPayout.setAmount(AGREED_AMOUNT);
-        failedPayout.setMethod(PayoutMethod.BANK_TRANSFER);
-        failedPayout.setStatus(PayoutStatus.FAILED);
-        failedPayout.setTransactionDetails(new HashMap<>());
+        // Part 1: reach Payout=FAILED
+        stubContractRows = List.of(completedContractRow());
+        stubAlreadyPaid  = false;
 
-        AtomicReference<PayoutStatus> compensatedStatus =
-                new AtomicReference<>(PayoutStatus.FAILED);
+        Payout failed = payoutService.processContractPayout(CONTRACT_ID, null, true);
 
-        // When: M3 RabbitMQ proposal.cancelled consumer fires the compensation —
-        //       transitions FAILED → REFUNDED
-        failedPayout.setStatus(PayoutStatus.REFUNDED);
-        compensatedStatus.set(failedPayout.getStatus());
-
-        // Then: await all 4 saga consumers — Payout=REFUNDED within 5 s
         await().atMost(5, SECONDS)
-               .until(() -> compensatedStatus.get() == PayoutStatus.REFUNDED);
+               .until(() -> lastSaved.get() != null
+                         && lastSaved.get().getStatus() == PayoutStatus.FAILED);
+        assertThat(auditedActions).contains(PayoutAuditService.FAILED);
 
-        assertThat(compensatedStatus.get()).isEqualTo(PayoutStatus.REFUNDED);
-        assertThat(failedPayout.getStatus()).isEqualTo(PayoutStatus.REFUNDED);
+        // Part 2: proposal.cancelled consumer — compensate via service, not setStatus()
+        stubFoundById = lastSaved.get();   // proxy returns the FAILED payout on findById
+
+        Payout compensated = payoutService.compensateFailedPayout(failed.getId());
+
+        await().atMost(5, SECONDS)
+               .until(() -> lastSaved.get() != null
+                         && lastSaved.get().getStatus() == PayoutStatus.REFUNDED);
+
+        assertThat(compensated.getStatus()).isEqualTo(PayoutStatus.REFUNDED);
+        // FAILED must appear before REFUNDED — correct saga state ordering
+        assertThat(auditedActions).containsSubsequence(
+                PayoutAuditService.FAILED, PayoutAuditService.REFUNDED);
     }
 
     /**
      * Scenario B (guard): ACTIVE contract rejects payout synchronously.
-     * Wallet-service must not process payment if the contract hasn't been marked COMPLETED.
+     * Wallet-service must not process payment before contract is COMPLETED.
      */
     @Test
     void scenarioB_activeContract_rejectsPayoutRequest_synchronously() {
@@ -306,38 +297,28 @@ class ProposalPaymentSagaE2ETest {
     // ═════════════════════════════════════════════════════════════════════════
 
     /**
-     * Scenario C: {@code PUT /api/proposals/{id}/complete} with no active contract in
-     * contract-postgres → Feign returns 404 → 400 synchronously; no event published;
-     * proposal still ACCEPTED.
-     *
-     * <p>Wallet-service mirror: {@code POST /api/payouts/contract/{unknownId}} →
-     * 404 synchronously; no payout created; no saga event emitted.
+     * Scenario C: unknown contractId → 404 synchronously; no payout created;
+     * no saga event emitted; proposal remains ACCEPTED.
      * Per §8.6: do NOT use {@code await()} for synchronous assertions.
      */
     @Test
     void scenarioC_contractNotFound_synchronously404_noEventPublished() {
-        final Long unknownContractId = 99999L;
-
-        // Given: no contract row for this id
         stubContractRows = Collections.emptyList();
 
-        // When / Then: 404 returned synchronously — no await() per §8.6
         assertThatThrownBy(() ->
-                payoutService.processContractPayout(unknownContractId, null, false))
+                payoutService.processContractPayout(99999L, null, false))
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
                     assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
                     assertThat(ex.getReason()).isEqualTo("Contract not found");
                 });
 
-        // No payout created — no saga state change
         assertThat(lastSaved.get()).isNull();
-        // No audit event — saga never started, proposal remains ACCEPTED
         assertThat(auditedActions).isEmpty();
     }
 
     /**
      * Scenario C variant: contract row present but with null amount (data integrity failure).
-     * Guard fires before any state change.
+     * Guard fires before any state change — 409 synchronously.
      */
     @Test
     void scenarioC_incompleteContractData_returnsConflict_synchronously() {
@@ -354,5 +335,104 @@ class ProposalPaymentSagaE2ETest {
 
         assertThat(lastSaved.get()).isNull();
         assertThat(auditedActions).isEmpty();
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // Edge cases
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /**
+     * A PENDING payout already exists (PAYMENT_PENDING — e.g. a previous interrupted
+     * attempt). {@code processContractPayout} must reuse it rather than creating a new row.
+     * Verifies idempotent re-entry into the PAYMENT_PENDING state and correct completion.
+     */
+    @Test
+    void edge_existingPendingPayout_isReused_completedNotDuplicated() {
+        stubContractRows = List.of(completedContractRow());
+        stubAlreadyPaid  = false;
+
+        Payout preExisting = new Payout();
+        preExisting.setId(77L);
+        preExisting.setContractId(CONTRACT_ID);
+        preExisting.setFreelancerId(FREELANCER_ID);
+        preExisting.setAmount(AGREED_AMOUNT);
+        preExisting.setMethod(PayoutMethod.BANK_TRANSFER);
+        preExisting.setStatus(PayoutStatus.PENDING);
+        preExisting.setTransactionDetails(new HashMap<>());
+        stubPendingPayout = preExisting;
+
+        Payout result = payoutService.processContractPayout(CONTRACT_ID, null, false);
+
+        await().atMost(5, SECONDS)
+               .until(() -> lastSaved.get() != null
+                         && lastSaved.get().getStatus() == PayoutStatus.COMPLETED);
+
+        // Same id confirms pre-existing PENDING payout was reused, not a new one
+        assertThat(result.getId()).isEqualTo(77L);
+        assertThat(result.getStatus()).isEqualTo(PayoutStatus.COMPLETED);
+        assertThat(auditedActions).contains(PayoutAuditService.COMPLETED);
+        // CREATED must not appear — payout was pre-existing, not newly inserted
+        assertThat(auditedActions).doesNotContain(PayoutAuditService.CREATED);
+    }
+
+    /**
+     * Compensation is idempotent: a second {@code compensateFailedPayout} call on an
+     * already-REFUNDED payout is rejected with 400. Exactly one REFUNDED audit event
+     * is recorded — the compensation choreography ran only once.
+     */
+    @Test
+    void edge_compensationIdempotent_secondCallRejected() {
+        stubContractRows = List.of(completedContractRow());
+        stubAlreadyPaid  = false;
+
+        Payout failed = payoutService.processContractPayout(CONTRACT_ID, null, true);
+
+        await().atMost(5, SECONDS)
+               .until(() -> lastSaved.get() != null
+                         && lastSaved.get().getStatus() == PayoutStatus.FAILED);
+
+        // First compensation succeeds
+        stubFoundById = lastSaved.get();
+        payoutService.compensateFailedPayout(failed.getId());
+
+        await().atMost(5, SECONDS)
+               .until(() -> lastSaved.get().getStatus() == PayoutStatus.REFUNDED);
+
+        // Second compensation — payout is now REFUNDED, not FAILED → 400
+        stubFoundById = lastSaved.get();
+        assertThatThrownBy(() -> payoutService.compensateFailedPayout(failed.getId()))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex ->
+                        assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+
+        // Exactly one REFUNDED audit event — compensation ran only once
+        long refundedCount = auditedActions.stream()
+                .filter(PayoutAuditService.REFUNDED::equals)
+                .count();
+        assertThat(refundedCount).isEqualTo(1);
+    }
+
+    /**
+     * FAILED state must be observable by Awaitility before compensation fires.
+     * Verifies the ordering guarantee required by the choreography: downstream
+     * consumers can safely read FAILED before the compensation cascade begins.
+     */
+    @Test
+    void edge_failedStateObservableBeforeCompensationFires() {
+        stubContractRows = List.of(completedContractRow());
+        stubAlreadyPaid  = false;
+
+        payoutService.processContractPayout(CONTRACT_ID, null, true);
+
+        // FAILED must be Awaitility-observable BEFORE compensation is triggered
+        await().atMost(5, SECONDS)
+               .until(() -> lastSaved.get() != null
+                         && lastSaved.get().getStatus() == PayoutStatus.FAILED);
+
+        assertThat(lastSaved.get().getStatus()).isEqualTo(PayoutStatus.FAILED);
+        assertThat(lastSaved.get().getTransactionDetails())
+                .containsEntry("simulateFailure", true)
+                .containsEntry("gatewayResponse", "rejected");
+        // Only FAILED recorded — compensation has not yet been triggered
+        assertThat(auditedActions).containsExactly(PayoutAuditService.FAILED);
     }
 }

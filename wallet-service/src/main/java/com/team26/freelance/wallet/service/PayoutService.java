@@ -415,6 +415,35 @@ public class PayoutService {
     return saved;
   }
 
+  /**
+   * Saga compensation handler: transitions a FAILED payout to REFUNDED.
+   * Called by the proposal.cancelled consumer when the choreography saga
+   * rolls back after a gateway rejection. Idempotent — a second call on an
+   * already-REFUNDED (or non-FAILED) payout throws 400.
+   */
+  @Transactional
+  public Payout compensateFailedPayout(Long id) {
+    Payout payout = payoutRepository.findById(id).orElseThrow(
+        () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payout not found"));
+    if (payout.getStatus() != PayoutStatus.FAILED) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          "Only FAILED payouts can be compensated via saga");
+    }
+    payout.setStatus(PayoutStatus.REFUNDED);
+    Map<String, Object> details = payout.getTransactionDetails();
+    if (details == null) {
+      details = new HashMap<>();
+    }
+    details.put("compensatedAt", LocalDateTime.now().toString());
+    details.put("compensationReason", "saga.proposal.cancelled");
+    payout.setTransactionDetails(details);
+    Payout saved = payoutRepository.save(payout);
+    Map<String, Object> auditEntry = new LinkedHashMap<>();
+    auditEntry.put("compensationReason", "saga.proposal.cancelled");
+    payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.REFUNDED, auditEntry);
+    return saved;
+  }
+
   private PayoutMethod normalizePayoutMethod(PayoutMethod method) {
     if (method == PayoutMethod.BANK) {
       return PayoutMethod.BANK_TRANSFER;
