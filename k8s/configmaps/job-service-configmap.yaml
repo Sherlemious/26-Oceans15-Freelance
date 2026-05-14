@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: job-service-configmap
+  namespace: freelance
+data:
+  SPRING_DATASOURCE_URL: jdbc:postgresql://job-postgres:5432/freelancedb-jobs
+  SPRING_DATASOURCE_USERNAME: jobuser
+  SPRING_DATASOURCE_PASSWORD: jobpass123
+  SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/freelancedb
+  SPRING_REDIS_HOST: redis
+  SPRING_REDIS_PORT: "6379"
+  SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
+  SPRING_RABBITMQ_HOST: rabbitmq
+  SPRING_RABBITMQ_PORT: "5672"
+  SPRING_RABBITMQ_USERNAME: guest
+  SPRING_RABBITMQ_PASSWORD: guest
+  FEIGN_CONTRACT_SERVICE_URL: http://contract-service:8080
+  FEIGN_PROPOSAL_SERVICE_URL: http://proposal-service:8080
+  SERVER_PORT: "8080"
+
