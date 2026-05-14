@@ -1,0 +1,72 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+      routes:
+        - id: user-service
+          uri: http://user-service:8080
+          predicates:
+            - Path=/api/users/**, /api/auth/**
+          filters:
+            - name: RequestRateLimiter
+
+        - id: job-service
+          uri: http://job-service:8080
+          predicates:
+            - Path=/api/jobs/**
+          filters:
+            - name: RequestRateLimiter
+
+        - id: proposal-service
+          uri: http://proposal-service:8080
+          predicates:
+            - Path=/api/proposals/**
+          filters:
+            - name: RequestRateLimiter
+
+        - id: contract-service
+          uri: http://contract-service:8080
+          predicates:
+            - Path=/api/contracts/**
+          filters:
+            - name: RequestRateLimiter
+
+        - id: wallet-service
+          uri: http://wallet-service:8080
+          predicates:
+            - Path=/api/payouts/**, /api/promo-codes/**
+          filters:
+            - name: RequestRateLimiter
+
+jwt:
+  secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.team26.freelance.gateway: DEBUG
