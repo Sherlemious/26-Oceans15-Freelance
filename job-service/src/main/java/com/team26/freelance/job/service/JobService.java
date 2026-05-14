@@ -3,7 +3,7 @@ package com.team26.freelance.job.service;
 import com.team26.freelance.job.dto.*;
 import com.team26.freelance.job.feign.ContractDTO;
 import com.team26.freelance.job.feign.ContractServiceClient;
-import com.team26.freelance.job.feign.JobProposalSummaryDTO;
+import com.team26.freelance.job.feign.ProposalSummaryResponse;
 import com.team26.freelance.job.feign.ProposalServiceClient;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
@@ -140,6 +140,16 @@ public class JobService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot close job with active contracts");
         }
 
+        try {
+            proposalServiceClient.rejectSubmittedProposalsForJob(id);
+            log.info("Feign call to proposal-service: rejected submitted proposals for job {}", id);
+        } catch (FeignException.NotFound e) {
+            log.warn("Proposal service returned 404 for job {}, no proposals to reject", id);
+        } catch (FeignException e) {
+            log.error("Proposal service unavailable when rejecting proposals for job {}: {}", id, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Proposal service temporarily unavailable");
+        }
+
         job.setStatus(JobStatus.CLOSED);
         jobRepository.save(job);
 
@@ -253,12 +263,28 @@ public class JobService {
     public List<TopBudgetJobDTO> getTopBudgetJobs(int limit) {
         List<Object[]> results = jobRepository.findTopBudgetJobs(limit);
         return results.stream()
-                .map(row -> TopBudgetJobDTO.builder()
-                        .jobId(((Number) row[0]).longValue())
-                        .title((String) row[1])
-                        .budgetMax(((Number) row[2]).doubleValue())
-                        .totalProposals(((Number) row[3]).longValue())
-                        .build())
+                .map(row -> {
+                    Long jobId = ((Number) row[0]).longValue();
+                    String title = (String) row[1];
+                    Double budgetMax = ((Number) row[2]).doubleValue();
+
+                    Long totalProposals = 0L;
+                    try {
+                        totalProposals = proposalServiceClient.getProposalCountForJob(jobId);
+                        log.info("Feign call to proposal-service: proposal count for job {} = {}", jobId, totalProposals);
+                    } catch (FeignException.NotFound e) {
+                        log.warn("Proposal service returned 404 for job {}, assuming 0 proposals", jobId);
+                    } catch (FeignException e) {
+                        log.error("Proposal service unavailable for job {}: {}", jobId, e.getMessage());
+                    }
+
+                    return TopBudgetJobDTO.builder()
+                            .jobId(jobId)
+                            .title(title)
+                            .budgetMax(budgetMax)
+                            .totalProposals(totalProposals)
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 
@@ -287,7 +313,7 @@ public class JobService {
     }
 
     // S2-F3: Get Job Proposal Summary - Refactored to use Feign
-    public com.team26.freelance.job.dto.JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
+    public JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
         Job job = getJobById(jobId);
 
         if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
@@ -297,20 +323,20 @@ public class JobService {
         String start = startDate != null ? startDate.toString() : null;
         String end = endDate != null ? endDate.toString() : null;
 
-        JobProposalSummaryDTO feignSummary;
+        ProposalSummaryResponse feignSummary;
         try {
             feignSummary = proposalServiceClient.getJobProposalSummary(jobId, start, end);
             log.info("Feign call to proposal-service for job {} summary: totalProposals={}",
                     jobId, feignSummary.totalProposals());
         } catch (FeignException.NotFound e) {
             log.warn("Proposal service returned 404 for job {}, assuming zero proposals", jobId);
-            feignSummary = new JobProposalSummaryDTO(0L, 0.0, 0.0, 0.0, 0L);
+            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
         } catch (FeignException e) {
             log.error("Proposal service unavailable for job {}: {}", jobId, e.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Proposal service temporarily unavailable");
         }
 
-        return com.team26.freelance.job.dto.JobProposalSummaryDTO.builder()
+        return JobProposalSummaryDTO.builder()
                 .jobId(jobId)
                 .title(job.getTitle())
                 .totalProposals(feignSummary.totalProposals())
@@ -331,16 +357,16 @@ public class JobService {
     public JobDashboardDTO getJobDashboard(Long jobId) {
         Job job = getJobById(jobId);
 
-        JobProposalSummaryDTO feignSummary;
+        ProposalSummaryResponse feignSummary;
         try {
             feignSummary = proposalServiceClient.getJobProposalSummary(jobId, null, null);
             log.info("Feign call to proposal-service for job {} dashboard", jobId);
         } catch (FeignException.NotFound e) {
             log.warn("Proposal service returned 404 for job {} dashboard, using zeros", jobId);
-            feignSummary = new JobProposalSummaryDTO(0L, 0.0, 0.0, 0.0, 0L);
+            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
         } catch (FeignException e) {
             log.error("Proposal service unavailable for job {} dashboard: {}", jobId, e.getMessage());
-            feignSummary = new JobProposalSummaryDTO(0L, 0.0, 0.0, 0.0, 0L);
+            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
         }
 
         Long activeAttachments = jobRepository.countActiveAttachmentsByJobId(jobId);

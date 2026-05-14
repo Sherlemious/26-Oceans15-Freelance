@@ -1,6 +1,6 @@
 package com.team26.freelance.job.feign;
 
-public record JobProposalSummaryDTO(
+public record ProposalSummaryResponse(
         Long totalProposals,
         Double averageBidAmount,
         Double lowestBid,
