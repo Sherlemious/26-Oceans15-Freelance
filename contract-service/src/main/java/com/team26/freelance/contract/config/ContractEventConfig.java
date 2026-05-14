@@ -24,23 +24,42 @@ public class ContractEventConfig {
 
     // Queues
     @Bean
-    public Queue sagaListenerQueue() {
-        return QueueBuilder.durable("contract.saga-listener")
+    public Queue sagaListenerProposalQueue() {
+        return QueueBuilder.durable("contract.saga-listener.proposal")
                 .withArgument("x-dead-letter-exchange", "contract.dlx")
-                .withArgument("x-dead-letter-routing-key", "contract.saga-listener.dlq")
+                .withArgument("x-dead-letter-routing-key", "contract.saga-listener.proposal.dlq")
                 .build();
     }
 
     @Bean
-    public Queue sagaListenerDlq() {
-        return QueueBuilder.durable("contract.saga-listener.dlq").build();
+    public Queue sagaListenerProposalDlq() {
+        return QueueBuilder.durable("contract.saga-listener.proposal.dlq").build();
     }
 
     @Bean
-    public Binding dlqBinding() {
-        return BindingBuilder.bind(sagaListenerDlq())
+    public Binding dlqProposalBinding() {
+        return BindingBuilder.bind(sagaListenerProposalDlq())
                 .to(dlxExchange())
-                .with("contract.saga-listener.dlq");
+                .with("contract.saga-listener.proposal.dlq");
+    }
+
+    @Bean
+    public Queue sagaListenerUserQueue() {
+        return QueueBuilder.durable("contract.saga-listener.user")
+                .withArgument("x-dead-letter-exchange", "contract.dlx")
+                .withArgument("x-dead-letter-routing-key", "contract.saga-listener.user.dlq")
+                .build();
+    }
+
+    @Bean
+    public Queue sagaListenerUserDlq() {
+        return QueueBuilder.durable("contract.saga-listener.user.dlq").build();
+    }
+
+    @Bean
+    public Binding dlqUserBinding() {
+        return BindingBuilder.bind(sagaListenerUserDlq())
+                .to(dlxExchange())
+                .with("contract.saga-listener.user.dlq");
     }
 }
-

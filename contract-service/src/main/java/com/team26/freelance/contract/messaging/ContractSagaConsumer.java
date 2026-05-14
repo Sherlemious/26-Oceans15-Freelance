@@ -16,10 +16,10 @@ public class ContractSagaConsumer {
     private static final Logger log = LoggerFactory.getLogger(ContractSagaConsumer.class);
 
     @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(name = "contract.saga-listener",
+            value = @Queue(name = "contract.saga-listener.proposal",
                     arguments = {
                             @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-exchange", value = "contract.dlx"),
-                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.dlq")
+                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.proposal.dlq")
                     }),
             exchange = @Exchange(name = "proposal.events", type = "topic"),
             key = {"proposal.accepted", "proposal.completed", "proposal.cancelled"}
@@ -41,7 +41,11 @@ public class ContractSagaConsumer {
     }
 
     @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(name = "contract.saga-listener"),
+            value = @Queue(name = "contract.saga-listener.user",
+                    arguments = {
+                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-exchange", value = "contract.dlx"),
+                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.user.dlq")
+                    }),
             exchange = @Exchange(name = "user.events", type = "topic"),
             key = "user.deactivated"
     ), ackMode="AUTO")
