@@ -207,6 +207,7 @@ public class ContractService {
         }
 
         List<Contract> toSave = new ArrayList<>(request.size());
+        List<Runnable> pendingEvents = new ArrayList<>();
         for (BatchStatusUpdateRequestDTO requestItem : request) {
             Long contractId = requestItem.getContractId();
             ContractStatus targetStatus = requestItem.getStatus();
@@ -232,12 +233,17 @@ public class ContractService {
             toSave.add(contract);
 
             if (oldStatus != targetStatus) {
-                contractSagaPublisher.publishContractStatusChanged(contractId, oldStatus, targetStatus);
+                long finalContractId = contractId;
+                pendingEvents.add(() -> contractSagaPublisher.publishContractStatusChanged(finalContractId, oldStatus, targetStatus));
             }
         }
 
         contractRepository.saveAll(toSave);
         cacheEvictionService.evictAfterContractsMutated(uniqueIds);
+
+        // Publish events only after database commit completes successfully
+        pendingEvents.forEach(Runnable::run);
+
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("updatedCount", toSave.size());
         details.put("contractIds", new ArrayList<>(uniqueIds));
@@ -315,8 +321,29 @@ public class ContractService {
         List<ContractSummaryDTO> contractSummaries = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
 
-        Map<Long, String> freelancerMap = new java.util.HashMap<>();
-        Map<Long, String> jobMap = new java.util.HashMap<>();
+        Set<Long> freelancerIds = contracts.stream().map(Contract::getFreelancerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> jobIds = contracts.stream().map(Contract::getJobId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, String> freelancerMap = new java.util.concurrent.ConcurrentHashMap<>();
+        Map<Long, String> jobMap = new java.util.concurrent.ConcurrentHashMap<>();
+
+        freelancerIds.parallelStream().forEach(id -> {
+            try {
+                Map<String, Object> user = userServiceClient.getUser(id);
+                freelancerMap.put(id, user != null && user.get("name") != null ? String.valueOf(user.get("name")) : "Unknown User");
+            } catch (FeignException e) {
+                freelancerMap.put(id, "Unknown User");
+            }
+        });
+
+        jobIds.parallelStream().forEach(id -> {
+            try {
+                Map<String, Object> job = jobServiceClient.getJob(id);
+                jobMap.put(id, job != null && job.get("title") != null ? String.valueOf(job.get("title")) : "Unknown Job");
+            } catch (FeignException e) {
+                jobMap.put(id, "Unknown Job");
+            }
+        });
 
         for (Contract c : contracts) {
             String rowStatus = c.getStatus() != null ? c.getStatus().name() : null;
@@ -339,23 +366,8 @@ public class ContractService {
                 durationDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate);
             }
 
-            String freelancerName = freelancerMap.computeIfAbsent(c.getFreelancerId(), id -> {
-                try {
-                    Map<String, Object> user = userServiceClient.getUser(id);
-                    return user != null && user.get("name") != null ? String.valueOf(user.get("name")) : "Unknown User";
-                } catch (FeignException e) {
-                    return "Unknown User";
-                }
-            });
-
-            String jobTitle = jobMap.computeIfAbsent(c.getJobId(), id -> {
-                try {
-                    Map<String, Object> job = jobServiceClient.getJob(id);
-                    return job != null && job.get("title") != null ? String.valueOf(job.get("title")) : "Unknown Job";
-                } catch (FeignException e) {
-                    return "Unknown Job";
-                }
-            });
+            String freelancerName = freelancerMap.getOrDefault(c.getFreelancerId(), "Unknown User");
+            String jobTitle = jobMap.getOrDefault(c.getJobId(), "Unknown Job");
 
             ContractSummaryDTO contractSummary = new ContractSummaryDTO(
                     c.getId(),

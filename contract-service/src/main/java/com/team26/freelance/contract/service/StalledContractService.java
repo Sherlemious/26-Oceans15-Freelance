@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class StalledContractService {
@@ -33,8 +36,29 @@ public class StalledContractService {
         List<Object[]> rows = contractRepository.findStalledContractsNoJoin(maxProgress, stalledDays);
         List<StalledContractDTO> dtos = new ArrayList<>();
 
-        Map<Long, String> freelancerMap = new HashMap<>();
-        Map<Long, String> jobMap = new HashMap<>();
+        Set<Long> freelancerIds = rows.stream().map(r -> ((Number) r[1]).longValue()).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> jobIds = rows.stream().map(r -> ((Number) r[2]).longValue()).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, String> freelancerMap = new java.util.concurrent.ConcurrentHashMap<>();
+        Map<Long, String> jobMap = new java.util.concurrent.ConcurrentHashMap<>();
+
+        freelancerIds.parallelStream().forEach(id -> {
+            try {
+                Map<String, Object> user = userServiceClient.getUser(id);
+                freelancerMap.put(id, user != null && user.get("name") != null ? String.valueOf(user.get("name")) : "Unknown User");
+            } catch (FeignException e) {
+                freelancerMap.put(id, "Unknown User");
+            }
+        });
+
+        jobIds.parallelStream().forEach(id -> {
+            try {
+                Map<String, Object> job = jobServiceClient.getJob(id);
+                jobMap.put(id, job != null && job.get("title") != null ? String.valueOf(job.get("title")) : "Unknown Job");
+            } catch (FeignException e) {
+                jobMap.put(id, "Unknown Job");
+            }
+        });
 
         for (Object[] row : rows) {
             Long contractId = ((Number) row[0]).longValue();
@@ -45,23 +69,8 @@ public class StalledContractService {
             Double progressPercentage = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
             Double daysSinceLastActivity = row[5] != null ? ((Number) row[5]).doubleValue() : 0.0;
 
-            String freelancerName = freelancerMap.computeIfAbsent(freelancerId, id -> {
-                try {
-                    Map<String, Object> user = userServiceClient.getUser(id);
-                    return user != null && user.get("name") != null ? String.valueOf(user.get("name")) : "Unknown User";
-                } catch (FeignException e) {
-                    return "Unknown User";
-                }
-            });
-
-            String jobTitle = jobMap.computeIfAbsent(jobId, id -> {
-                try {
-                    Map<String, Object> job = jobServiceClient.getJob(id);
-                    return job != null && job.get("title") != null ? String.valueOf(job.get("title")) : "Unknown Job";
-                } catch (FeignException e) {
-                    return "Unknown Job";
-                }
-            });
+            String freelancerName = freelancerMap.getOrDefault(freelancerId, "Unknown User");
+            String jobTitle = jobMap.getOrDefault(jobId, "Unknown Job");
 
             dtos.add(new StalledContractDTO(contractId, freelancerName, jobTitle, agreedAmount, progressPercentage, daysSinceLastActivity));
         }
