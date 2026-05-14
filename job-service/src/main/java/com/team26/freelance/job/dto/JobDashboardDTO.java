@@ -19,6 +19,10 @@ public class JobDashboardDTO {
         this.rating = builder.rating;
     }
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public static class Builder {
         private Long jobId;
         private String title;

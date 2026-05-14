@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Loki4J Appender for cloudnative logging -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push</url>
+        </http>
+        <format>
+            <label>
+                <pattern>app=freelance,service=${spring.application.name},level=%level,env=k8s</pattern>
+            </label>
+            <message>
+                <pattern>
+                    {
+                      "timestamp": "%d{ISO8601}",
+                      "level": "%level",
+                      "service": "${spring.application.name}",
+                      "thread": "%thread",
+                      "logger": "%logger{36}",
+                      "correlationId": "%X{correlationId:-}",
+                      "jobId": "%X{jobId:-}",
+                      "proposalId": "%X{proposalId:-}",
+                      "routingKey": "%X{routingKey:-}",
+                      "message": "%msg"
+                    }
+                </pattern>
+            </message>
+        </format>
+    </appender>
+
+    <!-- Console appender for local development -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger: use Loki in production, console in development -->
+    <springProfile name="k8s">
+        <root level="INFO">
+            <appender-ref ref="LOKI"/>
+        </root>
+    </springProfile>
+    <springProfile name="!k8s">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- Specific loggers for debugging -->
+    <logger name="com.team26.freelance.job.feign" level="DEBUG"/>
+    <logger name="org.springframework.cloud.openfeign" level="DEBUG"/>
+    <logger name="feign" level="DEBUG"/>
+</configuration>
+

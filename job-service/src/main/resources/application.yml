@@ -1,13 +1,17 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8082}
 
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: job-service
+
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/freelancedb-jobs}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -15,19 +19,36 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
   sql:
     init:
       mode: always
       separator: "@@"
+
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongodb:27017/freelancedb}
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/freelancedb}
     redis:
-      host: ${SPRING_DATA_REDIS_HOST:redis}
-      port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD:redispass}
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
+
   elasticsearch:
-    uris: ${SPRING_ELASTICSEARCH_URIS:http://elasticsearch:9200}
+    uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
+
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          initial-interval: 1000
+          max-attempts: 3
 
 jwt:
   secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
@@ -38,11 +59,33 @@ cache:
     search: 300
     dashboard: 600
 
+feign:
+  contract-service:
+    url: ${FEIGN_CONTRACT_SERVICE_URL:http://localhost:8084}
+  proposal-service:
+    url: ${FEIGN_PROPOSAL_SERVICE_URL:http://localhost:8083}
+  client:
+    config:
+      default:
+        loggerLevel: full
+        connectTimeout: 5000
+        readTimeout: 5000
+
+logging:
+  level:
+    com.team26.freelance.job.feign: DEBUG
+    org.springframework.cloud.openfeign: DEBUG
+    feign: DEBUG
+
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: prometheus,health,info
   endpoint:
     health:
       show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true

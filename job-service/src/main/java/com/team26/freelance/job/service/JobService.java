@@ -1,11 +1,16 @@
 package com.team26.freelance.job.service;
 
 import com.team26.freelance.job.dto.*;
+import com.team26.freelance.job.feign.ContractDTO;
+import com.team26.freelance.job.feign.ContractServiceClient;
+import com.team26.freelance.job.feign.ProposalSummaryResponse;
+import com.team26.freelance.job.feign.ProposalServiceClient;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
 import com.team26.freelance.job.repository.JobRepository;
 import com.team26.freelance.job.repository.mongo.JobEventRepository;
+import feign.FeignException;
 import org.springframework.http.HttpStatus;
 
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,12 +33,21 @@ public class JobService {
     private final JobRepository jobRepository;
     private final JobSearchService jobSearchService;
     private final JobEventRepository jobEventRepository;
+    private final ContractServiceClient contractServiceClient;
+    private final ProposalServiceClient proposalServiceClient;
 
+    private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
-    public JobService(JobRepository jobRepository, JobSearchService jobSearchService, JobEventRepository jobEventRepository) {
+    public JobService(JobRepository jobRepository,
+                      JobSearchService jobSearchService,
+                      JobEventRepository jobEventRepository,
+                      ContractServiceClient contractServiceClient,
+                      ProposalServiceClient proposalServiceClient) {
         this.jobRepository = jobRepository;
         this.jobSearchService = jobSearchService;
         this.jobEventRepository = jobEventRepository;
+        this.contractServiceClient = contractServiceClient;
+        this.proposalServiceClient = proposalServiceClient;
     }
 
     public JobSearchResultDTO createJob(JobRequestDTO request) {
@@ -106,30 +120,51 @@ public class JobService {
     }
 
     @Transactional
-    public void closeJob(Long id, String status) {
+    public void closeJob(Long id) {
         Job job = jobRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
 
-        if ("CLOSED".equalsIgnoreCase(status)) {
-            boolean hasActiveContracts = jobRepository.existsActiveContractByJobId(id);
-            if (hasActiveContracts) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot close job with active contracts");
-            }
-
-            jobRepository.rejectSubmittedProposalsByJobId(id);
-
-            job.setStatus(JobStatus.CLOSED);
-            jobRepository.save(job);
-
-            jobSearchService.notifyObservers("JOB_CLOSED", Map.of(
-                    "jobId", id,
-                    "source", "close_endpoint"
-            ));
+        int activeContracts;
+        try {
+            activeContracts = contractServiceClient.getActiveContractCountForJob(id);
+            log.info("Feign call to contract-service for job {} active contracts: {}", id, activeContracts);
+        } catch (FeignException.NotFound e) {
+            log.warn("Contract service returned 404 for job {}, assuming 0 active contracts", id);
+            activeContracts = 0;
+        } catch (FeignException e) {
+            log.error("Contract service unavailable for job {}: {}", id, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Contract service temporarily unavailable");
         }
+
+        if (activeContracts > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot close job with active contracts");
+        }
+
+        try {
+            proposalServiceClient.rejectSubmittedProposalsForJob(id);
+            log.info("Feign call to proposal-service: rejected submitted proposals for job {}", id);
+        } catch (FeignException.NotFound e) {
+            log.warn("Proposal service returned 404 for job {}, no proposals to reject", id);
+        } catch (FeignException e) {
+            log.error("Proposal service unavailable when rejecting proposals for job {}: {}", id, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Proposal service temporarily unavailable");
+        }
+
+        job.setStatus(JobStatus.CLOSED);
+        jobRepository.save(job);
+
+        jobSearchService.notifyObservers("JOB_CLOSED", Map.of(
+                "jobId", id,
+                "source", "close_endpoint"
+        ));
     }
 
-
-    private static final Logger log = LoggerFactory.getLogger(JobService.class);
+    @Transactional
+    public void closeJob(Long id, String status) {
+        if ("CLOSED".equalsIgnoreCase(status)) {
+            closeJob(id);
+        }
+    }
 
     public List<Job> filterByRequirement(String key, String value, JobStatus status) {
         try {
@@ -149,44 +184,32 @@ public class JobService {
         }
     }
 
-    private void validateContractForJob(Long jobId, Long contractId) {
-        List<Object[]> rows = jobRepository.findContractJobIdAndStatusById(contractId);
-        if (rows == null || rows.isEmpty()) {
+    @Transactional
+    public Job rateJobClient(Long jobId, Long contractId, int rating) {
+        Job job = getJobById(jobId);
+        validateRating(rating);
+
+        ContractDTO contract;
+        try {
+            contract = contractServiceClient.getContract(contractId);
+            log.info("Feign call to contract-service for contract {}: status={}, jobId={}",
+                    contractId, contract.status(), contract.jobId());
+        } catch (FeignException.NotFound e) {
+            log.warn("Contract {} not found in contract-service", contractId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
+        } catch (FeignException e) {
+            log.error("Contract service unavailable for contract {}: {}", contractId, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Contract service temporarily unavailable");
         }
 
-        Object[] row = rows.get(0);
-        if (row == null || row.length == 0) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
-        }
-
-        Long contractJobId = ((Number) row[0]).longValue();
-        String status = (String) row[1];
-
-        if (!jobId.equals(contractJobId)) {
+        if (!contract.jobId().equals(jobId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract does not reference this job");
         }
 
-        if (!"COMPLETED".equals(status)) {
+        if (!"COMPLETED".equals(contract.status())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract is not completed");
         }
-    }
 
-    @Transactional
-    public Job rateJobClient(Long jobId, Long contractId, int rating) {
-
-        // 1. Find job — 404 if not found
-        Job job = getJobById(jobId);
-
-
-
-        // 2. Validate contract — 404 if not found, 400 if wrong job or not COMPLETED
-        validateContractForJob(jobId, contractId);
-
-        // 3. Validate rating range — 400 if invalid
-        validateRating(rating);
-
-        // 4. Recalculate running average
         double currentRating = job.getRating();
         int totalRatings = job.getTotalRatings();
         double newRating = (currentRating * totalRatings + rating) / (totalRatings + 1);
@@ -196,10 +219,10 @@ public class JobService {
 
         Job updated = jobRepository.save(job);
 
-
         jobSearchService.indexJob(jobId, "client_rating");
         jobSearchService.notifyObservers("JOB_RATED", Map.of(
                 "jobId", jobId,
+                "contractId", contractId,
                 "newRating", newRating,
                 "totalRatings", updated.getTotalRatings(),
                 "source", "client_rating"
@@ -224,12 +247,12 @@ public class JobService {
         job.setRequirements(existingRequirements);
         Job updatedJob = jobRepository.save(job);
 
-        // Add observer notification
         jobSearchService.indexJob(jobId, "requirements_update");
         jobSearchService.notifyObservers("REQUIREMENTS_UPDATED", Map.of("jobId", jobId));
 
         return updatedJob;
     }
+
     public List<Job> searchJobs(String status, Double minBudget, Double maxBudget) {
         if (minBudget != null && maxBudget != null && minBudget > maxBudget) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minBudget cannot be greater than maxBudget");
@@ -240,12 +263,28 @@ public class JobService {
     public List<TopBudgetJobDTO> getTopBudgetJobs(int limit) {
         List<Object[]> results = jobRepository.findTopBudgetJobs(limit);
         return results.stream()
-                .map(row -> TopBudgetJobDTO.builder()
-                        .jobId(((Number) row[0]).longValue())
-                        .title((String) row[1])
-                        .budgetMax(((Number) row[2]).doubleValue())
-                        .totalProposals(((Number) row[3]).longValue())
-                        .build())
+                .map(row -> {
+                    Long jobId = ((Number) row[0]).longValue();
+                    String title = (String) row[1];
+                    Double budgetMax = ((Number) row[2]).doubleValue();
+
+                    Long totalProposals = 0L;
+                    try {
+                        totalProposals = proposalServiceClient.getProposalCountForJob(jobId);
+                        log.info("Feign call to proposal-service: proposal count for job {} = {}", jobId, totalProposals);
+                    } catch (FeignException.NotFound e) {
+                        log.warn("Proposal service returned 404 for job {}, assuming 0 proposals", jobId);
+                    } catch (FeignException e) {
+                        log.error("Proposal service unavailable for job {}: {}", jobId, e.getMessage());
+                    }
+
+                    return TopBudgetJobDTO.builder()
+                            .jobId(jobId)
+                            .title(title)
+                            .budgetMax(budgetMax)
+                            .totalProposals(totalProposals)
+                            .build();
+                })
                 .collect(Collectors.toList());
     }
 
@@ -273,41 +312,37 @@ public class JobService {
                 .toList();
     }
 
-
-
+    // S2-F3: Get Job Proposal Summary - Refactored to use Feign
     public JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
-        getJobById(jobId);
+        Job job = getJobById(jobId);
 
         if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate cannot be after endDate");
         }
 
-        String start = startDate != null ? startDate.atStartOfDay().toString() : null;
-        String end = endDate != null ? endDate.atTime(23, 59, 59).toString() : null;
+        String start = startDate != null ? startDate.toString() : null;
+        String end = endDate != null ? endDate.toString() : null;
 
-        List<Object[]> results = jobRepository.getProposalSummary(jobId, start, end);
-
-        if (results == null || results.isEmpty() || results.get(0) == null) {
-            Job job = getJobById(jobId);
-            return JobProposalSummaryDTO.builder()
-                    .jobId(jobId)
-                    .title(job.getTitle())
-                    .totalProposals(0L)
-                    .averageBidAmount(0.0)
-                    .lowestBid(0.0)
-                    .highestBid(0.0)
-                    .build();
+        ProposalSummaryResponse feignSummary;
+        try {
+            feignSummary = proposalServiceClient.getJobProposalSummary(jobId, start, end);
+            log.info("Feign call to proposal-service for job {} summary: totalProposals={}",
+                    jobId, feignSummary.totalProposals());
+        } catch (FeignException.NotFound e) {
+            log.warn("Proposal service returned 404 for job {}, assuming zero proposals", jobId);
+            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
+        } catch (FeignException e) {
+            log.error("Proposal service unavailable for job {}: {}", jobId, e.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Proposal service temporarily unavailable");
         }
 
-        Object[] result = results.get(0);
-
         return JobProposalSummaryDTO.builder()
-                .jobId(((Number) result[0]).longValue())
-                .title((String) result[1])
-                .totalProposals(((Number) result[2]).longValue())
-                .averageBidAmount(((Number) result[3]).doubleValue())
-                .lowestBid(((Number) result[4]).doubleValue())
-                .highestBid(((Number) result[5]).doubleValue())
+                .jobId(jobId)
+                .title(job.getTitle())
+                .totalProposals(feignSummary.totalProposals())
+                .averageBidAmount(feignSummary.averageBidAmount())
+                .lowestBid(feignSummary.lowestBid())
+                .highestBid(feignSummary.highestBid())
                 .build();
     }
 
@@ -318,19 +353,30 @@ public class JobService {
         ));
     }
 
+    // S2-F12: Get Job Dashboard - Refactored to use Feign
     public JobDashboardDTO getJobDashboard(Long jobId) {
         Job job = getJobById(jobId);
-        Long totalProposals = jobRepository.countTotalProposalsByJobId(jobId);
-        Long acceptedProposals = jobRepository.countAcceptedProposalsByJobId(jobId);
-        Double averageBidAmount = jobRepository.getAverageBidAmountByJobId(jobId);
+
+        ProposalSummaryResponse feignSummary;
+        try {
+            feignSummary = proposalServiceClient.getJobProposalSummary(jobId, null, null);
+            log.info("Feign call to proposal-service for job {} dashboard", jobId);
+        } catch (FeignException.NotFound e) {
+            log.warn("Proposal service returned 404 for job {} dashboard, using zeros", jobId);
+            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
+        } catch (FeignException e) {
+            log.error("Proposal service unavailable for job {} dashboard: {}", jobId, e.getMessage());
+            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
+        }
+
         Long activeAttachments = jobRepository.countActiveAttachmentsByJobId(jobId);
 
-        return new JobDashboardDTO.Builder()
+        return JobDashboardDTO.builder()
                 .jobId(jobId)
                 .title(job.getTitle())
-                .totalProposals(totalProposals)
-                .acceptedProposals(acceptedProposals)
-                .averageBidAmount(averageBidAmount)
+                .totalProposals(feignSummary.totalProposals())
+                .acceptedProposals(feignSummary.acceptedProposals() != null ? feignSummary.acceptedProposals() : 0L)
+                .averageBidAmount(feignSummary.averageBidAmount())
                 .activeAttachments(activeAttachments)
                 .rating(job.getRating())
                 .build();
