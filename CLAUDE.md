@@ -4,9 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Freelance Marketplace — a Spring Boot **4.0.3** / Java 25 microservices system built by Team 26 for ACL Spring 2026. Five independent services share a single PostgreSQL database (`freelancedb`). Group ID: `com.team26.freelance`.
+Freelance Marketplace — a Spring Boot **3.4.4** / Java 25 microservices system built by Team 26 for ACL Spring 2026. Group ID: `com.team26.freelance`. **Currently in M3.**
 
-**Milestone context:** M1 delivered 45 features (F1–F9 per service). M2 adds JWT auth, 5 NoSQL databases, Redis caching, 7 design patterns, and 15 new features (F10–F12 per service).
+**Milestone context:**
+- **M1** delivered 45 features (F1–F9 per service) — layered CRUD + relational queries.
+- **M2** added JWT auth, 5 NoSQL databases, Redis caching, 7 design patterns, and 15 new features (F10–F12 per service). Also introduced two shared Maven modules: `security-common` (JWT filter chain, `JwtConfigurationManager`) and `event-common` (MongoDB event logging, Observer pattern infrastructure).
+- **M3** (active) adds true microservice isolation: per-service PostgreSQL databases, OpenFeign replacing cross-service SQL, RabbitMQ choreography saga, Spring Cloud Gateway, and Kubernetes deployment with Loki/Prometheus/Grafana observability.
 
 ## Build & Run Commands
 
@@ -66,7 +69,7 @@ model/        — @Entity JPA entities
 dto/          — API request/response shapes
 ```
 
-All services share one Postgres instance (`localhost:5432/freelancedb`, credentials `postgres/postgres`, DDL auto=update).
+**M2 state (pre-M3):** All services share one Postgres instance (`localhost:5432/freelancedb`, credentials `postgres/postgres`, DDL auto=update). **M3 splits this into 5 isolated instances** (`freelancedb-users`, `freelancedb-jobs`, `freelancedb-proposals`, `freelancedb-contracts`, `freelancedb-wallet`).
 
 **Config format:** Each service uses `application.yml` (not `.properties`) — the auto-grader expects YAML format.
 
@@ -85,10 +88,12 @@ Six databases run side-by-side. PostgreSQL is a hard dependency (service won't s
 
 ## Key Architectural Patterns
 
-**Inter-service communication**
-- `job-service` calls other services via `RestTemplate` (configured in `AppConfig`).
-- `contract-service` has Spring Cloud OpenFeign on the classpath for Feign clients.
-- Some cross-service side-effects happen through native SQL inside `ProposalRepository` (e.g. it inserts rows directly into the `contracts`, `jobs`, and `payouts` tables on proposal acceptance).
+**Inter-service communication (M2 state — being replaced in M3)**
+- Cross-service reads use native SQL JOINs on the shared `freelancedb` database (e.g. `ProposalRepository` reads from `users`, `jobs`, `contracts` tables directly).
+- Cross-service writes use native SQL inside `ProposalRepository` (inserts into `contracts`, `jobs`, `payouts` on proposal acceptance).
+- `job-service` uses `RestTemplate` (configured in `AppConfig`) for any inter-service HTTP calls.
+- `contract-service` has Spring Cloud OpenFeign on the classpath.
+- **M3 replaces all of the above**: each service gets its own PostgreSQL instance, Feign clients replace SQL JOINs for reads, and RabbitMQ events replace direct SQL writes.
 
 **JSONB fields** — Several entities store flexible data as PostgreSQL JSONB:
 - `Contract.metadata` (progress, activity dates)
@@ -190,6 +195,26 @@ Use wildcard deletion (`SCAN + DEL` or `KEYS + UNLINK`):
 ## Git Workflow
 
 ### Branch naming
+
+**M3 format** (all M3 work uses this):
+```
+feat/M3/<scope>/<sliceID>/<studentID>
+```
+
+| Segment | Values |
+|---------|--------|
+| `scope` | `user` `job` `proposal` `contract` `wallet` |
+| `sliceID` | `S1-READ-DB` `S1-EVENTS` `S1-INFRA` … `S5-READ-DB` `S5-EVENTS` `S5-INFRA` |
+| `studentID` | Numeric student ID — always the last segment |
+
+Examples:
+```
+feat/M3/user/S1-READ-DB/55-2398
+feat/M3/proposal/S3-EVENTS/55-4337
+feat/M3/wallet/S5-INFRA/58-1752
+```
+
+**M1/M2 format** (fixes, hotfixes, and non-M3 work):
 ```
 <type>/<scope>/<descriptor>/<studentID>
 ```
@@ -203,12 +228,8 @@ Use wildcard deletion (`SCAN + DEL` or `KEYS + UNLINK`):
 
 Examples:
 ```
-feat/user/S1-F10/55-8078        # new M2 feature
-feat/m1/MOD-3/55-8080           # M1 amendment
-feat/cc/CC-5/55-8080            # cross-cutting requirement
 fix/wallet/payout-amount-rounding/55-8080
 hotfix/user/token-expiry-leak/55-8080
-refactor/job/extract-search-service/55-8080
 docs/infra/claude-md-enhancement/55-4626
 ```
 
@@ -249,5 +270,6 @@ chore(infra): bump postgres image to 17.4 (55-8080)
 
 - **Docker images** use `eclipse-temurin:25.0.2_10-jdk`; each service's `Dockerfile` copies `target/*.jar` → `app.jar`.
 - **Docker Compose** waits for a Postgres health-check before starting any service. Persistent volume: `pgdata`.
-- Root `pom.xml` is a pure aggregator (no `<parent>` block); each service independently inherits from `spring-boot-starter-parent`.
-- **Jackson dual dependency:** Jackson 3.x (`tools.jackson.*`) for Spring Boot; Jackson 2.x (`com.fasterxml.*`) for Hibernate 7.2's JSONB FormatMapper only.
+- Root `pom.xml` is a pure aggregator (no `<parent>` block); each service independently inherits from `spring-boot-starter-parent 3.4.4`.
+- Root `pom.xml` includes two shared modules: `security-common` (JWT filter chain, `JwtConfigurationManager`, Spring Security config) and `event-common` (MongoDB event logging, Observer pattern base classes). All 5 services depend on both at version `1.0.0`.
+- Jackson 2.x (`com.fasterxml.jackson.*`) is used throughout — Spring Boot 3.4.4 ships with Jackson 2.x. No Jackson 3.x dependency exists in this project.
