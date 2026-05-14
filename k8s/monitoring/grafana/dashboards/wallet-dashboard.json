@@ -1,0 +1,155 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "logs"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"ERROR\"}[1m]))",
+          "legendFormat": "errors/min",
+          "refId": "A"
+        }
+      ],
+      "title": "Wallet Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "logs"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Slow \" [5m]))",
+          "legendFormat": "slow warnings",
+          "refId": "A"
+        }
+      ],
+      "title": "Wallet Slow Operations",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "Loki"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "logs"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\"} |= \"returned successfully\" [5m]))",
+          "legendFormat": "feign success",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Feign call to\" [5m]))",
+          "legendFormat": "feign failure",
+          "refId": "B"
+        }
+      ],
+      "title": "Wallet Feign Call Outcomes",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": [
+    "freelance",
+    "wallet-service",
+    "m3"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Wallet Service",
+  "uid": "wallet-service",
+  "version": 1,
+  "weekStart": ""
+}
