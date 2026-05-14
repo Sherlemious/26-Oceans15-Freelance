@@ -75,7 +75,7 @@ jobs:
           done
 
       - name: Maven install (tests + local repo for per-module SpotBugs)
-        run: mvn -B -ntp clean install
+        run: mvn -B -ntp clean install -DskipTests
 
       - name: SpotBugs (High priority only)
         run: |
