@@ -1,0 +1,41 @@
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{ISO8601} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push</url>
+        </http>
+        <format>
+            <label>
+                <pattern>app=freelance,service=wallet-service,level=%level,env=k8s</pattern>
+            </label>
+            <message>
+                <pattern>
+                    {
+                      "timestamp": "%d{ISO8601}",
+                      "level": "%level",
+                      "service": "wallet-service",
+                      "thread": "%thread",
+                      "logger": "%logger{36}",
+                      "correlationId": "%X{correlationId:-}",
+                      "payoutId": "%X{payoutId:-}",
+                      "contractId": "%X{contractId:-}",
+                      "proposalId": "%X{proposalId:-}",
+                      "userId": "%X{userId:-}",
+                      "routingKey": "%X{routingKey:-}",
+                      "message": "%msg"
+                    }
+                </pattern>
+            </message>
+        </format>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="LOKI"/>
+    </root>
+</configuration>
