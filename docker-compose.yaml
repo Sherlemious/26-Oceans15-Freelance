@@ -239,6 +239,24 @@ services:
       redis:
         condition: service_healthy
 
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: freelance-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmqdata:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
   wallet-service:
     build:
       context: .
@@ -257,6 +275,10 @@ services:
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
       SPRING_CASSANDRA_KEYSPACE_NAME: freelanceks
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
@@ -272,3 +294,4 @@ volumes:
   esdata:
   neo4jdata:
   cassandradata:
+  rabbitmqdata:
