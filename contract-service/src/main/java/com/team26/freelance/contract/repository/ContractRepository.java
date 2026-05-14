@@ -132,6 +132,23 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
                                                   @Param("stalledDays") double stalledDays);
 
     @Query(value = """
+        SELECT c.id, c.freelancer_id as freelancerId, c.job_id as jobId,
+            c.agreed_amount as agreedAmount,
+            COALESCE(CAST(c.metadata->>'progressPercentage' AS numeric), 0) as progressPercentage,
+            EXTRACT(EPOCH FROM (NOW() - COALESCE(CAST(c.metadata->>'lastActivityDate' AS timestamp), c.created_at)))/86400 as daysSinceLastActivity
+        FROM contracts c
+        WHERE CAST(c.status AS VARCHAR) = 'ACTIVE'
+          AND COALESCE(CAST(c.metadata->>'progressPercentage' AS numeric), 0) <= :maxProgress
+          AND (EXTRACT(EPOCH FROM (NOW() - COALESCE(CAST(c.metadata->>'lastActivityDate' AS timestamp), c.created_at)))/86400) > :stalledDays
+    """, nativeQuery = true)
+    java.util.List<Object[]> findStalledContractsNoJoin(@Param("maxProgress") double maxProgress,
+                                                  @Param("stalledDays") double stalledDays);
+
+    @Query(value = "SELECT * FROM contracts WHERE agreed_amount BETWEEN :minAmount AND :maxAmount ORDER BY agreed_amount DESC", nativeQuery = true)
+    java.util.List<Contract> findContractsByBudgetRange(@Param("minAmount") Double minAmount,
+                                                        @Param("maxAmount") Double maxAmount);
+
+    @Query(value = """
         SELECT c.id, u.name, j.title, c.agreed_amount, c.status, c.start_date, c.end_date
         FROM contracts c
         LEFT JOIN users u ON c.freelancer_id = u.id

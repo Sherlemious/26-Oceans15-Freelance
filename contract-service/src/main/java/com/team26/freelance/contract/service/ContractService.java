@@ -12,11 +12,15 @@ import com.team26.freelance.contract.model.MilestoneStatus;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEvent;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEventKey;
 import com.team26.freelance.contract.observer.ContractEventSubject;
+import com.team26.freelance.contract.messaging.ContractSagaPublisher;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.cassandra.ContractMilestoneEventRepository;
 import com.team26.freelance.contract.service.ContractAnalyticsService;
+import com.team26.freelance.contract.client.JobServiceClient;
+import com.team26.freelance.contract.client.UserServiceClient;
+import feign.FeignException;
 import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -48,23 +52,32 @@ public class ContractService {
     private final ContractMilestoneEventRepository contractMilestoneEventRepository;
     private final ContractEventSubject contractEventSubject;
     private final ContractAnalyticsService contractAnalyticsService;
+    private final ContractSagaPublisher contractSagaPublisher;
     private final CassandraTemplate cassandraTemplate;
     private final CassandraRowAdapter cassandraRowAdapter;
+    private final UserServiceClient userServiceClient;
+    private final JobServiceClient jobServiceClient;
 
     public ContractService(ContractRepository contractRepository,
             ContractCacheEvictionService cacheEvictionService,
             ContractMilestoneEventRepository contractMilestoneEventRepository,
             ContractEventSubject contractEventSubject,
             ContractAnalyticsService contractAnalyticsService,
+            ContractSagaPublisher contractSagaPublisher,
             CassandraTemplate cassandraTemplate,
-            CassandraRowAdapter cassandraRowAdapter) {
+            CassandraRowAdapter cassandraRowAdapter,
+            UserServiceClient userServiceClient,
+            JobServiceClient jobServiceClient) {
         this.contractRepository = contractRepository;
         this.cacheEvictionService = cacheEvictionService;
         this.contractMilestoneEventRepository = contractMilestoneEventRepository;
         this.contractEventSubject = contractEventSubject;
         this.contractAnalyticsService = contractAnalyticsService;
+        this.contractSagaPublisher = contractSagaPublisher;
         this.cassandraTemplate = cassandraTemplate;
         this.cassandraRowAdapter = cassandraRowAdapter;
+        this.userServiceClient = userServiceClient;
+        this.jobServiceClient = jobServiceClient;
     }
 
     @Cacheable(value = "contract-s4-f6", key = "@contractCacheKeys.featureKey('S4-F6', #startDate, #endDate, #status)")
@@ -127,6 +140,7 @@ public class ContractService {
     @Transactional
     public Contract update(Long id, Contract contractDetails) {
         Contract contract = getContractById(id);
+        ContractStatus oldStatus = contract.getStatus();
 
         if (contractDetails.getStatus() != null) {
             boolean validStatus = contract.getStatus().isValidTransitionTo(contractDetails.getStatus());
@@ -160,6 +174,11 @@ public class ContractService {
         Contract saved = contractRepository.save(contract);
         cacheEvictionService.evictAfterContractMutation(saved.getId());
         recordContractEvent(ObservabilityAction.CONTRACT_UPDATED, saved.getId(), buildUpdateDetails(contractDetails));
+
+        if (contractDetails.getStatus() != null && oldStatus != contractDetails.getStatus()) {
+            contractSagaPublisher.publishContractStatusChanged(saved.getId(), oldStatus, contractDetails.getStatus());
+        }
+
         return saved;
     }
 
@@ -192,6 +211,7 @@ public class ContractService {
             Long contractId = requestItem.getContractId();
             ContractStatus targetStatus = requestItem.getStatus();
             Contract contract = contractById.get(contractId);
+            ContractStatus oldStatus = contract.getStatus();
 
             boolean valid = contract.getStatus().isValidTransitionTo(targetStatus);
 
@@ -210,6 +230,10 @@ public class ContractService {
                 }
             }
             toSave.add(contract);
+
+            if (oldStatus != targetStatus) {
+                contractSagaPublisher.publishContractStatusChanged(contractId, oldStatus, targetStatus);
+            }
         }
 
         contractRepository.saveAll(toSave);
@@ -241,6 +265,14 @@ public class ContractService {
 
     @Cacheable(value = "contract-s4-f1", key = "@contractCacheKeys.featureKeyWithId('S4-F1', #userId)")
     public Contract getActiveContractForUser(Long userId) {
+        try {
+            userServiceClient.getUser(userId);
+        } catch (FeignException.NotFound e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        } catch (Exception e) {
+            // ignore
+        }
+
         return contractRepository
                 .findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(userId, ContractStatus.ACTIVE,
                         userId, ContractStatus.ACTIVE)
@@ -263,6 +295,15 @@ public class ContractService {
         Contract saved = contractRepository.save(contract);
         cacheEvictionService.evictAfterContractCreated();
         recordContractEvent(ObservabilityAction.CONTRACT_CREATED, saved.getId(), buildContractSnapshot(saved));
+
+        contractSagaPublisher.publishContractCreated(
+                saved.getId(),
+                saved.getProposalId(),
+                saved.getJobId(),
+                saved.getFreelancerId(),
+                saved.getAgreedAmount()
+        );
+
         return saved;
     }
 
@@ -270,47 +311,58 @@ public class ContractService {
     public List<ContractSummaryDTO> findContractsByBudgetRangeWithFreelancerInfo(Double minAmount,
             Double maxAmount,
             String status) {
-        List<Object[]> rows = contractRepository.findContractsByBudgetRangeWithFreelancerInfo(minAmount, maxAmount);
+        List<Contract> contracts = contractRepository.findContractsByBudgetRange(minAmount, maxAmount);
         List<ContractSummaryDTO> contractSummaries = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
 
-        for (Object[] row : rows) {
-            String rowStatus = row[4] != null ? row[4].toString() : null;
+        Map<Long, String> freelancerMap = new java.util.HashMap<>();
+        Map<Long, String> jobMap = new java.util.HashMap<>();
+
+        for (Contract c : contracts) {
+            String rowStatus = c.getStatus() != null ? c.getStatus().name() : null;
             if (status != null && !status.isEmpty() && !status.equalsIgnoreCase(rowStatus)) {
                 continue;
             }
 
             LocalDateTime startDate = null;
-            if (row[5] instanceof Timestamp) {
-                startDate = ((Timestamp) row[5]).toLocalDateTime();
-            } else if (row[5] instanceof LocalDateTime) {
-                startDate = (LocalDateTime) row[5];
-            } else if (row[5] != null) {
-                startDate = LocalDateTime.parse(row[5].toString());
+            if (c.getStartDate() != null) {
+                startDate = c.getStartDate();
             }
 
             LocalDateTime endDate = now;
-            if (row[6] != null) {
-                if (row[6] instanceof Timestamp) {
-                    endDate = ((Timestamp) row[6]).toLocalDateTime();
-                } else if (row[6] instanceof LocalDateTime) {
-                    endDate = (LocalDateTime) row[6];
-                } else {
-                    endDate = LocalDateTime.parse(row[6].toString());
-                }
+            if (c.getEndDate() != null) {
+                endDate = c.getEndDate();
             }
 
             long durationDays = 0;
             if (startDate != null) {
-                durationDays = ChronoUnit.DAYS.between(startDate, endDate);
+                durationDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate);
             }
 
+            String freelancerName = freelancerMap.computeIfAbsent(c.getFreelancerId(), id -> {
+                try {
+                    Map<String, Object> user = userServiceClient.getUser(id);
+                    return user != null && user.get("name") != null ? String.valueOf(user.get("name")) : "Unknown User";
+                } catch (FeignException e) {
+                    return "Unknown User";
+                }
+            });
+
+            String jobTitle = jobMap.computeIfAbsent(c.getJobId(), id -> {
+                try {
+                    Map<String, Object> job = jobServiceClient.getJob(id);
+                    return job != null && job.get("title") != null ? String.valueOf(job.get("title")) : "Unknown Job";
+                } catch (FeignException e) {
+                    return "Unknown Job";
+                }
+            });
+
             ContractSummaryDTO contractSummary = new ContractSummaryDTO(
-                    ((Number) row[0]).longValue(),
-                    (String) row[1],
-                    (String) row[2],
-                    ((Number) row[3]).doubleValue(),
-                    row[4] != null ? row[4].toString() : null,
+                    c.getId(),
+                    freelancerName,
+                    jobTitle,
+                    c.getAgreedAmount(),
+                    rowStatus,
                     durationDays);
             contractSummaries.add(contractSummary);
         }

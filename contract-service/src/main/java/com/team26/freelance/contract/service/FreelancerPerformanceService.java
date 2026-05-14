@@ -3,6 +3,8 @@ package com.team26.freelance.contract.service;
 import com.team26.freelance.contract.dto.FreelancerPerformanceDTO;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.FreelancerPerformanceProjection;
+import com.team26.freelance.contract.client.UserServiceClient;
+import feign.FeignException;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -14,9 +16,11 @@ import java.time.LocalDateTime;
 public class FreelancerPerformanceService {
 
     private final ContractRepository contractRepository;
+    private final UserServiceClient userServiceClient;
 
-    public FreelancerPerformanceService(ContractRepository contractRepository) {
+    public FreelancerPerformanceService(ContractRepository contractRepository, UserServiceClient userServiceClient) {
         this.contractRepository = contractRepository;
+        this.userServiceClient = userServiceClient;
     }
 
     @Cacheable(value = "contract-s4-f8", key = "@contractCacheKeys.featureKeyWithId('S4-F8', #freelancerId, #startDateParam, #endDateParam)")
@@ -24,12 +28,11 @@ public class FreelancerPerformanceService {
         long contractCount = contractRepository.countByFreelancerId(freelancerId);
         if (contractCount == 0) {
             try {
-                long userCount = contractRepository.countUserById(freelancerId);
-                if (userCount == 0) {
-                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
-                }
+                userServiceClient.getUser(freelancerId);
+            } catch (FeignException.NotFound e) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
             } catch (Exception e) {
-                // If native query fails (e.g., mocked tests without users table), fallback to returning 404 since contractCount is 0
+                // If it fails for other reasons, handle or throw 404 since contractCount is 0
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
             }
         }
