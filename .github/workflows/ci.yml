@@ -119,7 +119,7 @@ jobs:
           file: ${{ matrix.service }}/Dockerfile
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
-            ${{ env.IMAGE_NAMESPACE }}-${{ matrix.service }}:${{ github.sha }}
-            ${{ env.IMAGE_NAMESPACE }}-${{ matrix.service }}:latest
+            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ env.IMAGE_NAMESPACE }}/${{ matrix.service }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
