@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: contract-service-config
+data:
+  SPRING_DATASOURCE_URL: jdbc:postgresql://freelancedb-contracts:5432/freelancedb
+  SPRING_RABBITMQ_HOST: rabbitmq
+  FEIGN_USER_SERVICE_URL: http://user-service:8080
+  FEIGN_JOB_SERVICE_URL: http://job-service:8080
