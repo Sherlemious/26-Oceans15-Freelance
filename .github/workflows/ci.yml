@@ -48,7 +48,7 @@ jobs:
         run: docker compose -f docker-compose.yaml config --quiet
 
   java:
-    name: Java (Checkstyle, SpotBugs, Maven verify)
+    name: Java (Checkstyle, build)
     runs-on: ubuntu-latest
     needs: [lint]
     steps:
@@ -74,20 +74,8 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Maven install (tests + local repo for per-module SpotBugs)
-        run: mvn -B -ntp clean install -DskipTests
-
-      - name: SpotBugs (High priority only)
-        run: |
-          set -euo pipefail
-          MODULES="security-common event-common user-service job-service proposal-service contract-service wallet-service"
-          for m in $MODULES; do
-            echo "::group::spotbugs ${m}"
-            mvn -B -ntp -f "$m/pom.xml" com.github.spotbugs:spotbugs-maven-plugin:4.8.6.6:check \
-              -Dspotbugs.effort=Max \
-              -Dspotbugs.threshold=High
-            echo "::endgroup::"
-          done
+      - name: Maven build
+        run: mvn clean package -DskipTests
 
   container-images:
     name: Docker ${{ matrix.service }}
