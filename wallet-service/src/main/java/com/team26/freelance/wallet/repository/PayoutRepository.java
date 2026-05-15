@@ -69,6 +69,19 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             """, nativeQuery = true)
     List<Object[]> getPayoutSummaryByFreelancer(@Param("freelancerId") Long freelancerId);
 
+    @Query("""
+            SELECT COALESCE(SUM(p.amount), 0.0)
+            FROM Payout p
+            WHERE p.freelancerId = :freelancerId
+              AND p.status = :status
+              AND p.createdAt >= :startDate
+              AND p.createdAt < :endExclusive
+            """)
+    Double getCompletedPayoutTotalByFreelancer(@Param("freelancerId") Long freelancerId,
+                                               @Param("status") PayoutStatus status,
+                                               @Param("startDate") LocalDateTime startDate,
+                                               @Param("endExclusive") LocalDateTime endExclusive);
+
     @Query(value = """
             SELECT COALESCE(SUM(pm.amount), 0)
             FROM proposal_milestones pm

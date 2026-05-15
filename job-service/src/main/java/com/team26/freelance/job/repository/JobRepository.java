@@ -12,13 +12,6 @@ import java.util.List;
 @Repository
 public interface JobRepository extends JpaRepository<Job, Long> {
 
-    @Query(value = "SELECT COUNT(*) > 0 FROM contracts WHERE job_id = :jobId AND status = 'ACTIVE'", nativeQuery = true)
-    boolean existsActiveContractByJobId(@Param("jobId") Long jobId);
-
-    @Modifying
-    @Query(value = "UPDATE proposals SET status = 'REJECTED' WHERE job_id = :jobId AND status = 'SUBMITTED'", nativeQuery = true)
-    void rejectSubmittedProposalsByJobId(@Param("jobId") Long jobId);
-
     @Query(value = "SELECT * FROM jobs j WHERE " +
             "(:status IS NULL OR j.status = CAST(:status AS job_status)) AND " +
             "(:minBudget IS NULL OR j.budget_max >= :minBudget) AND " +
@@ -48,37 +41,6 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     """, nativeQuery = true)
     List<Long> findJobIdsWithExpiredAttachments();
 
-
-    
-    @Query(value = "SELECT " +
-            "j.id as jobId, " +
-            "j.title as title, " +
-            "COALESCE(COUNT(p.id), 0) as totalProposals, " +
-            "COALESCE(AVG(p.bid_amount), 0) as averageBidAmount, " +
-            "COALESCE(MIN(p.bid_amount), 0) as lowestBid, " +
-            "COALESCE(MAX(p.bid_amount), 0) as highestBid " +
-            "FROM jobs j " +
-            "LEFT JOIN proposals p ON j.id = p.job_id " +
-            "WHERE j.id = :jobId " +
-            "AND (:startDate IS NULL OR p.submitted_at >= CAST(:startDate AS timestamp)) " +
-            "AND (:endDate IS NULL OR p.submitted_at <= CAST(:endDate AS timestamp)) " +
-            "GROUP BY j.id, j.title",
-            nativeQuery = true)
-    List<Object[]> getProposalSummary(@Param("jobId") Long jobId,
-                                      @Param("startDate") String startDate,
-                                      @Param("endDate") String endDate);
-
-        @Query(value = "SELECT job_id, status FROM contracts WHERE id = :id", nativeQuery = true)
-        List<Object[]> findContractJobIdAndStatusById(@Param("id") Long id);
-
-    @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId", nativeQuery = true)
-    Long countTotalProposalsByJobId(@Param("jobId") Long jobId);
-
-    @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId AND status = 'ACCEPTED'", nativeQuery = true)
-    Long countAcceptedProposalsByJobId(@Param("jobId") Long jobId);
-
-    @Query(value = "SELECT COALESCE(AVG(bid_amount), 0) FROM proposals WHERE job_id = :jobId", nativeQuery = true)
-    Double getAverageBidAmountByJobId(@Param("jobId") Long jobId);
 
     @Query(value = "SELECT COUNT(*) FROM job_attachments WHERE job_id = :jobId AND expiry_date >= CURRENT_DATE", nativeQuery = true)
     Long countActiveAttachmentsByJobId(@Param("jobId") Long jobId);
