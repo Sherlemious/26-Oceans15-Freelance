@@ -104,6 +104,7 @@ public class JobService {
                 ));
     }
 
+    @Transactional
     public Job updateJob(Long jobId, Job updatedJob) {
         Job existingJob = getJobById(jobId);
         JobStatus oldStatus = existingJob.getStatus();
