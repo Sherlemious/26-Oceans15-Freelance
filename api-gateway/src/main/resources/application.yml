@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        # S3-INFRA — proposal-service route (other slices add their own entries)
+        - id: proposal-service
+          uri: http://proposal-service:8080
+          predicates:
+            - Path=/api/proposals/**
