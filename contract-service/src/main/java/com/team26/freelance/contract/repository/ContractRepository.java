@@ -17,15 +17,22 @@ import java.util.Optional;
 @Repository
 public interface ContractRepository extends JpaRepository<Contract, Long> {
 
-    @Query(value = "SELECT COUNT(*) FROM users WHERE id = :userId", nativeQuery = true)
-    long countUsersById(@Param("userId") Long userId);
-
     long countByFreelancerId(Long freelancerId);
+
+    long countByFreelancerIdAndStatus(Long freelancerId, ContractStatus status);
+
+    long countByJobIdAndStatus(Long jobId, ContractStatus status);
 
     Optional<Contract> findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(Long freelancerId, ContractStatus status1, Long clientId, ContractStatus status2);
 
     @Query(value = "SELECT * FROM contracts WHERE (freelancer_id=:userId OR client_id=:userId) AND CAST(status AS VARCHAR) = 'ACTIVE' ORDER BY created_at DESC LIMIT 1", nativeQuery = true)
     Optional<Contract> findMostRecentActiveContractByUserIdNative(@Param("userId") Long userId);
+
+    Optional<Contract> findFirstByProposalIdAndStatusOrderByCreatedAtDesc(Long proposalId, ContractStatus status);
+
+    List<Contract> findByAgreedAmountBetweenAndStatusOrderByAgreedAmountDesc(Double minAmount, Double maxAmount, ContractStatus status);
+
+    List<Contract> findByAgreedAmountBetweenOrderByAgreedAmountDesc(Double minAmount, Double maxAmount);
     
     @Query("SELECT COUNT(c) FROM Contract c WHERE c.createdAt < :cutoff AND c.status IN ('COMPLETED', 'TERMINATED')")
     long countPurgeable(@Param("cutoff") LocalDateTime cutoff);
@@ -55,9 +62,6 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 	@Query(value = "SELECT * FROM contracts WHERE CAST(metadata->>:key AS numeric) < CAST(:value AS numeric)", nativeQuery = true)
 	List<Contract> findByMetadataLessThan(@Param("key") String key, @Param("value") String value);
   
-  @Query(value = "SELECT COUNT(*) FROM users WHERE id = :freelancerId", nativeQuery = true)
-  long countUserById(@Param("freelancerId") Long freelancerId);
-
   @Query(value = """
       SELECT 
           COUNT(*) as totalContracts,
@@ -72,6 +76,18 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
   FreelancerPerformanceProjection getFreelancerPerformance(@Param("freelancerId") Long freelancerId,
                                       @Param("startDate") java.time.LocalDateTime startDate,
                                       @Param("endDate") java.time.LocalDateTime endDate);
+
+    @Query(value = """
+        SELECT
+            COUNT(*) AS total_contracts,
+            COALESCE(SUM(CASE WHEN CAST(status AS VARCHAR) = 'COMPLETED' THEN 1 ELSE 0 END), 0) AS completed_contracts,
+            COALESCE(SUM(CASE WHEN CAST(status AS VARCHAR) = 'TERMINATED' THEN 1 ELSE 0 END), 0) AS terminated_contracts,
+            COALESCE(SUM(CASE WHEN CAST(status AS VARCHAR) = 'COMPLETED' THEN agreed_amount ELSE 0 END), 0) AS total_earnings,
+            COALESCE(AVG(CASE WHEN CAST(status AS VARCHAR) = 'COMPLETED' THEN agreed_amount ELSE NULL END), 0) AS average_contract_value
+        FROM contracts
+        WHERE freelancer_id = :userId
+    """, nativeQuery = true)
+    Object[] getUserContractSummary(@Param("userId") Long userId);
 
     @Query(value = """
         SELECT
@@ -114,31 +130,12 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
                                                          @Param("endDate") LocalDateTime endDate);
 
     @Query(value = """
-        SELECT 
-            c.id as contractId,
-            u.name as freelancerName,
-            j.title as jobTitle,
-            c.agreed_amount as agreedAmount,
-            COALESCE(CAST(c.metadata->>'progressPercentage' AS numeric), 0) as progressPercentage,
-            EXTRACT(EPOCH FROM (NOW() - COALESCE(CAST(c.metadata->>'lastActivityDate' AS timestamp), c.created_at)))/86400 as daysSinceLastActivity
+        SELECT *
         FROM contracts c
-        LEFT JOIN users u ON c.freelancer_id = u.id
-        LEFT JOIN jobs j ON c.job_id = j.id
         WHERE CAST(c.status AS VARCHAR) = 'ACTIVE'
           AND COALESCE(CAST(c.metadata->>'progressPercentage' AS numeric), 0) <= :maxProgress
           AND (EXTRACT(EPOCH FROM (NOW() - COALESCE(CAST(c.metadata->>'lastActivityDate' AS timestamp), c.created_at)))/86400) > :stalledDays
     """, nativeQuery = true)
-    java.util.List<Object[]> findStalledContracts(@Param("maxProgress") double maxProgress,
-                                                  @Param("stalledDays") double stalledDays);
-
-    @Query(value = """
-        SELECT c.id, u.name, j.title, c.agreed_amount, c.status, c.start_date, c.end_date
-        FROM contracts c
-        LEFT JOIN users u ON c.freelancer_id = u.id
-        LEFT JOIN jobs j ON c.job_id = j.id
-        WHERE c.agreed_amount BETWEEN :minAmount AND :maxAmount
-        ORDER BY c.agreed_amount DESC
-    """, nativeQuery = true)
-    java.util.List<Object[]> findContractsByBudgetRangeWithFreelancerInfo(@Param("minAmount") Double minAmount,
-                                                                           @Param("maxAmount") Double maxAmount);
+    java.util.List<Contract> findStalledContractCandidates(@Param("maxProgress") double maxProgress,
+                                                           @Param("stalledDays") double stalledDays);
 }

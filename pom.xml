@@ -19,6 +19,7 @@
     </properties>
 
     <modules>
+        <module>contracts</module>
         <module>security-common</module>
         <module>event-common</module>
         <module>user-service</module>
