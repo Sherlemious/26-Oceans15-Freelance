@@ -1,10 +1,18 @@
 package com.team26.freelance.job.service;
 
 import com.team26.freelance.job.dto.*;
+import com.team26.freelance.job.events.JobClosedEvent;
+import com.team26.freelance.job.events.JobRatedEvent;
+import com.team26.freelance.job.events.JobStatusChangedEvent;
+import com.team26.freelance.job.events.ProposalAcceptedEvent;
+import com.team26.freelance.job.events.ProposalCancelledEvent;
+import com.team26.freelance.job.events.ProposalCompletedEvent;
+import com.team26.freelance.job.events.ProposalWithdrawnEvent;
 import com.team26.freelance.job.feign.ContractDTO;
 import com.team26.freelance.job.feign.ContractServiceClient;
 import com.team26.freelance.job.feign.ProposalSummaryResponse;
 import com.team26.freelance.job.feign.ProposalServiceClient;
+import com.team26.freelance.job.messaging.publishers.JobSagaPublisher;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
 import com.team26.freelance.job.model.JobStatus;
@@ -35,6 +43,7 @@ public class JobService {
     private final JobEventRepository jobEventRepository;
     private final ContractServiceClient contractServiceClient;
     private final ProposalServiceClient proposalServiceClient;
+    private final JobSagaPublisher jobSagaPublisher;
 
     private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
@@ -42,12 +51,14 @@ public class JobService {
                       JobSearchService jobSearchService,
                       JobEventRepository jobEventRepository,
                       ContractServiceClient contractServiceClient,
-                      ProposalServiceClient proposalServiceClient) {
+                      ProposalServiceClient proposalServiceClient,
+                      JobSagaPublisher jobSagaPublisher) {
         this.jobRepository = jobRepository;
         this.jobSearchService = jobSearchService;
         this.jobEventRepository = jobEventRepository;
         this.contractServiceClient = contractServiceClient;
         this.proposalServiceClient = proposalServiceClient;
+        this.jobSagaPublisher = jobSagaPublisher;
     }
 
     public JobSearchResultDTO createJob(JobRequestDTO request) {
@@ -95,6 +106,7 @@ public class JobService {
 
     public Job updateJob(Long jobId, Job updatedJob) {
         Job existingJob = getJobById(jobId);
+        JobStatus oldStatus = existingJob.getStatus();
 
         existingJob.setTitle(updatedJob.getTitle());
         existingJob.setDescription(updatedJob.getDescription());
@@ -110,6 +122,7 @@ public class JobService {
                 "jobId", updated.getId(),
                 "source", "auto_crud_update"
         ));
+        publishStatusChangedIfNeeded(updated.getId(), oldStatus, updated.getStatus());
         return updated;
     }
 
@@ -123,6 +136,7 @@ public class JobService {
     public void closeJob(Long id) {
         Job job = jobRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
+        JobStatus oldStatus = job.getStatus();
 
         int activeContracts;
         try {
@@ -152,6 +166,9 @@ public class JobService {
 
         job.setStatus(JobStatus.CLOSED);
         jobRepository.save(job);
+        jobSearchService.indexJob(job.getId(), "close_endpoint");
+        publishStatusChangedIfNeeded(job.getId(), oldStatus, JobStatus.CLOSED);
+        jobSagaPublisher.publishJobClosed(new JobClosedEvent(job.getId(), job.getClientId()));
 
         jobSearchService.notifyObservers("JOB_CLOSED", Map.of(
                 "jobId", id,
@@ -228,7 +245,55 @@ public class JobService {
                 "source", "client_rating"
         ));
 
+        jobSagaPublisher.publishJobRated(new JobRatedEvent(jobId, contractId, newRating, job.getClientId()));
+
         return updated;
+    }
+
+    @Transactional
+    public void handleProposalAccepted(ProposalAcceptedEvent event) {
+        transitionJobStatus(event.jobId(), JobStatus.IN_PROGRESS, "proposal.accepted");
+    }
+
+    @Transactional
+    public void handleProposalCompleted(ProposalCompletedEvent event) {
+        transitionJobStatus(event.jobId(), JobStatus.CLOSED, "proposal.completed");
+    }
+
+    @Transactional
+    public void handleProposalCancelled(ProposalCancelledEvent event) {
+        Job job = getJobById(event.jobId());
+        if (job.getStatus() != JobStatus.CLOSED) {
+            log.info("Ignoring proposal.cancelled for jobId={} because status is {}", event.jobId(), job.getStatus());
+            return;
+        }
+
+        transitionJobStatus(event.jobId(), JobStatus.IN_PROGRESS, "proposal.cancelled");
+    }
+
+    @Transactional
+    public void handleProposalWithdrawn(ProposalWithdrawnEvent event) {
+        Job job = getJobById(event.jobId());
+        if (job.getStatus() != JobStatus.IN_PROGRESS) {
+            log.info("Ignoring proposal.withdrawn for jobId={} because status is {}", event.jobId(), job.getStatus());
+            return;
+        }
+
+        try {
+            Long proposalCount = proposalServiceClient.getProposalCountForJob(event.jobId());
+            if (proposalCount == null || proposalCount > 0) {
+                log.info("Keeping jobId={} IN_PROGRESS because proposal count is {}", event.jobId(), proposalCount);
+                return;
+            }
+        } catch (FeignException.NotFound e) {
+            log.warn("Proposal count endpoint returned 404 for jobId={}, skipping status reopen", event.jobId());
+            return;
+        } catch (FeignException e) {
+            log.warn("Unable to evaluate withdrawn proposal impact for jobId={}: {}", event.jobId(), e.getMessage());
+            return;
+        }
+
+        transitionJobStatus(event.jobId(), JobStatus.OPEN, "proposal.withdrawn");
     }
 
     @Transactional
@@ -380,5 +445,36 @@ public class JobService {
                 .activeAttachments(activeAttachments)
                 .rating(job.getRating())
                 .build();
+    }
+
+    private void transitionJobStatus(Long jobId, JobStatus newStatus, String source) {
+        Job job = getJobById(jobId);
+        JobStatus oldStatus = job.getStatus();
+
+        if (oldStatus == newStatus) {
+            log.info("Skipping status transition for jobId={} because status is already {} from {}", jobId, newStatus, source);
+            return;
+        }
+
+        job.setStatus(newStatus);
+        jobRepository.save(job);
+        jobSearchService.indexJob(jobId, source);
+        jobSearchService.notifyObservers("JOB_STATUS_CHANGED", Map.of(
+                "jobId", jobId,
+                "oldStatus", oldStatus.name(),
+                "newStatus", newStatus.name(),
+                "source", source
+        ));
+        publishStatusChangedIfNeeded(jobId, oldStatus, newStatus);
+        log.info("Updated jobId={} status from {} to {} via {}", jobId, oldStatus, newStatus, source);
+    }
+
+    private void publishStatusChangedIfNeeded(Long jobId, JobStatus oldStatus, JobStatus newStatus) {
+        if (oldStatus == null || oldStatus == newStatus) {
+            return;
+        }
+
+        jobSagaPublisher.publishJobStatusChanged(
+                new JobStatusChangedEvent(jobId, oldStatus.name(), newStatus.name()));
     }
 }
