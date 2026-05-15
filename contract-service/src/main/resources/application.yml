@@ -5,7 +5,7 @@ spring:
   application:
     name: contract-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}   # ← fixed hardcoded localhost
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://contract-postgres:5432/freelancedb-contracts}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
   jpa:
@@ -44,11 +44,27 @@ cache:
     activity: ${CACHE_TTL_ACTIVITY:300}
     detail: ${CACHE_TTL_DETAIL:900}
 
+feign:
+  user-service:
+    url: ${FEIGN_USER_SERVICE_URL:http://user-service:8080}
+  job-service:
+    url: ${FEIGN_JOB_SERVICE_URL:http://job-service:8080}
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: full
+
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: "prometheus,health,info"
   endpoint:
     health:
       show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
