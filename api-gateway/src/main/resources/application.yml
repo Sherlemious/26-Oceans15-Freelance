@@ -9,3 +9,4 @@ spring:
           uri: http://proposal-service:8080
           predicates:
             - Path=/api/proposals/**
+
