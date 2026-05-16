@@ -11,6 +11,8 @@ import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.service.ContractAnalyticsService;
 import com.team26.freelance.contract.service.ContractService;
+import com.team26.freelance.contracts.dto.ContractDTO;
+import com.team26.freelance.contracts.dto.UserContractSummaryDTO;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
@@ -81,6 +83,31 @@ public class ContractController {
         return ResponseEntity.ok(contractService.getActiveContractForUser(userId));
     }
 
+    @GetMapping("/user/{userId}/summary")
+    public ResponseEntity<UserContractSummaryDTO> getUserContractSummary(@PathVariable Long userId) {
+        return ResponseEntity.ok(contractService.getUserContractSummary(userId));
+    }
+
+    @GetMapping("/user/{userId}/active-count")
+    public ResponseEntity<Integer> getActiveContractCountForUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(contractService.getActiveContractCountForUser(userId));
+    }
+
+    @GetMapping("/user/{userId}/completed-count")
+    public ResponseEntity<Long> getCompletedContractCountForUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(contractService.getCompletedContractCountForUser(userId));
+    }
+
+    @GetMapping("/job/{jobId}/active-count")
+    public ResponseEntity<Integer> getActiveContractCountForJob(@PathVariable Long jobId) {
+        return ResponseEntity.ok(contractService.getActiveContractCountForJob(jobId));
+    }
+
+    @GetMapping("/proposal/{proposalId}/active")
+    public ResponseEntity<ContractDTO> getActiveContractForProposal(@PathVariable Long proposalId) {
+        return ResponseEntity.ok(contractService.getActiveContractForProposal(proposalId));
+    }
+
     // POST /api/contracts
     @PostMapping
     public ResponseEntity<Contract> createContract(@RequestBody Contract contract) {
@@ -129,10 +156,9 @@ public class ContractController {
         return ResponseEntity.ok(contractService.getContractMilestoneTimeline(id, start, end));
     }
 
-    // GET /api/contracts/{id} ← used by job-service via RestTemplate
-    @GetMapping("/{id}")
-    public ResponseEntity<Contract> getContractById(@PathVariable Long id) {
-        return ResponseEntity.ok(contractService.getContractById(id));
+    @GetMapping("/{contractId}")
+    public ResponseEntity<ContractDTO> getContractById(@PathVariable Long contractId) {
+        return ResponseEntity.ok(contractService.getContractDtoById(contractId));
     }
 
     @PutMapping("/{id}")

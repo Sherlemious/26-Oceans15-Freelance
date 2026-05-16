@@ -39,6 +39,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +49,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PayoutService {
+
+  private static final Logger log = LoggerFactory.getLogger(PayoutService.class);
+  private static final long SLOW_OPERATION_THRESHOLD_MS = 1000L;
 
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
@@ -545,6 +551,35 @@ public class PayoutService {
             .totalAmount(totalAmount)
             .methodBreakdown(methodBreakdown)
             .build();
+  }
+
+  @Cacheable(
+          cacheNames = "wallet-service::S5-READ-DB-total",
+          key = "#freelancerId + ':' + #startDate + ':' + #endDate"
+  )
+  public BigDecimal getCompletedPayoutTotalByFreelancer(Long freelancerId,
+                                                        LocalDate startDate,
+                                                        LocalDate endDate) {
+    if (startDate.isAfter(endDate)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+              "startDate must be before or equal to endDate");
+    }
+
+    long startedAt = System.currentTimeMillis();
+    MDC.put("userId", freelancerId.toString());
+    try {
+      LocalDateTime start = startDate.atStartOfDay();
+      LocalDateTime endExclusive = endDate.plusDays(1).atStartOfDay();
+      Double total = payoutRepository.getCompletedPayoutTotalByFreelancer(
+              freelancerId, PayoutStatus.COMPLETED, start, endExclusive);
+      return total == null ? BigDecimal.valueOf(0.0) : BigDecimal.valueOf(total);
+    } finally {
+      long elapsedMs = System.currentTimeMillis() - startedAt;
+      if (elapsedMs > SLOW_OPERATION_THRESHOLD_MS) {
+        log.warn("Slow completed-payout-total lookup took {}ms", elapsedMs);
+      }
+      MDC.remove("userId");
+    }
   }
 
   @Caching(evict = {
