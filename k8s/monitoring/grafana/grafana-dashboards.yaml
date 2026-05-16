@@ -1,0 +1,1096 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  dashboard-provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: Freelance
+        orgId: 1
+        folder: Freelance
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+  user-dashboard.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"user-service\",level=\"ERROR\"}[1m]))",
+              "legendFormat": "errors/min",
+              "refId": "A"
+            }
+          ],
+          "title": "User Error Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 0
+          },
+          "id": 2,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"user-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\"[5m]))",
+              "legendFormat": "read success",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"user-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign call to\"[5m]))",
+              "legendFormat": "feign failure",
+              "refId": "B"
+            }
+          ],
+          "title": "User Read Outcomes",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 0
+          },
+          "id": 3,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"user-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Slow \"[5m]))",
+              "legendFormat": "slow warnings",
+              "refId": "A"
+            }
+          ],
+          "title": "User Slow Operations",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 8
+          },
+          "id": 4,
+          "targets": [
+            {
+              "expr": "sum by (uri, method) (rate(http_server_requests_seconds_count{job=\"user-service\",uri=~\"/api/(users|auth).*\"}[5m]))",
+              "legendFormat": "{{method}} {{uri}}",
+              "refId": "A"
+            }
+          ],
+          "title": "User HTTP Request Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 8
+          },
+          "id": 5,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"user-service\",uri=~\"/api/(users|auth).*\"}[5m]))) * 1000",
+              "legendFormat": "P95 {{uri}}",
+              "refId": "A"
+            }
+          ],
+          "title": "User HTTP Latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 8
+          },
+          "id": 6,
+          "targets": [
+            {
+              "expr": "sum(jvm_memory_used_bytes{job=\"user-service\",area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"user-service\",area=\"heap\"})",
+              "legendFormat": "heap used",
+              "refId": "A"
+            }
+          ],
+          "title": "User JVM Heap Usage",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "15s",
+      "schemaVersion": 39,
+      "tags": [
+        "freelance",
+        "user-service",
+        "m3"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "User Service",
+      "uid": "user-service",
+      "version": 1,
+      "weekStart": ""
+    }
+  job-dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\", level=\"ERROR\"}[1m])) by (level)",
+              "refId": "A"
+            }
+          ],
+          "title": "Error Rate (Errors per Minute)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 0
+          },
+          "id": 2,
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{job=\"job-service\"}[5m])",
+              "legendFormat": "{{uri}} {{method}}",
+              "refId": "A"
+            }
+          ],
+          "title": "HTTP Request Rate (Requests/sec)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+          },
+          "id": 3,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Feign call to\" |= \"failed\"[1m])) as failures,\nsum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\"[1m])) as successes",
+              "refId": "A"
+            }
+          ],
+          "title": "Feign Call Outcomes (Success vs Failures)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Latency (ms)",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": true,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+          },
+          "id": 4,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
+              "legendFormat": "P50 {{uri}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
+              "legendFormat": "P95 {{uri}}",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
+              "legendFormat": "P99 {{uri}}",
+              "refId": "C"
+            }
+          ],
+          "title": "HTTP Latency Percentiles (P50/P95/P99)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+          },
+          "id": 5,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Published\" OR |= \"Consuming\" OR |= \"Processed\"[5m])) by (routingKey)",
+              "refId": "A"
+            }
+          ],
+          "title": "RabbitMQ Event Audit (by Routing Key)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Hit/Miss Ratio",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 16
+          },
+          "id": 6,
+          "targets": [
+            {
+              "expr": "sum(rate(cache_gets_total{job=\"job-service\", result=\"hit\"}[5m])) / (sum(rate(cache_gets_total{job=\"job-service\", result=\"hit\"}[5m])) + sum(rate(cache_gets_total{job=\"job-service\", result=\"miss\"}[5m])))",
+              "legendFormat": "Cache Hit Ratio",
+              "refId": "A"
+            }
+          ],
+          "title": "Redis Cache Hit/Miss Ratio",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "tags": [
+        "job-service",
+        "production"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Job Service Observability Dashboard",
+      "uid": "job-service-dashboard",
+      "version": 1,
+      "weekStart": ""
+    }
+  proposal-dashboard.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"proposal-service\",level=\"ERROR\"}[1m]))",
+              "legendFormat": "errors/min",
+              "refId": "A"
+            }
+          ],
+          "title": "Proposal Error Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 0
+          },
+          "id": 2,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"proposal-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\"[5m]))",
+              "legendFormat": "read success",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"proposal-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign call to\"[5m]))",
+              "legendFormat": "feign failure",
+              "refId": "B"
+            }
+          ],
+          "title": "Proposal Read Outcomes",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 0
+          },
+          "id": 3,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"proposal-service\"} | json | line_format \"{{.message}}\" |= \"proposal.\"[5m]))",
+              "legendFormat": "proposal events",
+              "refId": "A"
+            }
+          ],
+          "title": "Proposal Event Audit",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 8
+          },
+          "id": 4,
+          "targets": [
+            {
+              "expr": "sum by (uri, method) (rate(http_server_requests_seconds_count{job=\"proposal-service\",uri=~\"/api/proposals.*\"}[5m]))",
+              "legendFormat": "{{method}} {{uri}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Proposal HTTP Request Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 8
+          },
+          "id": 5,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"proposal-service\",uri=~\"/api/proposals.*\"}[5m]))) * 1000",
+              "legendFormat": "P95 {{uri}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Proposal HTTP Latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 8
+          },
+          "id": 6,
+          "targets": [
+            {
+              "expr": "sum(jvm_memory_used_bytes{job=\"proposal-service\",area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"proposal-service\",area=\"heap\"})",
+              "legendFormat": "heap used",
+              "refId": "A"
+            }
+          ],
+          "title": "Proposal JVM Heap Usage",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "15s",
+      "schemaVersion": 39,
+      "tags": [
+        "freelance",
+        "proposal-service",
+        "m3"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Proposal Service",
+      "uid": "proposal-service",
+      "version": 1,
+      "weekStart": ""
+    }
+  contract-dashboard.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"ERROR\"}[1m]))",
+              "legendFormat": "errors/min",
+              "refId": "A"
+            }
+          ],
+          "title": "Contract Error Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 0
+          },
+          "id": 2,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"UserServiceClient.getUser returned successfully\"[5m]))",
+              "legendFormat": "user read success",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"JobServiceClient.getJob returned successfully\"[5m]))",
+              "legendFormat": "job read success",
+              "refId": "B"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign call to\"[5m]))",
+              "legendFormat": "read feign failure",
+              "refId": "C"
+            }
+          ],
+          "title": "S4 Read Feign Outcomes",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 0
+          },
+          "id": 3,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Slow \"[5m]))",
+              "legendFormat": "slow warnings",
+              "refId": "A"
+            }
+          ],
+          "title": "S4 Read Slow Operations",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 8
+          },
+          "id": 4,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"saved with status\"[5m]))",
+              "legendFormat": "contract writes",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"milestones/track\"[5m]))",
+              "legendFormat": "milestone track requests",
+              "refId": "B"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Failed to log contract event to MongoDB\"[5m]))",
+              "legendFormat": "event log failures",
+              "refId": "C"
+            }
+          ],
+          "title": "S4 Events And Milestones",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 8
+          },
+          "id": 5,
+          "targets": [
+            {
+              "expr": "sum by (uri, method) (rate(http_server_requests_seconds_count{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))",
+              "legendFormat": "{{method}} {{uri}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Contract HTTP Request Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 8
+          },
+          "id": 6,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+              "legendFormat": "P50 {{uri}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+              "legendFormat": "P95 {{uri}}",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+              "legendFormat": "P99 {{uri}}",
+              "refId": "C"
+            }
+          ],
+          "title": "Contract HTTP Latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 16
+          },
+          "id": 7,
+          "targets": [
+            {
+              "expr": "sum(jvm_memory_used_bytes{job=\"contract-service\",area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"contract-service\",area=\"heap\"})",
+              "legendFormat": "heap used",
+              "refId": "A"
+            }
+          ],
+          "title": "Contract JVM Heap Usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 16
+          },
+          "id": 8,
+          "targets": [
+            {
+              "expr": "hikaricp_connections_active{job=\"contract-service\"}",
+              "legendFormat": "active",
+              "refId": "A"
+            },
+            {
+              "expr": "hikaricp_connections_max{job=\"contract-service\"}",
+              "legendFormat": "max",
+              "refId": "B"
+            }
+          ],
+          "title": "Contract DB Connections",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "15s",
+      "schemaVersion": 39,
+      "tags": [
+        "freelance",
+        "contract-service",
+        "m3"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Contract Service",
+      "uid": "contract-service",
+      "version": 1,
+      "weekStart": ""
+    }
+  wallet-dashboard.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "logs"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 0
+          },
+          "id": 1,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"ERROR\"}[1m]))",
+              "legendFormat": "errors/min",
+              "refId": "A"
+            }
+          ],
+          "title": "Wallet Error Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "logs"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 0
+          },
+          "id": 2,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Slow \" [5m]))",
+              "legendFormat": "slow warnings",
+              "refId": "A"
+            }
+          ],
+          "title": "Wallet Slow Operations",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "logs"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 0
+          },
+          "id": 3,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\"} |= \"returned successfully\" [5m]))",
+              "legendFormat": "feign success",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Feign call to\" [5m]))",
+              "legendFormat": "feign failure",
+              "refId": "B"
+            }
+          ],
+          "title": "Wallet Feign Call Outcomes",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "15s",
+      "schemaVersion": 39,
+      "tags": [
+        "freelance",
+        "wallet-service",
+        "m3"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Wallet Service",
+      "uid": "wallet-service",
+      "version": 1,
+      "weekStart": ""
+    }
