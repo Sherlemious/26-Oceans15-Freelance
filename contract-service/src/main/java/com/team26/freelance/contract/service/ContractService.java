@@ -12,7 +12,7 @@ import com.team26.freelance.contract.model.MilestoneStatus;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEvent;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEventKey;
 import com.team26.freelance.contract.observer.ContractEventSubject;
-import com.team26.freelance.contract.messaging.ContractSagaPublisher;
+import com.team26.freelance.contract.messaging.publisher.ContractSagaPublisher;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
