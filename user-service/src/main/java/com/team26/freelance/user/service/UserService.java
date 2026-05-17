@@ -11,11 +11,13 @@ import com.team26.freelance.user.config.CacheConfig;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
+import com.team26.freelance.user.logging.MdcUserScope;
 import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
 
-import org.slf4j.MDC;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -34,6 +36,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     public static final String PREFERENCES_UPDATED = "PREFERENCES_UPDATED";
     public static final String USER_DEACTIVATED = "USER_DEACTIVATED";
@@ -68,9 +72,12 @@ public class UserService {
 
         user.setPassword(encoder.encode(user.getPassword()));
         User savedUser = userRepository.save(user);
-        recordUserEvent(savedUser, USER_CREATED, userDetails(savedUser));
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
+        try (MdcUserScope ignored = MdcUserScope.put(savedUser.getId())) {
+            log.info("User {} saved with status={}", savedUser.getId(), savedUser.getStatus());
+            recordUserEvent(savedUser, USER_CREATED, userDetails(savedUser));
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
+        }
     }
 
     @Cacheable(cacheNames = CacheConfig.USER_DETAIL_CACHE,
@@ -141,58 +148,65 @@ public class UserService {
     }
 
     public UserResponseDTO update(Long id, User updated) {
-        MDC.put("userId", String.valueOf(id));
-        User existing = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        existing.setName(updated.getName());
-        existing.setEmail(updated.getEmail());
-        existing.setPassword(encoder.encode(updated.getPassword()));
-        existing.setPhone(updated.getPhone());
-        existing.setStatus(updated.getStatus());
-        existing.setPreferences(updated.getPreferences());
-        User savedUser = userRepository.save(existing);
-        recordUserEvent(savedUser, USER_UPDATED, userDetails(savedUser));
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
+        try (MdcUserScope ignored = MdcUserScope.put(id)) {
+            User existing = userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            existing.setName(updated.getName());
+            existing.setEmail(updated.getEmail());
+            existing.setPassword(encoder.encode(updated.getPassword()));
+            existing.setPhone(updated.getPhone());
+            existing.setStatus(updated.getStatus());
+            existing.setPreferences(updated.getPreferences());
+            User savedUser = userRepository.save(existing);
+            log.info("User {} saved with status={}", savedUser.getId(), savedUser.getStatus());
+            recordUserEvent(savedUser, USER_UPDATED, userDetails(savedUser));
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
+        }
     }
 
     @Transactional
     public UserResponseDTO updateRole(Long id, String requestedRole) {
-        MDC.put("userId", String.valueOf(id));
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        try (MdcUserScope ignored = MdcUserScope.put(id)) {
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        Role newRole = parseRequiredRole(requestedRole);
-        Role oldRole = user.getRole();
+            Role newRole = parseRequiredRole(requestedRole);
+            Role oldRole = user.getRole();
 
-        user.setRole(newRole);
-        User savedUser = userRepository.save(user);
+            user.setRole(newRole);
+            User savedUser = userRepository.save(user);
 
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("oldRole", oldRole == null ? null : oldRole.name());
-        details.put("newRole", newRole.name());
-        recordUserEvent(savedUser, ROLE_CHANGED, details);
-        userCacheEvictionService.evictUserMutationCaches(id);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("oldRole", oldRole == null ? null : oldRole.name());
+            details.put("newRole", newRole.name());
+            log.info("User {} role changed from {} to {}", id, oldRole, newRole);
+            recordUserEvent(savedUser, ROLE_CHANGED, details);
+            userCacheEvictionService.evictUserMutationCaches(id);
 
-        return UserResponseDTO.fromUser(savedUser);
+            return UserResponseDTO.fromUser(savedUser);
+        }
     }
 
     public void delete(Long id) {
-        MDC.put("userId", String.valueOf(id));
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        Map<String, Object> details = userDetails(user);
-        userRepository.delete(user);
-        recordUserEvent(id, USER_DELETED, details);
-        userCacheEvictionService.evictUserMutationCaches(id);
+        try (MdcUserScope ignored = MdcUserScope.put(id)) {
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            Map<String, Object> details = userDetails(user);
+            userRepository.delete(user);
+            log.info("User {} deleted", id);
+            recordUserEvent(id, USER_DELETED, details);
+            userCacheEvictionService.evictUserMutationCaches(id);
+        }
     }
 
     @Transactional
     public UserResponseDTO deactivate(Long id) {
-        MDC.put("userId", String.valueOf(id));
-        userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        throw feignRequired("User deactivation requires contract-service active contract checks");
+        try (MdcUserScope ignored = MdcUserScope.put(id)) {
+            userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            throw feignRequired("User deactivation requires contract-service active contract checks");
+        }
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F5_CACHE,
@@ -245,56 +259,60 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO updatePreferences(Long userId, Map<String, Object> incomingPreferences) {
-        MDC.put("userId", String.valueOf(userId));
-        if (incomingPreferences == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid preferences payload: expected JSON object, got null");
+        try (MdcUserScope ignored = MdcUserScope.put(userId)) {
+            if (incomingPreferences == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid preferences payload: expected JSON object, got null");
+            }
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+            Map<String, Object> merged = new HashMap<>(
+                    user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
+            );
+            merged.putAll(incomingPreferences);
+
+            user.setPreferences(merged);
+            User savedUser = userRepository.save(user);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("updatedKeys", incomingPreferences.keySet());
+            details.put("preferences", savedUser.getPreferences());
+            log.info("User {} preferences updated", userId);
+            recordUserEvent(savedUser, PREFERENCES_UPDATED, details);
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
         }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        Map<String, Object> merged = new HashMap<>(
-                user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
-        );
-        merged.putAll(incomingPreferences);
-
-        user.setPreferences(merged);
-        User savedUser = userRepository.save(user);
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("updatedKeys", incomingPreferences.keySet());
-        details.put("preferences", savedUser.getPreferences());
-        recordUserEvent(savedUser, PREFERENCES_UPDATED, details);
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
     }
 
     @Transactional
     public UserResponseDTO setPrimarySkill(Long userId, Long skillId) {
-        MDC.put("userId", String.valueOf(userId));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        try (MdcUserScope ignored = MdcUserScope.put(userId)) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        UserSkill targetSkill = userSkillRepository.findById(skillId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UserSkill not found"));
+            UserSkill targetSkill = userSkillRepository.findById(skillId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UserSkill not found"));
 
-        if (!targetSkill.getUser().getId().equals(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill does not belong to user");
+            if (!targetSkill.getUser().getId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill does not belong to user");
+            }
+
+            for (UserSkill userSkill : user.getUserSkills()) {
+                userSkill.setIsPrimary(false);
+            }
+            targetSkill.setIsPrimary(true);
+
+            User savedUser = userRepository.save(user);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("skillId", targetSkill.getId());
+            details.put("skillName", targetSkill.getSkillName());
+            details.put("category", targetSkill.getCategory());
+            log.info("User {} primary skill set to {}", userId, skillId);
+            recordUserEvent(savedUser, PRIMARY_SKILL_SET, details);
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
         }
-
-        for (UserSkill userSkill : user.getUserSkills()) {
-            userSkill.setIsPrimary(false);
-        }
-        targetSkill.setIsPrimary(true);
-
-        User savedUser = userRepository.save(user);
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("skillId", targetSkill.getId());
-        details.put("skillName", targetSkill.getSkillName());
-        details.put("category", targetSkill.getCategory());
-        recordUserEvent(savedUser, PRIMARY_SKILL_SET, details);
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
     }
 
     private String normalizeFilter(String value) {
@@ -332,6 +350,7 @@ public class UserService {
     }
 
     private ResponseStatusException feignRequired(String reason) {
+        log.warn("Feign call to downstream service failed: {}", reason);
         return new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, reason);
     }
 
