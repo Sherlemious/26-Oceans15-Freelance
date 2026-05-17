@@ -56,6 +56,9 @@ class ContractServiceReadEndpointsTest {
     @Mock
     private ContractReadClientService contractReadClientService;
 
+    @Mock
+    private com.team26.freelance.contract.messaging.publishers.ContractSagaPublisher contractSagaPublisher;
+
     private ContractService service;
 
     @BeforeEach
@@ -66,6 +69,7 @@ class ContractServiceReadEndpointsTest {
                 contractMilestoneEventRepository,
                 contractEventSubject,
                 contractAnalyticsService,
+                contractSagaPublisher,
                 cassandraTemplate,
                 cassandraRowAdapter,
                 contractReadClientService);
