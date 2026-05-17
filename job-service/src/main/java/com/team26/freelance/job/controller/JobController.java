@@ -5,6 +5,8 @@ import com.team26.freelance.job.dto.*;
 import com.team26.freelance.job.service.CacheEvictionService;
 import com.team26.freelance.job.service.JobSearchService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import com.team26.freelance.job.model.Job;
@@ -30,6 +32,7 @@ public class JobController {
     private final JobService jobService;
     private final CacheEvictionService cacheEvictionService;
     private final JobSearchService jobSearchService;
+    private static final Logger log = LoggerFactory.getLogger(JobController.class);
 
     public JobController(JobService jobService, CacheEvictionService cacheEvictionService, JobSearchService jobSearchService) {
         this.jobService = jobService;
@@ -40,25 +43,37 @@ public class JobController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public JobSearchResultDTO createJob(@Valid @RequestBody JobRequestDTO job) {
-        return jobService.createJob(job);
+        log.info("Received POST /api/jobs");
+        JobSearchResultDTO result = jobService.createJob(job);
+        log.info("Returning 201 for POST /api/jobs");
+        return result;
     }
 
     @GetMapping
     public List<Job> getAllJobs() {
-        return jobService.getAllJobs();
+        log.info("Received GET /api/jobs");
+        List<Job> result = jobService.getAllJobs();
+        log.info("Returning 200 for GET /api/jobs");
+        return result;
     }
 
     @GetMapping("/{id}")
     @Cacheable(value = "job", key = "'job-service::job::' + #id")
     public JobDTO getJobById(@PathVariable Long id) {
-        return jobService.getJobAsDTO(id);
+        log.info("Received GET /api/jobs/{}", id);
+        JobDTO result = jobService.getJobAsDTO(id);
+        log.info("Returning 200 for GET /api/jobs/{}", id);
+        return result;
     }
+
 
     @PutMapping("/{id}")
     @CacheEvict(value = "job", key = "'job-service::job::' + #id")
     public Job updateJob(@PathVariable Long id, @RequestBody Job job) {
+        log.info("Received PUT /api/jobs/{}", id);
         Job updated = jobService.updateJob(id, job);
         cacheEvictionService.evictAllJobFeatureCaches();
+        log.info("Returning 200 for PUT /api/jobs/{}", id);
         return updated;
     }
 
@@ -66,16 +81,20 @@ public class JobController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @CacheEvict(value = "job", key = "'job-service::job::' + #id")
     public void deleteJob(@PathVariable Long id) {
+        log.info("Received DELETE /api/jobs/{}", id);
         jobService.deleteJob(id);
         cacheEvictionService.evictAllJobFeatureCaches();
+        log.info("Returning 204 for DELETE /api/jobs/{}", id);
     }
 
     @PutMapping("/{id}/close")
     @CacheEvict(value = "job", key = "'job-service::job::' + #id")
     public ResponseEntity<Void> closeJob(@PathVariable Long id,
                                          @RequestBody Map<String, String> body) {
+        log.info("Received PUT /api/jobs/{}/close", id);
         jobService.closeJob(id, body.get("status"));
         cacheEvictionService.evictAllJobFeatureCaches();
+        log.info("Returning 200 for PUT /api/jobs/{}/close", id);
         return ResponseEntity.ok().build();
     }
 
@@ -100,10 +119,12 @@ public class JobController {
     @CacheEvict(value = "job", key = "'job-service::job::' + #id")
     public Job rateJobClient(@PathVariable Long id,
                              @RequestBody Map<String, Object> body) {
+        log.info("Received POST /api/jobs/{}/rate", id);
         Long contractId = Long.valueOf(body.get("contractId").toString());
         int rating = Integer.parseInt(body.get("rating").toString());
         Job result = jobService.rateJobClient(id, contractId, rating);
         cacheEvictionService.evictAllJobFeatureCaches();
+        log.info("Returning 200 for POST /api/jobs/{}/rate", id);
         return result;
     }
 
@@ -147,7 +168,10 @@ public class JobController {
             @PathVariable Long id,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return jobService.getProposalSummary(id, startDate, endDate);
+        log.info("Received GET /api/jobs/{}/proposal-summary", id);
+        JobProposalSummaryDTO result = jobService.getProposalSummary(id, startDate, endDate);
+        log.info("Returning 200 for GET /api/jobs/{}/proposal-summary", id);
+        return result;
     }
 
     @PreAuthorize("hasRole('USER')")
@@ -181,8 +205,10 @@ public class JobController {
     @GetMapping("/{id}/dashboard")
     @Cacheable(value = "job-dashboard", key = "'job-service::S2-F12::' + #id")
     public ResponseEntity<JobDashboardDTO> getJobDashboard(@PathVariable Long id) {
-        // logging happens here — outside cache, runs on every call including cache hits
+        log.info("Received GET /api/jobs/{}/dashboard", id);
         jobService.logDashboardViewed(id);
-        return ResponseEntity.ok(jobService.getJobDashboard(id));
+        JobDashboardDTO result = jobService.getJobDashboard(id);
+        log.info("Returning 200 for GET /api/jobs/{}/dashboard", id);
+        return ResponseEntity.ok(result);
     }
 }

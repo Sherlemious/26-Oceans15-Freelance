@@ -32,4 +32,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query(value = "SELECT * FROM users WHERE preferences @> CAST(:pref AS jsonb)",
             nativeQuery = true)
     List<User> findByPreference(@Param("pref") String prefJson);
+
+    @Query(value = """
+            SELECT * FROM users
+            WHERE LOWER(TRIM(BOTH FROM COALESCE(preferences->>'language', ''))) = LOWER(:language)
+            """, nativeQuery = true)
+    List<User> findByPreferredLanguage(@Param("language") String language);
 }
