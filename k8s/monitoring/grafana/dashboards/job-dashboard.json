@@ -131,8 +131,14 @@
       "id": 3,
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Feign call to\" |= \"failed\"[1m])) as failures,\nsum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\"[1m])) as successes",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Feign call to\" |= \"failed\" [1m]))",
+          "legendFormat": "Feign Failures",
           "refId": "A"
+        },
+        {
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\" [1m]))",
+          "legendFormat": "Feign Successes",
+          "refId": "B"
         }
       ],
       "title": "Feign Call Outcomes (Success vs Failures)",
@@ -233,7 +239,8 @@
       "id": 5,
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Published\" OR |= \"Consuming\" OR |= \"Processed\"[5m])) by (routingKey)",
+          "expr": "sum by (routingKey) (count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |~ \"Published|Consuming|Processed\" [5m]))",
+          "legendFormat": "{{routingKey}}",
           "refId": "A"
         }
       ],
@@ -540,6 +547,34 @@
       ],
       "title": "RabbitMQ Throughput (Published vs Consumed)",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "id": 10,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "expr": "{app=\"freelance\", service=\"job-service\"} | json | correlationId=~\"$correlationId\"",
+          "refId": "A"
+        }
+      ],
+      "title": "Correlation ID Trace (paste ID in variable above)",
+      "type": "logs"
     }
   ],
   "refresh": "10s",
@@ -550,7 +585,18 @@
     "production"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {},
+        "description": "Paste an X-Correlation-ID to trace a single request through job-service logs",
+        "hide": 0,
+        "label": "Correlation ID",
+        "name": "correlationId",
+        "options": [],
+        "query": "",
+        "type": "textbox"
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
