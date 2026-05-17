@@ -1,7 +1,6 @@
 package com.team26.freelance.wallet.repository;
 
 import com.team26.freelance.wallet.dto.RevenueReportProjection;
-import com.team26.freelance.wallet.dto.ContractDataProjection;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutStatus;
 import jakarta.persistence.LockModeType;
@@ -52,9 +51,6 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             WHERE p.id = :id
             """)
     Optional<Payout> findByIdWithPromos(@Param("id") Long id);
-
-    @Query(value = "SELECT status::text AS contractStatus, agreed_amount AS agreedAmount, freelancer_id AS freelancerId FROM contracts WHERE id = :contractId FOR UPDATE", nativeQuery = true)
-    List<ContractDataProjection> findContractDataById(@Param("contractId") Long contractId);
 
     boolean existsByContractIdAndStatus(Long contractId, PayoutStatus status);
 

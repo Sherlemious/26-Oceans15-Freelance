@@ -2,10 +2,12 @@ package com.team26.freelance.wallet.service;
 
 import com.team26.freelance.contracts.events.ProposalCancelledEvent;
 import com.team26.freelance.contracts.events.ProposalCompletedEvent;
+import com.team26.freelance.contracts.events.PaymentCompletedEvent;
+import com.team26.freelance.contracts.events.PaymentFailedEvent;
+import com.team26.freelance.contracts.dto.ContractDTO;
 import com.team26.freelance.wallet.adapter.FreelancerPayoutSummaryObjectArrayAdapter;
 import com.team26.freelance.wallet.adapter.PromoCodeUsageObjectArrayAdapter;
 import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
-import com.team26.freelance.wallet.dto.ContractDataProjection;
 import com.team26.freelance.wallet.dto.FreelancerPayoutSummaryDTO;
 import com.team26.freelance.wallet.dto.PayoutDetailsDTO;
 import com.team26.freelance.wallet.dto.PayoutResponseDTO;
@@ -28,6 +30,7 @@ import com.team26.freelance.wallet.strategy.RefundStrategySelector;
 import com.team26.freelance.wallet.dto.CategoryRevenueDTO;
 import com.team26.freelance.common.event.PayoutAuditEvent;
 import com.team26.freelance.wallet.repository.PayoutAuditEventRepository;
+import com.team26.freelance.wallet.messaging.PaymentEventPublisher;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
@@ -65,6 +68,7 @@ public class PayoutService {
   private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
   private final WalletReadClientService walletReadClientService;
+  private final PaymentEventPublisher paymentEventPublisher;
   private final FreelancerPayoutSummaryObjectArrayAdapter freelancerPayoutSummaryObjectArrayAdapter;
   private final PromoCodeUsageObjectArrayAdapter promoCodeUsageObjectArrayAdapter;
 
@@ -77,6 +81,7 @@ public class PayoutService {
                        PayoutAuditEventRepository payoutAuditEventRepository,
                        RefundStrategySelector refundStrategySelector,
                        WalletReadClientService walletReadClientService,
+                       PaymentEventPublisher paymentEventPublisher,
                        FreelancerPayoutSummaryObjectArrayAdapter freelancerPayoutSummaryObjectArrayAdapter,
                        PromoCodeUsageObjectArrayAdapter promoCodeUsageObjectArrayAdapter
                        ) {
@@ -89,6 +94,7 @@ public class PayoutService {
     this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
     this.walletReadClientService = walletReadClientService;
+    this.paymentEventPublisher = paymentEventPublisher;
     this.promoCodeUsageObjectArrayAdapter=promoCodeUsageObjectArrayAdapter;
     this.freelancerPayoutSummaryObjectArrayAdapter=freelancerPayoutSummaryObjectArrayAdapter;
   }
@@ -293,14 +299,11 @@ public class PayoutService {
   public Payout processContractPayout(Long contractId,
                                       ProcessContractPayoutRequest request,
                                       boolean simulateFailure) {
-    List<ContractDataProjection> contractRows = payoutRepository.findContractDataById(contractId);
-    if (contractRows.isEmpty()) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
-    }
-    ContractDataProjection contractData = contractRows.get(0);
-    String contractStatus = contractData.getContractStatus();
+    ContractDTO contractData = getContractWithRaceRetry(contractId);
+    String contractStatus = contractData.getStatus();
     Double agreedAmount = contractData.getAgreedAmount();
     Long freelancerId = contractData.getFreelancerId();
+    Long proposalId = contractData.getProposalId();
 
     if (agreedAmount == null || freelancerId == null) {
       throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -312,26 +315,16 @@ public class PayoutService {
                                         "Contract must be COMPLETED");
     }
 
-    if (payoutRepository.existsByContractIdAndStatus(contractId,
-                                                     PayoutStatus.COMPLETED)) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "already paid");
-    }
-
     Payout pendingPayout =
         payoutRepository
-            .findFirstByContractIdAndStatusOrderByCreatedAtAsc(
-                contractId, PayoutStatus.PENDING)
-            .orElseGet(() -> {
-              Payout p = new Payout();
-              p.setContractId(contractId);
-              p.setFreelancerId(freelancerId);
-              p.setAmount(agreedAmount);
-              p.setMethod(PayoutMethod.BANK_TRANSFER);
-              p.setStatus(PayoutStatus.PENDING);
-              p.setTransactionDetails(new HashMap<>());
-              return p;
-            });
-    boolean createdNewPayout = pendingPayout.getId() == null;
+            .findFirstByContractIdAndStatusInOrderByCreatedAtAsc(
+                contractId, List.of(PayoutStatus.PENDING, PayoutStatus.COMPLETED, PayoutStatus.FAILED))
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                                           "No payout exists for contract"));
+
+    if (pendingPayout.getStatus() != PayoutStatus.PENDING) {
+      return pendingPayout;
+    }
 
     PayoutMethod method = normalizePayoutMethod(request != null ? request.getMethod() : null);
     String accountLastFour = request != null ? request.getAccountLastFour() : null;
@@ -374,13 +367,6 @@ public class PayoutService {
     pendingPayout.setTransactionDetails(transactionDetails);
 
     Payout saved = payoutRepository.save(pendingPayout);
-    if (createdNewPayout && !simulateFailure) {
-      Map<String, Object> createdDetails = new LinkedHashMap<>();
-      createdDetails.put("contractId", contractId);
-      createdDetails.put("freelancerId", freelancerId);
-      createdDetails.put("reason", "Payout row inserted for contract payout");
-      payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.CREATED, createdDetails);
-    }
 
     Map<String, Object> completionDetails = new LinkedHashMap<>();
     completionDetails.put("contractId", contractId);
@@ -390,11 +376,43 @@ public class PayoutService {
     if (simulateFailure) {
       completionDetails.put("failureReason", transactionDetails.get("failureReason"));
       payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.FAILED, completionDetails);
+      paymentEventPublisher.publishPaymentFailed(
+          new PaymentFailedEvent(saved.getId(), proposalId, contractId,
+                                 String.valueOf(transactionDetails.get("failureReason"))));
     } else {
       completionDetails.put("reason", "Contract payout completed");
       payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.COMPLETED, completionDetails);
+      paymentEventPublisher.publishPaymentCompleted(
+          new PaymentCompletedEvent(saved.getId(), proposalId, contractId,
+                                    BigDecimal.valueOf(saved.getAmount())));
     }
     return saved;
+  }
+
+  private ContractDTO getContractWithRaceRetry(Long contractId) {
+    int maxAttempts = 3;
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return walletReadClientService.getContract(contractId);
+      } catch (ResponseStatusException ex) {
+        if (ex.getStatusCode() != HttpStatus.NOT_FOUND || attempt == maxAttempts) {
+          throw ex;
+        }
+        sleepBackoff(attempt);
+      }
+    }
+    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found: " + contractId);
+  }
+
+  private void sleepBackoff(int attempt) {
+    long delayMillis = 200L * (1L << (attempt - 1));
+    try {
+      Thread.sleep(delayMillis);
+    } catch (InterruptedException interruptedException) {
+      Thread.currentThread().interrupt();
+      throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                                        "Interrupted while retrying contract fetch");
+    }
   }
 
   @Caching(evict = {
