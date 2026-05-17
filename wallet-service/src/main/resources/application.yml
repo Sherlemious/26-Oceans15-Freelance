@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: wallet-service
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://wallet-postgres:5432/freelancedb-wallet}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
