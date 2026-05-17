@@ -7,7 +7,35 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: user-service
+          uri: ${USER_SERVICE_URL:http://user-service:8080}
+          predicates:
+            - Path=/api/users/**, /api/auth/**, /api/user-skills/**
+        - id: job-service
+          uri: ${JOB_SERVICE_URL:http://job-service:8080}
+          predicates:
+            - Path=/api/jobs/**
+        - id: proposal-service
+          uri: ${PROPOSAL_SERVICE_URL:http://proposal-service:8080}
+          predicates:
+            - Path=/api/proposals/**
         - id: contract-service
-          uri: http://contract-service:8080
+          uri: ${CONTRACT_SERVICE_URL:http://contract-service:8080}
           predicates:
             - Path=/api/contracts/**
+        - id: wallet-service
+          uri: ${WALLET_SERVICE_URL:http://wallet-service:8080}
+          predicates:
+            - Path=/api/payouts/**, /api/promo-codes/**
+
+jwt:
+  secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
