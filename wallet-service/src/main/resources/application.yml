@@ -50,6 +50,10 @@ feign:
     url: ${FEIGN_CONTRACT_SERVICE_URL:http://contract-service:8080}
   job-service:
     url: ${FEIGN_JOB_SERVICE_URL:http://job-service:8080}
+  proposal-service:
+    url: ${FEIGN_PROPOSAL_SERVICE_URL:http://proposal-service:8080}
+  wallet-service:
+    url: ${FEIGN_WALLET_SERVICE_URL:http://wallet-service:8080}
 
 management:
   endpoints:
