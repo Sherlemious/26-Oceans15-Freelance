@@ -25,7 +25,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/jobs/health",
             "/api/contracts/health",
             "/api/proposals/health",
-            "/api/wallets/health"
+            "/api/wallets/health",
+            "/actuator/health",
+            "/actuator/info",
+            "/actuator/prometheus"
     );
 
     public JwtAuthenticationFilter(AuthHandler chainHead) {
