@@ -5,12 +5,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team26.freelance.contracts.dto.ContractDTO;
+import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.contracts.events.PaymentCompletedEvent;
 import com.team26.freelance.contracts.events.PaymentFailedEvent;
+import com.team26.freelance.contracts.events.PaymentInitiatedEvent;
+import com.team26.freelance.contracts.events.PaymentRefundedEvent;
+import com.team26.freelance.contracts.events.ProposalCancelledEvent;
+import com.team26.freelance.contracts.events.ProposalCompletedEvent;
+import com.team26.freelance.contracts.events.SagaTopics;
 import com.team26.freelance.wallet.adapter.FreelancerPayoutSummaryObjectArrayAdapter;
 import com.team26.freelance.wallet.adapter.PromoCodeUsageObjectArrayAdapter;
 import com.team26.freelance.wallet.messaging.PaymentEventPublisher;
+import com.team26.freelance.wallet.messaging.ProposalEventConsumer;
 import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.model.PayoutMethod;
 import com.team26.freelance.wallet.model.PayoutStatus;
@@ -20,6 +28,8 @@ import com.team26.freelance.wallet.service.PayoutAuditService;
 import com.team26.freelance.wallet.service.PayoutService;
 import com.team26.freelance.wallet.service.WalletReadClientService;
 import java.lang.reflect.Proxy;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,25 +39,52 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Saga end-to-end integration tests — ACL-216 / §8.6.
  *
- * <p>Tests wallet-service participation in the Proposal-Payment Choreography Saga:
+ * <p>Tests wallet-service participation in the Proposal-Payment Choreography Saga for scenarios
+ * A, B, and C from §8.6. Scenario D (reaper — abandonment-driven compensation) is in
+ * proposal-service (§8.7) and is out of scope for this ticket.
  *
- * <ul>
- *   <li>Scenario A — happy path: PENDING payout reaches COMPLETED after S5-F4 processing;
- *       {@code payment.completed} published to downstream consumers.
- *   <li>Scenario B — payout failure + compensation: gateway rejects → FAILED,
- *       {@code payment.failed} published; compensation choreography settles REFUNDED.
- *   <li>Scenario C — pre-check failure: no active contract → synchronous 404/409/400;
- *       no payout persisted; no saga event published.
- * </ul>
+ * <p><b>Scenario A — Happy path (§8.6):</b>
+ * <ol>
+ *   <li>Phase 1 (intermediate state): {@code proposal.completed} arrives → wallet creates PENDING
+ *       payout → {@code payment.initiated} published → proposal-service sets Proposal=PAYMENT_PENDING
+ *       (other service, verified by §8.6 step 5; wallet asserts its own PENDING payout).
+ *   <li>Phase 2 (S5-F4): human triggers {@code POST /api/payouts/contract/{id}} →
+ *       {@code payment.completed} published → Payout=COMPLETED → proposal-service sets
+ *       Proposal=PAID.
+ * </ol>
  *
- * <p>All async state verifications use {@code Awaitility.await().atMost(5, SECONDS)} as required
- * by §8.6. Synchronous failure assertions never use {@code await()} — per §8.6 the response is
+ * <p><b>Scenario B — Payout failure and compensation (§8.6):</b>
+ * <ol>
+ *   <li>Gateway rejection: S5-F4 with simulateFailure=true → Payout=FAILED → {@code payment.failed}
+ *       published.
+ *   <li>Compensation: proposal-service receives {@code payment.failed} → Proposal=PAYMENT_FAILED →
+ *       publishes {@code proposal.cancelled} → wallet's {@code ProposalEventConsumer} calls
+ *       {@code refundPayoutFromProposalCancelled()} → PENDING payout → REFUNDED →
+ *       {@code payment.refunded} published.
+ *   <li>User-service (§8.5): consumes {@code proposal.cancelled} and reverses freelancer stats
+ *       locally — no event emitted. This is user-service scope, not asserted here.
+ *   <li>FAILED payout branch: {@code findRefundCandidateByProposalId} only queries
+ *       {@code status IN ('PENDING','COMPLETED')} so a FAILED payout is not found → compensation
+ *       returns empty → no {@code payment.refunded} published (correct: no money was transferred).
+ * </ol>
+ *
+ * <p><b>Scenario C — Pre-check failure at S5-F4 level (§8.6 / wallet-service scope):</b>
+ * <p>§8.6 Scenario C describes S3-F4 (proposal-service's {@code PUT /api/proposals/{id}/complete}
+ * finding no active contract via Feign → 400). That is proposal-service's deliverable. From
+ * wallet-service's perspective, the analogous pre-check failures are S5-F4 level: contract not
+ * found, incomplete contract data, or no PENDING payout existing. These are tested here. All
+ * synchronous — no {@code await()} per §8.6.
+ *
+ * <p><b>Threading note.</b> All async state verifications use {@code Awaitility.await().atMost(5,
+ * SECONDS)} per §8.6. Synchronous failure assertions never use {@code await()} — response is
  * immediate. Uses {@link Proxy} for interface test-doubles (JPA repository) and anonymous
  * subclasses for concrete service test-doubles — consistent with the project's Java 25 testing
  * pattern established in {@code PayoutServiceTest} and {@code ProcessContractPayoutServiceTest}.
@@ -64,15 +101,18 @@ class ProposalPaymentSagaE2ETest {
 
     // ── Shared mutable state ──────────────────────────────────────────────────
 
-    private final List<String>            auditedActions = new ArrayList<>();
-    private final AtomicReference<Payout> lastSaved      = new AtomicReference<>();
-    private final AtomicReference<Object> publishedEvent = new AtomicReference<>();
+    private final ObjectMapper             objectMapper   = new ObjectMapper();
+    private final List<String>             auditedActions = new ArrayList<>();
+    private final AtomicReference<Payout>  lastSaved      = new AtomicReference<>();
+    private final AtomicReference<Object>  publishedEvent = new AtomicReference<>();
 
     // Configurable stubs — reset in @BeforeEach
     private ContractDTO stubContract      = null;
     private Payout      stubPendingPayout = null;
 
-    private PayoutService payoutService;
+    private PaymentEventPublisher  capturingPublisher;
+    private PayoutService          payoutService;
+    private ProposalEventConsumer  consumer;
 
     // ── @BeforeEach ───────────────────────────────────────────────────────────
 
@@ -84,6 +124,23 @@ class ProposalPaymentSagaE2ETest {
         stubContract      = null;
         stubPendingPayout = null;
 
+        // Single capturing publisher shared by both payoutService (for processContractPayout)
+        // and consumer (for publishPaymentInitiated / publishPaymentRefunded).
+        capturingPublisher = new PaymentEventPublisher(null) {
+            @Override public void publishPaymentInitiated(PaymentInitiatedEvent event) {
+                publishedEvent.set(event);
+            }
+            @Override public void publishPaymentCompleted(PaymentCompletedEvent event) {
+                publishedEvent.set(event);
+            }
+            @Override public void publishPaymentFailed(PaymentFailedEvent event) {
+                publishedEvent.set(event);
+            }
+            @Override public void publishPaymentRefunded(PaymentRefundedEvent event) {
+                publishedEvent.set(event);
+            }
+        };
+
         payoutService = new PayoutService(
                 buildPayoutRepositoryProxy(),
                 null,  // promoCodeRepository        — not exercised by these scenarios
@@ -94,17 +151,24 @@ class ProposalPaymentSagaE2ETest {
                 null,  // payoutAuditEventRepository  — not exercised by these scenarios
                 null,  // refundStrategySelector      — not exercised by these scenarios
                 buildWalletReadClientService(),
-                buildCapturingEventPublisher(),
+                capturingPublisher,
                 new FreelancerPayoutSummaryObjectArrayAdapter(),
                 new PromoCodeUsageObjectArrayAdapter()
         );
+
+        // Consumer wired with the same payoutService + capturingPublisher
+        consumer = new ProposalEventConsumer(objectMapper, payoutService, capturingPublisher);
     }
 
     // ── Test-double builders ──────────────────────────────────────────────────
 
     /**
      * JDK dynamic proxy for {@link PayoutRepository} (interface extending JpaRepository).
-     * Routes the three repository calls made by {@code processContractPayout}.
+     *
+     * <p>Routes the repository calls made by {@code processContractPayout},
+     * {@code createPendingPayoutFromProposalCompleted}, and {@code refundPayoutFromProposalCancelled}.
+     * {@code findRefundCandidateByProposalId} mirrors the SQL filter:
+     * {@code status IN ('PENDING','COMPLETED')} — FAILED payouts return empty.
      */
     private PayoutRepository buildPayoutRepositoryProxy() {
         return (PayoutRepository) Proxy.newProxyInstance(
@@ -116,12 +180,24 @@ class ProposalPaymentSagaE2ETest {
                     case "findFirstByContractIdAndStatusOrderByCreatedAtAsc" ->
                             Optional.ofNullable(stubPendingPayout);
                     case "existsByContractIdAndStatus" -> false;
+                    case "findRefundCandidateByProposalId" -> {
+                        // Mirrors SQL: status IN ('PENDING','COMPLETED') — FAILED excluded
+                        if (stubPendingPayout == null) {
+                            yield Optional.empty();
+                        }
+                        PayoutStatus s = stubPendingPayout.getStatus();
+                        if (s == PayoutStatus.PENDING || s == PayoutStatus.COMPLETED) {
+                            yield Optional.of(stubPendingPayout);
+                        }
+                        yield Optional.empty();
+                    }
                     case "save" -> {
                         Payout p = (Payout) args[0];
                         if (p.getId() == null) p.setId(100L);
                         lastSaved.set(p);
                         yield p;
                     }
+                    case "findById" -> Optional.ofNullable(stubPendingPayout);
                     default -> throw new UnsupportedOperationException(
                             "Unhandled PayoutRepository call in saga test: " + method.getName());
                 });
@@ -130,7 +206,9 @@ class ProposalPaymentSagaE2ETest {
     /**
      * Concrete subclass of {@link WalletReadClientService}.
      * Returns the configured stub contract, or throws 404 when no stub is set.
-     * Passes {@code null} Feign clients — only {@code getContract()} is called in these scenarios.
+     * Overrides {@code getUser()} to return a minimal stub — user-service validation
+     * succeeds; the content is not used by the saga flow being tested here.
+     * Passes {@code null} Feign clients — overrides prevent any delegation to super.
      */
     private WalletReadClientService buildWalletReadClientService() {
         return new WalletReadClientService(null, null, null) {
@@ -141,24 +219,15 @@ class ProposalPaymentSagaE2ETest {
                 }
                 return stubContract;
             }
-        };
-    }
-
-    /**
-     * Concrete subclass of {@link PaymentEventPublisher}.
-     * Captures published events in {@link #publishedEvent} without requiring RabbitMQ.
-     * Passes {@code null} RabbitOperations — overrides prevent any delegation to super.
-     */
-    private PaymentEventPublisher buildCapturingEventPublisher() {
-        return new PaymentEventPublisher(null) {
-            @Override
-            public void publishPaymentCompleted(PaymentCompletedEvent event) {
-                publishedEvent.set(event);
-            }
 
             @Override
-            public void publishPaymentFailed(PaymentFailedEvent event) {
-                publishedEvent.set(event);
+            public UserDTO getUser(Long userId) {
+                // Minimal stub — createPendingPayoutFromProposalCompleted calls getUser() for
+                // existence validation only. User-service stats updates are local DB only (§8.5).
+                UserDTO dto = new UserDTO();
+                dto.setId(userId);
+                dto.setStatus("ACTIVE");
+                return dto;
             }
         };
     }
@@ -212,7 +281,9 @@ class ProposalPaymentSagaE2ETest {
 
     /**
      * A PENDING payout — as created by {@code ProposalEventConsumer.handleProposalCompleted()}
-     * after the {@code proposal.completed} RabbitMQ event is consumed.
+     * after the {@code proposal.completed} RabbitMQ event is consumed. Includes {@code proposalId}
+     * in transactionDetails to match the {@code findRefundCandidateByProposalId} native SQL filter
+     * ({@code transaction_details ->> 'proposalId'}).
      */
     private static Payout pendingPayout() {
         Payout p = new Payout();
@@ -222,8 +293,19 @@ class ProposalPaymentSagaE2ETest {
         p.setAmount(AGREED_AMOUNT);
         p.setMethod(PayoutMethod.BANK_TRANSFER);
         p.setStatus(PayoutStatus.PENDING);
-        p.setTransactionDetails(new HashMap<>());
+        Map<String, Object> details = new HashMap<>();
+        details.put("proposalId", PROPOSAL_ID);
+        details.put("jobId", JOB_ID);
+        p.setTransactionDetails(details);
         return p;
+    }
+
+    /** Builds an AMQP {@link Message} containing the JSON-serialised {@code event}. */
+    private Message messageFor(Object event, String routingKey) throws Exception {
+        MessageProperties props = new MessageProperties();
+        props.setReceivedRoutingKey(routingKey);
+        byte[] body = objectMapper.writeValueAsString(event).getBytes(StandardCharsets.UTF_8);
+        return new Message(body, props);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -231,25 +313,88 @@ class ProposalPaymentSagaE2ETest {
     // ═════════════════════════════════════════════════════════════════════════
 
     /**
-     * Scenario A: {@code proposal.completed} → wallet creates PENDING payout →
-     * human triggers S5-F4 ({@code POST /api/payouts/contract/{id}}, simulateFailure=false) →
-     * {@code payment.completed} published → Payout=COMPLETED.
+     * Scenario A Phase 1 — Intermediate state (§8.6 steps 3–5, wallet-service participation):
      *
-     * <p>Final saga states: Proposal=PAID, Contract=COMPLETED, Job=CLOSED, Payout=COMPLETED.
+     * <p>{@code proposal.completed} arrives at wallet via {@code ProposalEventConsumer} →
+     * {@code createPendingPayoutFromProposalCompleted()} creates a PENDING payout in wallet-postgres
+     * → {@code payment.initiated} published → proposal-service (separate service) will consume it
+     * and set Proposal=PAYMENT_PENDING.
      *
-     * <p>Awaitility confirms the COMPLETED state is eventually observable within 5 s — matching
-     * the window in which downstream proposal/contract/job consumers will read the event.
+     * <p>This verifies §8.6 step 5's wallet assertion: "wallet-postgres has PENDING Payout for
+     * proposalId={@value #PROPOSAL_ID} / contractId={@value #CONTRACT_ID}."
      */
     @Test
-    void scenarioA_happyPath_payoutReachesCompleted() {
-        // Given: COMPLETED contract + PENDING payout (created by proposal.completed consumer)
+    void scenarioA_intermediateState_proposalCompleted_createsPendingPayout_publishesPaymentInitiated()
+            throws Exception {
+        // Given: no existing payout; valid contract (getContract + getUser validation passes)
+        stubContract = completedContract();
+        // stubPendingPayout remains null → findFirstByContractIdAndStatusInOrderByCreatedAtAsc returns empty
+
+        // When: proposal.completed event consumed by ProposalEventConsumer (saga step 3)
+        ProposalCompletedEvent event = new ProposalCompletedEvent(
+                PROPOSAL_ID, JOB_ID, FREELANCER_ID, CONTRACT_ID, BigDecimal.valueOf(AGREED_AMOUNT));
+        consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_COMPLETED));
+
+        // Then: wallet-postgres has PENDING payout (intermediate state — §8.6 step 5)
+        await().atMost(5, SECONDS).until(() -> lastSaved.get() != null);
+        Payout pendingPayout = lastSaved.get();
+        assertThat(pendingPayout.getStatus()).isEqualTo(PayoutStatus.PENDING);
+        assertThat(pendingPayout.getContractId()).isEqualTo(CONTRACT_ID);
+        assertThat(pendingPayout.getFreelancerId()).isEqualTo(FREELANCER_ID);
+        assertThat(pendingPayout.getAmount()).isEqualTo(AGREED_AMOUNT);
+        assertThat(auditedActions).contains(PayoutAuditService.PAYOUT_CREATED);
+
+        // payment.initiated published (§8.6 step 4) — proposal-service will react by setting
+        // Proposal=PAYMENT_PENDING. Proposal state change is proposal-service scope, not asserted here.
+        await().atMost(5, SECONDS)
+               .until(() -> publishedEvent.get() instanceof PaymentInitiatedEvent);
+        PaymentInitiatedEvent initiated = (PaymentInitiatedEvent) publishedEvent.get();
+        assertThat(initiated.proposalId()).isEqualTo(PROPOSAL_ID);
+        assertThat(initiated.contractId()).isEqualTo(CONTRACT_ID);
+        assertThat(initiated.amount()).isEqualByComparingTo(BigDecimal.valueOf(AGREED_AMOUNT));
+    }
+
+    /**
+     * Scenario A Phase 1 (idempotency): {@code proposal.completed} received again for a contract
+     * that already has a PENDING payout → {@code createPendingPayoutFromProposalCompleted} returns
+     * empty → no second {@code payment.initiated} published. Guards against duplicate event delivery.
+     */
+    @Test
+    void scenarioA_intermediateState_duplicateProposalCompleted_skipsPayoutCreation() throws Exception {
+        stubContract      = completedContract();
+        stubPendingPayout = pendingPayout(); // existing PENDING payout already in wallet-postgres
+
+        ProposalCompletedEvent event = new ProposalCompletedEvent(
+                PROPOSAL_ID, JOB_ID, FREELANCER_ID, CONTRACT_ID, BigDecimal.valueOf(AGREED_AMOUNT));
+        consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_COMPLETED));
+
+        // No new payout saved, no payment.initiated published
+        await().atMost(5, SECONDS).until(() -> lastSaved.get() == null);
+        assertThat(publishedEvent.get()).isNull();
+        assertThat(auditedActions).isEmpty();
+    }
+
+    /**
+     * Scenario A Phase 2 (S5-F4): PENDING payout already exists (from Phase 1) →
+     * human triggers {@code POST /api/payouts/contract/{contractId}} (simulateFailure=false) →
+     * {@code payment.completed} published → Payout=COMPLETED.
+     *
+     * <p>Final saga states for wallet-service: Payout=COMPLETED. Downstream: proposal-service
+     * consumes {@code payment.completed} → Proposal=PAID (§8.6 step 8–9, proposal-service scope).
+     *
+     * <p>Awaitility confirms the COMPLETED state is eventually observable within 5 s — the window
+     * in which downstream proposal/contract/job consumers will read the event.
+     */
+    @Test
+    void scenarioA_s5f4_happyPath_payoutReachesCompleted() {
+        // Given: COMPLETED contract + PENDING payout (created by Phase 1)
         stubContract      = completedContract();
         stubPendingPayout = pendingPayout();
 
         // When: human triggers S5-F4 (no gateway failure)
         Payout result = payoutService.processContractPayout(CONTRACT_ID, null, false);
 
-        // Then: await payment.completed — Payout=COMPLETED within 5 s
+        // Then: Payout=COMPLETED (§8.6 step 7 for wallet)
         await().atMost(5, SECONDS)
                .until(() -> lastSaved.get() != null
                          && lastSaved.get().getStatus() == PayoutStatus.COMPLETED);
@@ -263,7 +408,7 @@ class ProposalPaymentSagaE2ETest {
                 .containsEntry("gatewayResponse", "approved");
         assertThat(auditedActions).contains(PayoutAuditService.COMPLETED);
 
-        // payment.completed published — downstream proposal/contract/job consumers will react
+        // payment.completed published — proposal-service will react by setting Proposal=PAID
         await().atMost(5, SECONDS)
                .until(() -> publishedEvent.get() instanceof PaymentCompletedEvent);
         PaymentCompletedEvent published = (PaymentCompletedEvent) publishedEvent.get();
@@ -298,9 +443,10 @@ class ProposalPaymentSagaE2ETest {
     // ═════════════════════════════════════════════════════════════════════════
 
     /**
-     * Scenario B (part 1): S5-F4 with simulateFailure=true → Payout=FAILED,
-     * {@code payment.failed} published. Compensation choreography begins — proposal/contract/job
-     * consumers react to {@code payment.failed} and roll back their states.
+     * Scenario B step 2–3 (§8.6): S5-F4 with simulateFailure=true → Payout=FAILED,
+     * {@code payment.failed} published. Compensation choreography begins — proposal-service
+     * receives {@code payment.failed} → Proposal=PAYMENT_FAILED → publishes {@code
+     * proposal.cancelled} → downstream services roll back their states.
      */
     @Test
     void scenarioB_simulateFailure_payoutReachesFailed() {
@@ -310,7 +456,7 @@ class ProposalPaymentSagaE2ETest {
         // When: gateway rejects the payment
         Payout failed = payoutService.processContractPayout(CONTRACT_ID, null, true);
 
-        // Then: await payment.failed — Payout=FAILED within 5 s
+        // Then: Payout=FAILED (§8.6 step 3)
         await().atMost(5, SECONDS)
                .until(() -> lastSaved.get() != null
                          && lastSaved.get().getStatus() == PayoutStatus.FAILED);
@@ -321,7 +467,8 @@ class ProposalPaymentSagaE2ETest {
                 .containsEntry("simulateFailure", true);
         assertThat(auditedActions).contains(PayoutAuditService.FAILED);
 
-        // payment.failed published — triggers compensation in proposal/contract/job services
+        // payment.failed published — triggers compensation: proposal-service sets Proposal=PAYMENT_FAILED
+        // then publishes proposal.cancelled (§8.6 step 4–5, proposal-service scope)
         await().atMost(5, SECONDS)
                .until(() -> publishedEvent.get() instanceof PaymentFailedEvent);
         PaymentFailedEvent published = (PaymentFailedEvent) publishedEvent.get();
@@ -330,36 +477,80 @@ class ProposalPaymentSagaE2ETest {
     }
 
     /**
-     * Scenario B (part 2): full compensation choreography — observable end-state.
-     * {@code payment.failed} → proposal-service emits {@code proposal.cancelled} →
-     * wallet {@code ProposalEventConsumer.handleProposalCancelled()} →
-     * FAILED payout transitions to REFUNDED → {@code payment.refunded} published.
+     * Scenario B compensation path — PENDING payout (§8.6 steps 6–9, wallet-service side):
      *
-     * <p>The compensation is simulated synchronously here; Awaitility confirms the
-     * REFUNDED state is eventually visible within 5 s.
+     * <p>{@code proposal.cancelled} arrives at wallet (published by proposal-service after it
+     * receives {@code payment.failed}) → {@code ProposalEventConsumer.handleProposalCancelled()} →
+     * {@code refundPayoutFromProposalCancelled()} → PENDING payout transitions to REFUNDED →
+     * {@code payment.refunded} published → proposal-service consumes it → Proposal=REFUNDED.
+     *
+     * <p>§8.6 step 7 wallet assertion: "payout = REFUNDED in wallet-postgres."
+     * §8.6 step 7 user-service assertion: "freelancer stats reversed in user-postgres" —
+     * this is user-service scope (local DB only, no event emitted per §8.5); not asserted here.
+     *
+     * <p>This covers the scenario where the payout was PENDING when {@code proposal.cancelled}
+     * arrived (i.e. the client never triggered S5-F4, or payout was abandoned before processing).
      */
     @Test
-    void scenarioB_compensationPath_failedPayoutEventuallyRefunded() {
-        // Given: FAILED payout persisted after gateway rejection
-        Payout failedPayout = pendingPayout();
-        failedPayout.setId(200L);
-        failedPayout.setStatus(PayoutStatus.FAILED);
-        failedPayout.setTransactionDetails(
-                new HashMap<>(Map.of("gatewayResponse", "rejected")));
+    void scenarioB_compensationPath_pendingPayoutRefundedOnProposalCancelled_publishesPaymentRefunded()
+            throws Exception {
+        // Given: PENDING payout in wallet-postgres (created after proposal.completed in Phase 1)
+        stubPendingPayout = pendingPayout(); // status=PENDING, proposalId in transactionDetails
 
-        AtomicReference<PayoutStatus> compensatedStatus =
-                new AtomicReference<>(PayoutStatus.FAILED);
+        // When: proposal.cancelled arrives — compensation cascade initiated by proposal-service
+        ProposalCancelledEvent cancelledEvent = new ProposalCancelledEvent(
+                PROPOSAL_ID, JOB_ID, FREELANCER_ID, "simulated gateway failure");
+        consumer.onProposalEvent(messageFor(cancelledEvent, SagaTopics.PROPOSAL_CANCELLED));
 
-        // When: proposal.cancelled arrives → ProposalEventConsumer → FAILED → REFUNDED
-        failedPayout.setStatus(PayoutStatus.REFUNDED);
-        compensatedStatus.set(failedPayout.getStatus());
-
-        // Then: await all saga consumers have settled — Payout=REFUNDED within 5 s
+        // Then: wallet-postgres payout transitions PENDING → REFUNDED (§8.6 step 7)
         await().atMost(5, SECONDS)
-               .until(() -> compensatedStatus.get() == PayoutStatus.REFUNDED);
+               .until(() -> lastSaved.get() != null
+                         && lastSaved.get().getStatus() == PayoutStatus.REFUNDED);
 
-        assertThat(compensatedStatus.get()).isEqualTo(PayoutStatus.REFUNDED);
-        assertThat(failedPayout.getStatus()).isEqualTo(PayoutStatus.REFUNDED);
+        Payout refunded = lastSaved.get();
+        assertThat(refunded.getStatus()).isEqualTo(PayoutStatus.REFUNDED);
+        assertThat(refunded.getTransactionDetails())
+                .containsKey("refundReason")
+                .containsKey("refundedAt")
+                .containsKey("refundAmount");
+        assertThat(auditedActions).contains(PayoutAuditService.REFUNDED);
+
+        // payment.refunded published (§8.6 step 8) — proposal-service consumes it → Proposal=REFUNDED
+        await().atMost(5, SECONDS)
+               .until(() -> publishedEvent.get() instanceof PaymentRefundedEvent);
+        PaymentRefundedEvent refundedEvt = (PaymentRefundedEvent) publishedEvent.get();
+        assertThat(refundedEvt.proposalId()).isEqualTo(PROPOSAL_ID);
+        assertThat(refundedEvt.contractId()).isEqualTo(CONTRACT_ID);
+        assertThat(refundedEvt.refundAmount()).isEqualByComparingTo(BigDecimal.valueOf(AGREED_AMOUNT));
+    }
+
+    /**
+     * Scenario B compensation — FAILED payout branch: gateway rejected → Payout=FAILED →
+     * {@code proposal.cancelled} arrives → {@code findRefundCandidateByProposalId} returns empty
+     * (SQL: {@code status IN ('PENDING','COMPLETED')} excludes FAILED) → compensation ignored.
+     *
+     * <p>This is correct behaviour: a FAILED payout means no money was transferred to the
+     * freelancer, so there is nothing to refund. No {@code payment.refunded} published.
+     * Contract termination and user-stat reversal still happen in their respective services via
+     * the {@code proposal.cancelled} event — those are out of wallet-service scope.
+     */
+    @Test
+    void scenarioB_failedPayout_compensationIgnored_noRefundPublished() throws Exception {
+        // Given: FAILED payout (gateway rejected S5-F4)
+        Payout failedPayout = pendingPayout();
+        failedPayout.setStatus(PayoutStatus.FAILED);
+        failedPayout.getTransactionDetails().put("gatewayResponse", "rejected");
+        stubPendingPayout = failedPayout;
+
+        // When: proposal.cancelled arrives — findRefundCandidateByProposalId excludes FAILED
+        ProposalCancelledEvent cancelledEvent = new ProposalCancelledEvent(
+                PROPOSAL_ID, JOB_ID, FREELANCER_ID, "simulated gateway failure");
+        consumer.onProposalEvent(messageFor(cancelledEvent, SagaTopics.PROPOSAL_CANCELLED));
+
+        // Then: no payout update, no payment.refunded — no money was transferred
+        await().atMost(5, SECONDS).until(() -> lastSaved.get() == null);
+        assertThat(publishedEvent.get()).isNull();
+        assertThat(auditedActions).isEmpty();
     }
 
     /**
@@ -385,15 +576,20 @@ class ProposalPaymentSagaE2ETest {
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // Scenario C — Pre-check failure (no active contract)
+    // Scenario C — Pre-check failure at S5-F4 level (wallet-service scope)
     // ═════════════════════════════════════════════════════════════════════════
 
     /**
-     * Scenario C: contract-service returns 404 for the given contractId →
-     * 404 returned synchronously; no payout created; no saga event published;
-     * proposal remains ACCEPTED.
+     * Scenario C at S5-F4 level: contract-service returns 404 for the given contractId →
+     * 404 returned synchronously; no payout created; no saga event published.
      *
-     * <p>Per §8.6: synchronous assertions must NOT use {@code await()}.
+     * <p>§8.6 Scenario C describes the analogous failure at S3-F4 level (proposal-service's
+     * {@code PUT /api/proposals/{id}/complete} finding no active contract via Feign → 400).
+     * That S3-F4 pre-check is proposal-service's deliverable. This test covers wallet-service's
+     * S5-F4 pre-check: {@code walletReadClientService.getContract()} returning 404 causes
+     * {@code processContractPayout} to abort before creating any payout or publishing any event.
+     *
+     * <p>Per §8.6: synchronous assertions MUST NOT use {@code await()}.
      */
     @Test
     void scenarioC_contractNotFound_synchronously404_noEventPublished() {
