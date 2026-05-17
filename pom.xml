@@ -19,6 +19,7 @@
     </properties>
 
     <modules>
+        <module>contracts</module>
         <module>security-common</module>
         <module>event-common</module>
         <module>user-service</module>
@@ -26,5 +27,6 @@
         <module>proposal-service</module>
         <module>contract-service</module>
         <module>wallet-service</module>
+        <module>api-gateway</module>
     </modules>
 </project>

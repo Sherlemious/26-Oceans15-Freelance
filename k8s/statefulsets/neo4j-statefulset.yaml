@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neo4j
+  namespace: freelance
+
+spec:
+  serviceName: neo4j
+
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: neo4j
+
+  template:
+    metadata:
+      labels:
+        app: neo4j
+
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: neo4j
+          image: neo4j:latest
+
+          ports:
+            - containerPort: 7687
+              name: bolt
+
+            - containerPort: 7474
+              name: http
+
+          env:
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-secret
+                  key: NEO4J_AUTH
+
+          volumeMounts:
+            - name: neo4j-storage
+              mountPath: /data
+
+      volumes:
+        - name: neo4j-storage
+          persistentVolumeClaim:
+            claimName: neo4j-pvc

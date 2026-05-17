@@ -12,8 +12,11 @@ import com.team26.freelance.wallet.model.Payout;
 import com.team26.freelance.wallet.service.PayoutAuditService;
 import com.team26.freelance.wallet.service.PayoutService;
 import com.team26.freelance.wallet.service.PlatformFeeAnalyticsService;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +33,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/payouts")
 public class PayoutController {
+
+  private static final Logger log = LoggerFactory.getLogger(PayoutController.class);
 
   private final PayoutService payoutService;
   private final PlatformFeeAnalyticsService platformFeeAnalyticsService;
@@ -142,5 +147,17 @@ public class PayoutController {
   public ResponseEntity<FreelancerPayoutSummaryDTO> getFreelancerSummary(
       @PathVariable Long freelancerId) {
     return ResponseEntity.ok(payoutService.getFreelancerPayoutSummary(freelancerId));
+  }
+
+  @GetMapping("/freelancer/{freelancerId}/total")
+  public ResponseEntity<BigDecimal> getFreelancerCompletedPayoutTotal(
+          @PathVariable Long freelancerId,
+          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+    log.info("Received GET /api/payouts/freelancer/{}/total", freelancerId);
+    BigDecimal total = payoutService.getCompletedPayoutTotalByFreelancer(
+            freelancerId, startDate, endDate);
+    log.info("Returning 200 for GET /api/payouts/freelancer/{}/total", freelancerId);
+    return ResponseEntity.ok(total);
   }
 }

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-postgres
+  namespace: freelance
+spec:
+  clusterIP: None
+  selector:
+    app: user-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

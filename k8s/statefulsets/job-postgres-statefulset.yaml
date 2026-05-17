@@ -54,12 +54,7 @@ spec:
                 - pg_isready -U $POSTGRES_USER
             initialDelaySeconds: 5
             periodSeconds: 10
-  volumeClaimTemplates:
-    - metadata:
-        name: data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 1Gi
-
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: job-postgres-pvc

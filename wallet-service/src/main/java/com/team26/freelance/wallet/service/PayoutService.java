@@ -39,6 +39,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +49,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PayoutService {
+
+  private static final Logger log = LoggerFactory.getLogger(PayoutService.class);
+  private static final long SLOW_OPERATION_THRESHOLD_MS = 1000L;
 
   private final PayoutRepository payoutRepository;
   private final PromoCodeRepository promoCodeRepository;
@@ -55,6 +61,7 @@ public class PayoutService {
   private final PayoutAuditEventRepository payoutAuditEventRepository;
   private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
+  private final WalletReadClientService walletReadClientService;
   private final FreelancerPayoutSummaryObjectArrayAdapter freelancerPayoutSummaryObjectArrayAdapter;
   private final PromoCodeUsageObjectArrayAdapter promoCodeUsageObjectArrayAdapter;
 
@@ -66,6 +73,7 @@ public class PayoutService {
                        PlatformFeeAnalyticsService platformFeeAnalyticsService,
                        PayoutAuditEventRepository payoutAuditEventRepository,
                        RefundStrategySelector refundStrategySelector,
+                       WalletReadClientService walletReadClientService,
                        FreelancerPayoutSummaryObjectArrayAdapter freelancerPayoutSummaryObjectArrayAdapter,
                        PromoCodeUsageObjectArrayAdapter promoCodeUsageObjectArrayAdapter
                        ) {
@@ -77,6 +85,7 @@ public class PayoutService {
     this.payoutAuditEventRepository = payoutAuditEventRepository;
     this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
+    this.walletReadClientService = walletReadClientService;
     this.promoCodeUsageObjectArrayAdapter=promoCodeUsageObjectArrayAdapter;
     this.freelancerPayoutSummaryObjectArrayAdapter=freelancerPayoutSummaryObjectArrayAdapter;
   }
@@ -518,8 +527,26 @@ public class PayoutService {
 
   @Cacheable(cacheNames = "wallet-service::S5-F3", key = "#freelancerId")
   public FreelancerPayoutSummaryDTO getFreelancerPayoutSummary(Long freelancerId) {
+    try {
+      walletReadClientService.getUser(freelancerId);
+    } catch (ResponseStatusException ex) {
+      log.warn(
+          "Unable to validate freelancer {} before payout summary lookup: status={}, reason={}",
+          freelancerId,
+          ex.getStatusCode(),
+          ex.getReason());
+      throw ex;
+    } catch (RuntimeException ex) {
+      log.warn(
+          "Unexpected failure validating freelancer {} before payout summary lookup",
+          freelancerId,
+          ex);
+      throw ex;
+    }
+
     List<Object[]> rows = payoutRepository.getPayoutSummaryByFreelancer(freelancerId);
     if (rows.isEmpty()) {
+      log.info("No completed payouts found for freelancer {}", freelancerId);
       throw new ResponseStatusException(
           HttpStatus.NOT_FOUND, "Freelancer not found or has no payouts");
     }
@@ -545,6 +572,35 @@ public class PayoutService {
             .totalAmount(totalAmount)
             .methodBreakdown(methodBreakdown)
             .build();
+  }
+
+  @Cacheable(
+          cacheNames = "wallet-service::S5-READ-DB-total",
+          key = "#freelancerId + ':' + #startDate + ':' + #endDate"
+  )
+  public BigDecimal getCompletedPayoutTotalByFreelancer(Long freelancerId,
+                                                        LocalDate startDate,
+                                                        LocalDate endDate) {
+    if (startDate.isAfter(endDate)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+              "startDate must be before or equal to endDate");
+    }
+
+    long startedAt = System.currentTimeMillis();
+    MDC.put("userId", freelancerId.toString());
+    try {
+      LocalDateTime start = startDate.atStartOfDay();
+      LocalDateTime endExclusive = endDate.plusDays(1).atStartOfDay();
+      Double total = payoutRepository.getCompletedPayoutTotalByFreelancer(
+              freelancerId, PayoutStatus.COMPLETED, start, endExclusive);
+      return total == null ? BigDecimal.valueOf(0.0) : BigDecimal.valueOf(total);
+    } finally {
+      long elapsedMs = System.currentTimeMillis() - startedAt;
+      if (elapsedMs > SLOW_OPERATION_THRESHOLD_MS) {
+        log.warn("Slow completed-payout-total lookup took {}ms", elapsedMs);
+      }
+      MDC.remove("userId");
+    }
   }
 
   @Caching(evict = {

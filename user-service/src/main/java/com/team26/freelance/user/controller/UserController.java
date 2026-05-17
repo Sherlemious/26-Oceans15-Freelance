@@ -1,5 +1,6 @@
 package com.team26.freelance.user.controller;
 
+import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UpdateRoleRequestDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
@@ -10,6 +11,7 @@ import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.security.UserAuthorizationService;
 import com.team26.freelance.user.service.UserActivityService;
 import com.team26.freelance.user.service.UserService;
+import org.slf4j.MDC;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,9 +50,10 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
+    public ResponseEntity<UserDTO> getById(@PathVariable Long id) {
+        MDC.put("userId", String.valueOf(id));
         userAuthorizationService.requireOwnerOrAdmin(id);
-        return ResponseEntity.ok(userService.findById(id));
+        return ResponseEntity.ok(userService.findProviderUserById(id));
     }
 
     @GetMapping("/{id}/activity")
@@ -58,12 +61,14 @@ public class UserController {
             @PathVariable Long id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
+        MDC.put("userId", String.valueOf(id));
         userAuthorizationService.requireOwnerOrAdmin(id);
         return ResponseEntity.ok(userActivityService.getActivityFeed(id, page, size));
     }
 
     @GetMapping("/{id}/profile")
     public ResponseEntity<UserProfileDTO> getProfile(@PathVariable Long id) {
+        MDC.put("userId", String.valueOf(id));
         return ResponseEntity.ok(userService.getUserProfile(id));
     }
 
@@ -82,17 +87,20 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDTO> update(@PathVariable Long id, @RequestBody User user) {
+        MDC.put("userId", String.valueOf(id));
         userAuthorizationService.requireOwnerOrAdmin(id);
         return ResponseEntity.ok(userService.update(id, user));
     }
 
     @PutMapping("/{id}/role")
     public ResponseEntity<UserResponseDTO> updateRole(@PathVariable Long id, @RequestBody UpdateRoleRequestDTO request) {
+        MDC.put("userId", String.valueOf(id));
         return ResponseEntity.ok(userService.updateRole(id, request == null ? null : request.getRole()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        MDC.put("userId", String.valueOf(id));
         userAuthorizationService.requireOwnerOrAdmin(id);
         userService.delete(id);
         return ResponseEntity.noContent().build();
@@ -100,11 +108,13 @@ public class UserController {
 
     @PutMapping("/{id}/deactivate")
     public ResponseEntity<UserResponseDTO> deactivate(@PathVariable Long id) {
+        MDC.put("userId", String.valueOf(id));
         return ResponseEntity.ok(userService.deactivate(id));
     }
 
     @PutMapping("/{userId}/skills/{skillId}/primary")
     public ResponseEntity<UserResponseDTO> setPrimarySkill(@PathVariable Long userId, @PathVariable Long skillId) {
+        MDC.put("userId", String.valueOf(userId));
         return ResponseEntity.ok(userService.setPrimarySkill(userId, skillId));
     }
 
@@ -131,11 +141,13 @@ public class UserController {
     }
     @PutMapping("/{id}/preferences")
     public ResponseEntity<UserResponseDTO> updatePreferences(@PathVariable Long id, @RequestBody Map<String, Object> preferences) {
+        MDC.put("userId", String.valueOf(id));
         return ResponseEntity.ok(userService.updatePreferences(id, preferences));
     }
 
     @GetMapping("/{id}/contract-summary")
     public ResponseEntity<UserContractSummaryDTO> getContractSummary(@PathVariable Long id) {
+        MDC.put("userId", String.valueOf(id));
         return ResponseEntity.ok(userService.getUserContractSummary(id));
     }
 }

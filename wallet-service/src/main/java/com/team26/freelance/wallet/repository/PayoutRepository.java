@@ -1,6 +1,5 @@
 package com.team26.freelance.wallet.repository;
 
-import com.team26.freelance.wallet.dto.CategoryRevenueProjection;
 import com.team26.freelance.wallet.dto.RevenueReportProjection;
 import com.team26.freelance.wallet.dto.ContractDataProjection;
 import com.team26.freelance.wallet.model.Payout;
@@ -69,6 +68,19 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
             """, nativeQuery = true)
     List<Object[]> getPayoutSummaryByFreelancer(@Param("freelancerId") Long freelancerId);
 
+    @Query("""
+            SELECT COALESCE(SUM(p.amount), 0.0)
+            FROM Payout p
+            WHERE p.freelancerId = :freelancerId
+              AND p.status = :status
+              AND p.createdAt >= :startDate
+              AND p.createdAt < :endExclusive
+            """)
+    Double getCompletedPayoutTotalByFreelancer(@Param("freelancerId") Long freelancerId,
+                                               @Param("status") PayoutStatus status,
+                                               @Param("startDate") LocalDateTime startDate,
+                                               @Param("endExclusive") LocalDateTime endExclusive);
+
     @Query(value = """
             SELECT COALESCE(SUM(pm.amount), 0)
             FROM proposal_milestones pm
@@ -80,23 +92,14 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
     Double sumUnresolvedMilestoneAmounts(@Param("contractId") Long contractId);
 
 
-    @Query(value = """
-    SELECT
-        j.category::text AS "category",
-        COALESCE(SUM(p.amount), 0) AS "totalRevenue",
-        COALESCE(SUM(COALESCE((p.transaction_details ->> 'platformFee')::numeric, p.amount * 0.10)), 0) AS "platformFeeRevenue",
-        COUNT(*) AS "payoutCount"
-    FROM payouts p
-    JOIN contracts c ON c.id = p.contract_id
-    JOIN jobs j ON j.id = c.job_id
-    WHERE p.status = 'COMPLETED'
-      AND p.created_at >= :startDate
-      AND p.created_at < :endExclusive
-    GROUP BY j.category
-    ORDER BY "totalRevenue" DESC
-    """, nativeQuery = true)
-    List<CategoryRevenueProjection> getCategoryRevenueAnalytics(
-            @Param("startDate") LocalDateTime startDate,
-            @Param("endExclusive") LocalDateTime endExclusive
-    );
+    @Query("""
+            SELECT p
+            FROM Payout p
+            WHERE p.status = :status
+              AND p.createdAt >= :startDate
+              AND p.createdAt < :endExclusive
+            """)
+    List<Payout> findByStatusAndCreatedAtRange(@Param("status") PayoutStatus status,
+                                               @Param("startDate") LocalDateTime startDate,
+                                               @Param("endExclusive") LocalDateTime endExclusive);
 }
