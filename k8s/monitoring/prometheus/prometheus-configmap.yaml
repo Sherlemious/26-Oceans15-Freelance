@@ -40,8 +40,3 @@ data:
           - targets:
               - wallet-service.freelance.svc.cluster.local:8080
 
-      - job_name: api-gateway
-        metrics_path: /actuator/prometheus
-        static_configs:
-          - targets:
-              - api-gateway.freelance.svc.cluster.local:8080
