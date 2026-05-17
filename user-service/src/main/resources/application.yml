@@ -7,6 +7,18 @@ server:
 spring:
   application:
     name: user-service
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        acknowledge-mode: ${SPRING_RABBITMQ_LISTENER_SIMPLE_ACKNOWLEDGE_MODE:auto}
+        default-requeue-rejected: ${SPRING_RABBITMQ_LISTENER_SIMPLE_DEFAULT_REQUEUE_REJECTED:false}
+        retry:
+          enabled: ${SPRING_RABBITMQ_LISTENER_SIMPLE_RETRY_ENABLED:true}
+          max-attempts: ${SPRING_RABBITMQ_LISTENER_SIMPLE_RETRY_MAX_ATTEMPTS:3}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://user-postgres:5432/freelancedb-users}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
@@ -34,11 +46,21 @@ jwt:
   secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
   expiration: ${JWT_EXPIRATION:86400000}
 
+feign:
+  contract-service:
+    url: ${FEIGN_CONTRACT_SERVICE_URL:http://contract-service:8080}
+  wallet-service:
+    url: ${FEIGN_WALLET_SERVICE_URL:http://wallet-service:8080}
+
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: prometheus,health,info
   endpoint:
     health:
       show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
