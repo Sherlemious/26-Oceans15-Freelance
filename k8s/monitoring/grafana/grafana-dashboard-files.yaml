@@ -107,570 +107,592 @@ data:
     }
   job-dashboard.json: |
     {
-      "annotations": {
-        "list": [
-          {
-            "builtIn": 1,
-            "datasource": {
-              "type": "grafana",
-              "uid": "-- Grafana --"
-            },
-            "enable": true,
-            "hide": true,
-            "iconColor": "rgba(0, 211, 255, 1)",
-            "name": "Annotations & Alerts",
-            "type": "dashboard"
-          }
-        ]
-      },
-      "editable": true,
-      "fiscalYearStartMonth": 0,
-      "graphTooltip": 0,
-      "id": null,
-      "links": [],
-      "liveNow": false,
-      "panels": [
+    "annotations": {
+      "list": [
         {
+          "builtIn": 1,
           "datasource": {
-            "type": "loki",
-            "uid": "loki"
+            "type": "grafana",
+            "uid": "-- Grafana --"
           },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 0
-          },
-          "id": 1,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\", level=\"ERROR\"}[1m])) by (level)",
-              "refId": "A"
-            }
-          ],
-          "title": "Error Rate (Errors per Minute)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 0
-          },
-          "id": 2,
-          "targets": [
-            {
-              "expr": "rate(http_server_requests_seconds_count{job=\"job-service\"}[5m])",
-              "legendFormat": "{{uri}} {{method}}",
-              "refId": "A"
-            }
-          ],
-          "title": "HTTP Request Rate (Requests/sec)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 8
-          },
-          "id": 3,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Feign call to\" |= \"failed\"[1m])) as failures,\nsum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\"[1m])) as successes",
-              "refId": "A"
-            }
-          ],
-          "title": "Feign Call Outcomes (Success vs Failures)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Latency (ms)",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 8
-          },
-          "id": 4,
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
-              "legendFormat": "P50 {{uri}}",
-              "refId": "A"
-            },
-            {
-              "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
-              "legendFormat": "P95 {{uri}}",
-              "refId": "B"
-            },
-            {
-              "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
-              "legendFormat": "P99 {{uri}}",
-              "refId": "C"
-            }
-          ],
-          "title": "HTTP Latency Percentiles (P50/P95/P99)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 16
-          },
-          "id": 5,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Published\" OR |= \"Consuming\" OR |= \"Processed\"[5m])) by (routingKey)",
-              "refId": "A"
-            }
-          ],
-          "title": "RabbitMQ Event Audit (by Routing Key)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Hit/Miss Ratio",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "percentunit"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 16
-          },
-          "id": 6,
-          "targets": [
-            {
-              "expr": "sum(rate(cache_gets_total{job=\"job-service\", result=\"hit\"}[5m])) / (sum(rate(cache_gets_total{job=\"job-service\", result=\"hit\"}[5m])) + sum(rate(cache_gets_total{job=\"job-service\", result=\"miss\"}[5m])))",
-              "legendFormat": "Cache Hit Ratio",
-              "refId": "A"
-            }
-          ],
-          "title": "Redis Cache Hit/Miss Ratio",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Value",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 24
-          },
-          "id": 7,
-          "targets": [
-            {
-              "expr": "jvm_memory_used_bytes{job=\"job-service\", area=\"heap\"} / jvm_memory_max_bytes{job=\"job-service\", area=\"heap\"}",
-              "legendFormat": "Heap Usage %",
-              "refId": "A"
-            },
-            {
-              "expr": "rate(jvm_gc_pause_seconds_sum{job=\"job-service\"}[5m])",
-              "legendFormat": "GC Pause/sec",
-              "refId": "B"
-            },
-            {
-              "expr": "jvm_threads_live_threads{job=\"job-service\"}",
-              "legendFormat": "Live Threads",
-              "refId": "C"
-            }
-          ],
-          "title": "JVM Health (Heap, GC, Threads)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Connections",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 24
-          },
-          "id": 8,
-          "targets": [
-            {
-              "expr": "hikaricp_connections_active{job=\"job-service\"}",
-              "legendFormat": "Active Connections",
-              "refId": "A"
-            },
-            {
-              "expr": "hikaricp_connections_max{job=\"job-service\"}",
-              "legendFormat": "Max Pool Size",
-              "refId": "B"
-            }
-          ],
-          "title": "Database Connection Pool (HikariCP)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Messages/sec",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 24,
-            "x": 0,
-            "y": 32
-          },
-          "id": 9,
-          "targets": [
-            {
-              "expr": "rate(rabbitmq_queue_messages_published_total{queue=\"job.proposal.saga-listener\"}[5m])",
-              "legendFormat": "Published job.proposal.saga-listener",
-              "refId": "A"
-            },
-            {
-              "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"job.proposal.saga-listener\"}[5m])",
-              "legendFormat": "Consumed job.proposal.saga-listener",
-              "refId": "B"
-            }
-          ],
-          "title": "RabbitMQ Throughput (Published vs Consumed)",
-          "type": "timeseries"
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "type": "dashboard"
         }
-      ],
-      "refresh": "10s",
-      "schemaVersion": 38,
-      "style": "dark",
-      "tags": [
-        "job-service",
-        "production"
-      ],
-      "templating": {
-        "list": []
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+      {
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "id": 1,
+        "targets": [
+          {
+            "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\", level=\"ERROR\"}[1m])) by (level)",
+            "refId": "A"
+          }
+        ],
+        "title": "Error Rate (Errors per Minute)",
+        "type": "timeseries"
       },
-      "time": {
-        "from": "now-1h",
-        "to": "now"
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "id": 2,
+        "targets": [
+          {
+            "expr": "rate(http_server_requests_seconds_count{job=\"job-service\"}[5m])",
+            "legendFormat": "{{uri}} {{method}}",
+            "refId": "A"
+          }
+        ],
+        "title": "HTTP Request Rate (Requests/sec)",
+        "type": "timeseries"
       },
-      "timepicker": {},
-      "timezone": "",
-      "title": "Job Service Observability Dashboard",
-      "uid": "job-service-dashboard",
-      "version": 1,
-      "weekStart": ""
-    }
+      {
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "id": 3,
+        "targets": [
+          {
+            "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Feign call to\" |= \"failed\"[1m])) as failures,\nsum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\"[1m])) as successes",
+            "refId": "A"
+          }
+        ],
+        "title": "Feign Call Outcomes (Success vs Failures)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "Latency (ms)",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 0,
+              "gradientMode": "none",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "never",
+              "spanNulls": true,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "ms"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "id": 4,
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
+            "legendFormat": "P50 {{uri}}",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
+            "legendFormat": "P95 {{uri}}",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
+            "legendFormat": "P99 {{uri}}",
+            "refId": "C"
+          }
+        ],
+        "title": "HTTP Latency Percentiles (P50/P95/P99)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        },
+        "id": 5,
+        "targets": [
+          {
+            "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Published\" OR |= \"Consuming\" OR |= \"Processed\"[5m])) by (routingKey)",
+            "refId": "A"
+          }
+        ],
+        "title": "RabbitMQ Event Audit (by Routing Key)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "Hit/Miss Ratio",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "unit": "percentunit"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 16
+        },
+        "id": 6,
+        "targets": [
+          {
+            "expr": "sum(rate(cache_gets_total{job=\"job-service\", result=\"hit\"}[5m])) / (sum(rate(cache_gets_total{job=\"job-service\", result=\"hit\"}[5m])) + sum(rate(cache_gets_total{job=\"job-service\", result=\"miss\"}[5m])))",
+            "legendFormat": "Cache Hit Ratio",
+            "refId": "A"
+          }
+        ],
+        "title": "Redis Cache Hit/Miss Ratio",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "Value",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 24
+        },
+        "id": 7,
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"job-service\", area=\"heap\"} / jvm_memory_max_bytes{job=\"job-service\", area=\"heap\"}",
+            "legendFormat": "Heap Usage %",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(jvm_gc_pause_seconds_sum{job=\"job-service\"}[5m])",
+            "legendFormat": "GC Pause/sec",
+            "refId": "B"
+          },
+          {
+            "expr": "jvm_threads_live_threads{job=\"job-service\"}",
+            "legendFormat": "Live Threads",
+            "refId": "C"
+          }
+        ],
+        "title": "JVM Health (Heap, GC, Threads)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "Connections",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 24
+        },
+        "id": 8,
+        "targets": [
+          {
+            "expr": "hikaricp_connections_active{job=\"job-service\"}",
+            "legendFormat": "Active Connections",
+            "refId": "A"
+          },
+          {
+            "expr": "hikaricp_connections_max{job=\"job-service\"}",
+            "legendFormat": "Max Pool Size",
+            "refId": "B"
+          }
+        ],
+        "title": "Database Connection Pool (HikariCP)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisCenteredZero": false,
+              "axisColorMode": "text",
+              "axisLabel": "Messages/sec",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "none",
+              "hideFrom": {
+                "tooltip": false,
+                "viz": false,
+                "legend": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 32
+        },
+        "id": 9,
+        "targets": [
+          {
+            "expr": "rate(rabbitmq_queue_messages_published_total{queue=\"job.proposal.saga-listener\"}[5m])",
+            "legendFormat": "Published job.proposal.saga-listener",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"job.proposal.saga-listener\"}[5m])",
+            "legendFormat": "Consumed job.proposal.saga-listener",
+            "refId": "B"
+          }
+        ],
+        "title": "RabbitMQ Throughput (Published vs Consumed)",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 40
+        },
+        "id": 10,
+        "targets": [
+          {
+            "expr": "count_over_time({app=\"freelance\", service=\"job-service\"} | json | correlationId=~\".+\" [5m])",
+            "legendFormat": "Requests with correlationId",
+            "refId": "A"
+          }
+        ],
+        "title": "Correlation ID Trace (job-service)",
+        "type": "timeseries"
+      }
+    ],
+    "refresh": "10s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [
+      "job-service",
+      "production"
+    ],
+    "templating": {
+      "list": []
+    },
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Job Service Observability Dashboard",
+    "uid": "job-service-dashboard",
+    "version": 1,
+    "weekStart": ""
+  }
   proposal-dashboard.json: |-
     {
       "__requires": [
