@@ -25,7 +25,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/api/jobs/health",
             "/api/contracts/health",
             "/api/proposals/health",
-            "/api/wallets/health"
+            "/api/wallets/health",
+            "/actuator/health",
+            "/actuator/info",
+            "/actuator/prometheus"
     );
 
     public JwtAuthenticationFilter(AuthHandler chainHead) {
@@ -34,7 +37,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
-        return EXEMPT_PATHS.contains(request.getServletPath());
+        String path = request.getServletPath();
+        return path.startsWith("/actuator/") || EXEMPT_PATHS.contains(path);
     }
 
     @Override

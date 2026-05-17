@@ -51,3 +51,17 @@ BEGIN
     END IF;
 END $$;
 @@
+
+DO $$
+BEGIN
+    IF to_regclass('public.proposals') IS NOT NULL
+       AND to_regclass('public.jobs') IS NOT NULL
+       AND NOT EXISTS (
+           SELECT 1 FROM pg_constraint WHERE conname = 'fk_proposals_job_id'
+       ) THEN
+        ALTER TABLE proposals
+            ADD CONSTRAINT fk_proposals_job_id
+            FOREIGN KEY (job_id) REFERENCES jobs(id);
+    END IF;
+END $$;
+@@
