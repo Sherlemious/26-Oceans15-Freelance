@@ -5,7 +5,7 @@ spring:
   application:
     name: proposal-service
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/freelancedb}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://proposal-postgres:5432/freelancedb-proposals}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:postgres}
   jpa:
