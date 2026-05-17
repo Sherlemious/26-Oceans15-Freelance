@@ -13,3 +13,4 @@ data:
   JWT_EXPIRATION: "86400000"
   FEIGN_CONTRACT_SERVICE_URL: http://contract-service:8080
   FEIGN_WALLET_SERVICE_URL: http://wallet-service:8080
+  LOKI_URL: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
