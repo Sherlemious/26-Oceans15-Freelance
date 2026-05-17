@@ -61,6 +61,7 @@ public class PayoutService {
   private final PayoutAuditEventRepository payoutAuditEventRepository;
   private final RefundStrategySelector refundStrategySelector;
   private final PayoutAuditService payoutAuditService;
+  private final WalletReadClientService walletReadClientService;
   private final FreelancerPayoutSummaryObjectArrayAdapter freelancerPayoutSummaryObjectArrayAdapter;
   private final PromoCodeUsageObjectArrayAdapter promoCodeUsageObjectArrayAdapter;
 
@@ -72,6 +73,7 @@ public class PayoutService {
                        PlatformFeeAnalyticsService platformFeeAnalyticsService,
                        PayoutAuditEventRepository payoutAuditEventRepository,
                        RefundStrategySelector refundStrategySelector,
+                       WalletReadClientService walletReadClientService,
                        FreelancerPayoutSummaryObjectArrayAdapter freelancerPayoutSummaryObjectArrayAdapter,
                        PromoCodeUsageObjectArrayAdapter promoCodeUsageObjectArrayAdapter
                        ) {
@@ -83,6 +85,7 @@ public class PayoutService {
     this.payoutAuditEventRepository = payoutAuditEventRepository;
     this.refundStrategySelector = refundStrategySelector;
     this.payoutAuditService = payoutAuditService;
+    this.walletReadClientService = walletReadClientService;
     this.promoCodeUsageObjectArrayAdapter=promoCodeUsageObjectArrayAdapter;
     this.freelancerPayoutSummaryObjectArrayAdapter=freelancerPayoutSummaryObjectArrayAdapter;
   }
@@ -524,8 +527,26 @@ public class PayoutService {
 
   @Cacheable(cacheNames = "wallet-service::S5-F3", key = "#freelancerId")
   public FreelancerPayoutSummaryDTO getFreelancerPayoutSummary(Long freelancerId) {
+    try {
+      walletReadClientService.getUser(freelancerId);
+    } catch (ResponseStatusException ex) {
+      log.warn(
+          "Unable to validate freelancer {} before payout summary lookup: status={}, reason={}",
+          freelancerId,
+          ex.getStatusCode(),
+          ex.getReason());
+      throw ex;
+    } catch (RuntimeException ex) {
+      log.warn(
+          "Unexpected failure validating freelancer {} before payout summary lookup",
+          freelancerId,
+          ex);
+      throw ex;
+    }
+
     List<Object[]> rows = payoutRepository.getPayoutSummaryByFreelancer(freelancerId);
     if (rows.isEmpty()) {
+      log.info("No completed payouts found for freelancer {}", freelancerId);
       throw new ResponseStatusException(
           HttpStatus.NOT_FOUND, "Freelancer not found or has no payouts");
     }

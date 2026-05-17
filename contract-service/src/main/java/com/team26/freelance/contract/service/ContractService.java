@@ -12,10 +12,13 @@ import com.team26.freelance.contract.model.MilestoneStatus;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEvent;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEventKey;
 import com.team26.freelance.contract.observer.ContractEventSubject;
+import com.team26.freelance.contract.messaging.publishers.ContractSagaPublisher;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.cassandra.ContractMilestoneEventRepository;
+import com.team26.freelance.contracts.dto.JobDTO;
+import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.contracts.dto.ContractDTO;
 import com.team26.freelance.contracts.dto.UserContractSummaryDTO;
 import org.slf4j.Logger;
@@ -42,6 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -55,6 +59,7 @@ public class ContractService {
     private final ContractMilestoneEventRepository contractMilestoneEventRepository;
     private final ContractEventSubject contractEventSubject;
     private final ContractAnalyticsService contractAnalyticsService;
+    private final ContractSagaPublisher contractSagaPublisher;
     private final CassandraTemplate cassandraTemplate;
     private final CassandraRowAdapter cassandraRowAdapter;
     private final ContractReadClientService contractReadClientService;
@@ -64,6 +69,7 @@ public class ContractService {
             ContractMilestoneEventRepository contractMilestoneEventRepository,
             ContractEventSubject contractEventSubject,
             ContractAnalyticsService contractAnalyticsService,
+            ContractSagaPublisher contractSagaPublisher,
             CassandraTemplate cassandraTemplate,
             CassandraRowAdapter cassandraRowAdapter,
             ContractReadClientService contractReadClientService) {
@@ -72,6 +78,7 @@ public class ContractService {
         this.contractMilestoneEventRepository = contractMilestoneEventRepository;
         this.contractEventSubject = contractEventSubject;
         this.contractAnalyticsService = contractAnalyticsService;
+        this.contractSagaPublisher = contractSagaPublisher;
         this.cassandraTemplate = cassandraTemplate;
         this.cassandraRowAdapter = cassandraRowAdapter;
         this.contractReadClientService = contractReadClientService;
@@ -136,47 +143,53 @@ public class ContractService {
 
     @Transactional
     public Contract update(Long id, Contract contractDetails) {
-        MDC.put("contractId", id.toString());
-        try {
-            Contract contract = getContractById(id);
+    MDC.put("contractId", id.toString());
+    try {
+        Contract contract = getContractById(id);
+        ContractStatus oldStatus = contract.getStatus();
 
-            if (contractDetails.getStatus() != null) {
-                boolean validStatus = contract.getStatus().isValidTransitionTo(contractDetails.getStatus());
-                if (!validStatus) {
-                    throw new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST,
-                            "Invalid status transition for contract " + contract.getId() + ": " + contract.getStatus()
-                                    + " -> " + contractDetails.getStatus());
-                }
-                contract.setStatus(contractDetails.getStatus());
+        if (contractDetails.getStatus() != null) {
+            boolean validStatus = contract.getStatus().isValidTransitionTo(contractDetails.getStatus());
+            if (!validStatus) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Invalid status transition for contract " + contract.getId() + ": " + contract.getStatus()
+                                + " -> " + contractDetails.getStatus());
             }
-
-            if (contractDetails.getJobId() != null)
-                contract.setJobId(contractDetails.getJobId());
-            if (contractDetails.getFreelancerId() != null)
-                contract.setFreelancerId(contractDetails.getFreelancerId());
-            if (contractDetails.getClientId() != null)
-                contract.setClientId(contractDetails.getClientId());
-            if (contractDetails.getProposalId() != null)
-                contract.setProposalId(contractDetails.getProposalId());
-            if (contractDetails.getAgreedAmount() != null)
-                contract.setAgreedAmount(contractDetails.getAgreedAmount());
-
-            if (contractDetails.getStartDate() != null)
-                contract.setStartDate(contractDetails.getStartDate());
-            if (contractDetails.getEndDate() != null)
-                contract.setEndDate(contractDetails.getEndDate());
-            if (contractDetails.getMetadata() != null)
-                contract.setMetadata(contractDetails.getMetadata());
-
-            Contract saved = contractRepository.save(contract);
-            log.info("Contract {} saved with status={}", saved.getId(), saved.getStatus());
-            cacheEvictionService.evictAfterContractMutation(saved.getId());
-            recordContractEvent(ObservabilityAction.CONTRACT_UPDATED, saved.getId(), buildUpdateDetails(contractDetails));
-            return saved;
-        } finally {
-            MDC.remove("contractId");
+            contract.setStatus(contractDetails.getStatus());
         }
+
+        if (contractDetails.getJobId() != null)
+            contract.setJobId(contractDetails.getJobId());
+        if (contractDetails.getFreelancerId() != null)
+            contract.setFreelancerId(contractDetails.getFreelancerId());
+        if (contractDetails.getClientId() != null)
+            contract.setClientId(contractDetails.getClientId());
+        if (contractDetails.getProposalId() != null)
+            contract.setProposalId(contractDetails.getProposalId());
+        if (contractDetails.getAgreedAmount() != null)
+            contract.setAgreedAmount(contractDetails.getAgreedAmount());
+
+        if (contractDetails.getStartDate() != null)
+            contract.setStartDate(contractDetails.getStartDate());
+        if (contractDetails.getEndDate() != null)
+            contract.setEndDate(contractDetails.getEndDate());
+        if (contractDetails.getMetadata() != null)
+            contract.setMetadata(contractDetails.getMetadata());
+
+        Contract saved = contractRepository.save(contract);
+        log.info("Contract {} saved with status={}", saved.getId(), saved.getStatus());
+        cacheEvictionService.evictAfterContractMutation(saved.getId());
+        recordContractEvent(ObservabilityAction.CONTRACT_UPDATED, saved.getId(), buildUpdateDetails(contractDetails));
+
+        if (contractDetails.getStatus() != null && oldStatus != contractDetails.getStatus()) {
+            contractSagaPublisher.publishContractStatusChanged(saved.getId(), oldStatus, contractDetails.getStatus());
+        }
+
+        return saved;
+    } finally {
+        MDC.remove("contractId");
+    }
     }
 
     public void delete(Long id) {
@@ -209,10 +222,12 @@ public class ContractService {
         }
 
         List<Contract> toSave = new ArrayList<>(request.size());
+        List<Runnable> pendingEvents = new ArrayList<>();
         for (BatchStatusUpdateRequestDTO requestItem : request) {
             Long contractId = requestItem.getContractId();
             ContractStatus targetStatus = requestItem.getStatus();
             Contract contract = contractById.get(contractId);
+            ContractStatus oldStatus = contract.getStatus();
 
             boolean valid = contract.getStatus().isValidTransitionTo(targetStatus);
 
@@ -231,6 +246,11 @@ public class ContractService {
                 }
             }
             toSave.add(contract);
+
+            if (oldStatus != targetStatus) {
+                long finalContractId = contractId;
+                pendingEvents.add(() -> contractSagaPublisher.publishContractStatusChanged(finalContractId, oldStatus, targetStatus));
+            }
         }
 
         contractRepository.saveAll(toSave);
@@ -243,6 +263,10 @@ public class ContractService {
             }
         }
         cacheEvictionService.evictAfterContractsMutated(uniqueIds);
+
+        // Publish events only after database commit completes successfully
+        pendingEvents.forEach(Runnable::run);
+
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("updatedCount", toSave.size());
         details.put("contractIds", new ArrayList<>(uniqueIds));
@@ -281,7 +305,15 @@ public class ContractService {
     public Contract getActiveContractForUser(Long userId) {
         MDC.put("userId", userId.toString());
         try {
-            contractReadClientService.getUser(userId);
+            try {
+                contractReadClientService.getUser(userId);
+            } catch (ResponseStatusException e) {
+                if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+                }
+            } catch (Exception e) {
+                // ignore
+            }
             return contractRepository
                     .findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(
                             userId, ContractStatus.ACTIVE, userId, ContractStatus.ACTIVE)
@@ -354,35 +386,34 @@ public class ContractService {
     }
 
     @Transactional
-    public Contract createContract(Contract contract) {
-        putMdc("jobId", contract.getJobId());
-        putMdc("proposalId", contract.getProposalId());
-        putMdc("userId", contract.getFreelancerId());
-        try {
-            // default status to ACTIVE if not provided
-            if (contract.getStatus() == null) {
-                contract.setStatus(ContractStatus.ACTIVE);
-            }
-            if (contract.getStartDate() == null) {
-                contract.setStartDate(LocalDateTime.now());
-            }
-            if (contract.getCreatedAt() == null) {
-                contract.setCreatedAt(LocalDateTime.now());
-            }
-            Contract saved = contractRepository.save(contract);
-            putMdc("contractId", saved.getId());
-            log.info("Contract {} saved with status={}", saved.getId(), saved.getStatus());
-            cacheEvictionService.evictAfterContractCreated();
-            recordContractEvent(ObservabilityAction.CONTRACT_CREATED, saved.getId(), buildContractSnapshot(saved));
-            return saved;
-        } finally {
-            MDC.remove("contractId");
-            MDC.remove("jobId");
-            MDC.remove("proposalId");
-            MDC.remove("userId");
-        }
-    }
+public Contract createContract(Contract contract) {
+    putMdc("jobId", contract.getJobId());
+    putMdc("proposalId", contract.getProposalId());
+    putMdc("userId", contract.getFreelancerId());
+    try {
+        if (contract.getStatus() == null) contract.setStatus(ContractStatus.ACTIVE);
+        if (contract.getStartDate() == null) contract.setStartDate(LocalDateTime.now());
+        if (contract.getCreatedAt() == null) contract.setCreatedAt(LocalDateTime.now());
 
+        Contract saved = contractRepository.save(contract);
+        putMdc("contractId", saved.getId());
+        log.info("Contract {} saved with status={}", saved.getId(), saved.getStatus());
+        cacheEvictionService.evictAfterContractCreated();
+        recordContractEvent(ObservabilityAction.CONTRACT_CREATED, saved.getId(), buildContractSnapshot(saved));
+        contractSagaPublisher.publishContractCreated(
+                saved.getId(),
+                saved.getProposalId(),
+                saved.getJobId(),
+                saved.getFreelancerId(),
+                saved.getAgreedAmount());
+        return saved;
+    } finally {
+        MDC.remove("contractId");
+        MDC.remove("jobId");
+        MDC.remove("proposalId");
+        MDC.remove("userId");
+    }
+}
     @Cacheable(value = "contract-s4-f3", key = "@contractCacheKeys.featureKey('S4-F3', #minAmount, #maxAmount, #status)")
     public List<ContractSummaryDTO> findContractsByBudgetRangeWithFreelancerInfo(Double minAmount,
             Double maxAmount,
@@ -395,33 +426,44 @@ public class ContractService {
                         minAmount, maxAmount, parsedStatus);
         List<ContractSummaryDTO> contractSummaries = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
-        Map<Long, String> freelancerNames = new HashMap<>();
-        Map<Long, String> jobTitles = new HashMap<>();
+        Map<Long, String> freelancerNames = new ConcurrentHashMap<>();
+        Map<Long, String> jobTitles = new ConcurrentHashMap<>();
 
-        try {
+        Set<Long> freelancerIds = contracts.stream().map(Contract::getFreelancerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> jobIds = contracts.stream().map(Contract::getJobId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+freelancerIds.parallelStream().forEach(id -> {
+    try {
+        UserDTO user = contractReadClientService.getUser(id);
+        freelancerNames.put(id, user != null && user.getName() != null ? user.getName() : "Unknown User");
+    } catch (Exception e) {
+        freelancerNames.put(id, "Unknown User");
+    }
+});
+jobIds.parallelStream().forEach(id -> {
+    try {
+        JobDTO job = contractReadClientService.getJob(id);
+        jobTitles.put(id, job != null && job.getTitle() != null ? job.getTitle() : "Unknown Job");
+    } catch (Exception e) {
+        jobTitles.put(id, "Unknown Job");
+    }
+});
+
+try {
             for (Contract contract : contracts) {
                 putMdc("contractId", contract.getId());
                 putMdc("userId", contract.getFreelancerId());
                 putMdc("jobId", contract.getJobId());
-                String freelancerName = freelancerNames.computeIfAbsent(
-                        contract.getFreelancerId(),
-                        freelancerId -> contractReadClientService.getUser(freelancerId).getName());
-                String jobTitle = jobTitles.computeIfAbsent(
-                        contract.getJobId(),
-                        jobId -> contractReadClientService.getJob(jobId).getTitle());
+                String freelancerName = freelancerNames.getOrDefault(contract.getFreelancerId(), "Unknown User");
+                String jobTitle = jobTitles.getOrDefault(contract.getJobId(), "Unknown Job");
                 LocalDateTime endDate = contract.getEndDate() == null ? now : contract.getEndDate();
                 long durationDays = contract.getStartDate() == null
-                        ? 0
-                        : ChronoUnit.DAYS.between(contract.getStartDate(), endDate);
-
-                ContractSummaryDTO contractSummary = new ContractSummaryDTO(
-                        contract.getId(),
-                        freelancerName,
-                        jobTitle,
+                        ? 0 : ChronoUnit.DAYS.between(contract.getStartDate(), endDate);
+                contractSummaries.add(new ContractSummaryDTO(
+                        contract.getId(), freelancerName, jobTitle,
                         contract.getAgreedAmount(),
                         contract.getStatus() == null ? null : contract.getStatus().name(),
-                        durationDays);
-                contractSummaries.add(contractSummary);
+                        durationDays));
             }
         } finally {
             MDC.remove("contractId");
@@ -429,7 +471,6 @@ public class ContractService {
             MDC.remove("jobId");
             logSlowOperation("contract-search-enrichment", startedAt);
         }
-
         return contractSummaries;
     }
 
