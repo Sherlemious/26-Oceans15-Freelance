@@ -68,6 +68,11 @@
             <artifactId>event-common</artifactId>
             <version>1.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.team26.freelance</groupId>
+            <artifactId>contracts</artifactId>
+            <version>1.0.0</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
