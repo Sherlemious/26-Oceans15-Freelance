@@ -193,15 +193,18 @@ public class ProposalService {
             end = effectiveEndDate.atTime(LocalTime.MAX);
         }
 
-        final ProposalStatus finalStatusEnum = statusEnum;
-        final LocalDateTime finalStart = start;
-        final LocalDateTime finalEnd = end;
-
+        if (statusEnum != null && start != null && end != null) {
+            return proposalRepository.findByStatusAndSubmittedAtBetweenOrderBySubmittedAtDesc(
+                    statusEnum, start, end);
+        }
+        if (statusEnum != null) {
+            return proposalRepository.findByStatusOrderBySubmittedAtDesc(statusEnum);
+        }
+        if (start != null && end != null) {
+            return proposalRepository.findBySubmittedAtBetweenOrderBySubmittedAtDesc(start, end);
+        }
         return proposalRepository.findAll().stream()
-            .filter(proposal -> finalStatusEnum == null || proposal.getStatus() == finalStatusEnum)
-            .filter(proposal -> finalStart == null || proposal.getSubmittedAt() != null)
-            .filter(proposal -> finalStart == null || !proposal.getSubmittedAt().isBefore(finalStart))
-            .filter(proposal -> finalEnd == null || !proposal.getSubmittedAt().isAfter(finalEnd))
+                .filter(proposal -> proposal.getSubmittedAt() != null)
                 .sorted(Comparator.comparing(Proposal::getSubmittedAt).reversed())
                 .toList();
     }
@@ -281,8 +284,7 @@ public class ProposalService {
     @Cacheable(value = "proposal-service::S3-F3", key = "#bidAmount + '-' + #estimatedDays")
     public FeeEstimateDTO estimateFee(double bidAmount, int estimatedDays) {
         if (bidAmount <= 0 || estimatedDays < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "bidAmount must be positive and estimatedDays must be zero or positive");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidAmount must be positive and estimatedDays must be zero or positive");
         }
 
         double feePercentageValue = (estimatedDays <= 5) ? 20.0 : (estimatedDays <= 15) ? 15.0 : 10.0;
@@ -484,11 +486,14 @@ public class ProposalService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid metadata key");
         }
 
-        return proposalRepository.findAll().stream()
-                .filter(proposal -> proposal.getMetadata() != null)
-                .filter(proposal -> proposal.getMetadata().containsKey(normalizedKey))
-                .filter(proposal -> normalizedValue.equals(String.valueOf(proposal.getMetadata().get(normalizedKey))))
-                .toList();
+        try {
+            String jsonFilter = new com.fasterxml.jackson.databind.ObjectMapper()
+                    .writeValueAsString(Map.of(normalizedKey, normalizedValue));
+            List<Proposal> results = proposalRepository.findByMetadataContains(jsonFilter);
+            return results != null ? results : List.of();
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid metadata filter");
+        }
     }
 
     @Cacheable(value = "proposal-service::S3-F6", key = "#startDate.toString() + '-' + #endDate.toString()")
@@ -625,11 +630,18 @@ public class ProposalService {
     }
 
     @Transactional
-    public String recordInteraction(@NonNull Long proposalId) {
+    public void recordInteraction(@NonNull Long proposalId) {
         Proposal proposal = getProposalById(proposalId);
 
-        // a) Validate Status
-        if (proposal.getStatus() != ProposalStatus.SUBMITTED) {
+        // a) Validate Status — only SUBMITTED proposals may record interactions
+        ProposalStatus status = proposal.getStatus();
+        if (status == ProposalStatus.ACCEPTED
+                || status == ProposalStatus.REJECTED
+                || status == ProposalStatus.SHORTLISTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot record interaction for proposal in status " + status);
+        }
+        if (status != ProposalStatus.SUBMITTED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Proposal must be in SUBMITTED status to record interaction");
         }
@@ -642,7 +654,7 @@ public class ProposalService {
                     proposal.getFreelancerId(), proposal.getJobId(), proposalId);
         } catch (Exception e) {
             // Neo4j soft dependency — degrade gracefully
-            return "Neo4j unavailable; interaction not recorded";
+            return;
         }
 
         // c) Fetch missing data via Feign clients
@@ -677,18 +689,16 @@ public class ProposalService {
                     proposalId);
         } catch (Exception e) {
             // Neo4j soft dependency — degrade gracefully
-            return "Neo4j unavailable; interaction not recorded";
+            return;
         }
 
-        // e) Log Mongo Event via Observer (Provides proposalId, freelancerId, jobId
-        // automatically)
-        eventSubject.notifyObservers("INTERACTION_RECORDED", proposal);
+        // e) Log Mongo event only when this proposal id is newly recorded (idempotent retries skip)
+        if (!alreadyRecorded) {
+            eventSubject.notifyObservers("INTERACTION_RECORDED", proposal);
+        }
 
         // f) Invalidate S3-F12 Cache
         cacheEvictionService.evictS3F12Recommendations();
-
-        return alreadyRecorded ? "Interaction already recorded in Neo4j (Idempotent)"
-                : "Interaction successfully recorded";
     }
 
     // ── S3-F12: Get Recommended Jobs for Freelancer ──────────────────────
