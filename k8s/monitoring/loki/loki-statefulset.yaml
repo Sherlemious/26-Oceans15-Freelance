@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  serviceName: loki
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: loki
+
+  template:
+    metadata:
+      labels:
+        app: loki
+
+    spec:
+      containers:
+        - name: loki
+          image: grafana/loki:2.9.4
+
+          args:
+            - -config.file=/etc/loki/loki-config.yaml
+
+          ports:
+            - containerPort: 3100
+              name: http
+
+          volumeMounts:
+            - name: loki-config-volume
+              mountPath: /etc/loki/
+
+            - name: loki-storage
+              mountPath: /loki
+
+      volumes:
+        - name: loki-config-volume
+          configMap:
+            name: loki-config
+
+        - name: loki-storage
+          persistentVolumeClaim:
+            claimName: loki-pvc
