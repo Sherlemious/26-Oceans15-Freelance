@@ -6,7 +6,10 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 
 @SpringBootApplication
-@EnableFeignClients
+@EnableFeignClients(basePackages = {
+    "com.team26.freelance.wallet",
+    "com.team26.freelance.contracts.feign"
+})
 public class WalletApplication {
     public static void main(String[] args) {
         SpringApplication.run(WalletApplication.class, args);
