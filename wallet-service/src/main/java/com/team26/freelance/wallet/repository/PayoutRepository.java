@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -59,6 +60,19 @@ public interface PayoutRepository extends JpaRepository<Payout, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Payout> findFirstByContractIdAndStatusOrderByCreatedAtAsc(Long contractId, PayoutStatus status);
+
+    Optional<Payout> findFirstByContractIdAndStatusInOrderByCreatedAtAsc(Long contractId,
+                                                                          Collection<PayoutStatus> statuses);
+
+    @Query(value = """
+            SELECT *
+            FROM payouts
+            WHERE transaction_details ->> 'proposalId' = CAST(:proposalId AS text)
+              AND status IN ('PENDING', 'COMPLETED')
+            ORDER BY created_at ASC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<Payout> findRefundCandidateByProposalId(@Param("proposalId") Long proposalId);
 
     @Query(value = """
             SELECT method, COUNT(*), SUM(amount)

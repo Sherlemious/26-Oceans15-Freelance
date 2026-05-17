@@ -1,5 +1,7 @@
 package com.team26.freelance.wallet.service;
 
+import com.team26.freelance.contracts.events.ProposalCancelledEvent;
+import com.team26.freelance.contracts.events.ProposalCompletedEvent;
 import com.team26.freelance.wallet.adapter.FreelancerPayoutSummaryObjectArrayAdapter;
 import com.team26.freelance.wallet.adapter.PromoCodeUsageObjectArrayAdapter;
 import com.team26.freelance.wallet.dto.AppliedPromoCodeDTO;
@@ -39,6 +41,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -205,6 +208,74 @@ public class PayoutService {
     payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.PAYOUT_CREATED, Map.of("reason", "Payout created"));
     recordLifecycleStatusChange(saved, null, saved.getStatus(), "Payout created with lifecycle status");
     return saved;
+  }
+
+  @Transactional
+  public Optional<Payout> createPendingPayoutFromProposalCompleted(ProposalCompletedEvent event) {
+    if (event == null || event.contractId() == null || event.freelancerId() == null
+        || event.proposalId() == null || event.agreedAmount() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "proposal.completed payload is incomplete");
+    }
+
+    if (event.agreedAmount().doubleValue() <= 0.0) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "proposal.completed agreedAmount must be positive");
+    }
+
+    walletReadClientService.getUser(event.freelancerId());
+    walletReadClientService.getContract(event.contractId());
+
+    Optional<Payout> existing = payoutRepository.findFirstByContractIdAndStatusInOrderByCreatedAtAsc(
+        event.contractId(), List.of(PayoutStatus.PENDING, PayoutStatus.COMPLETED, PayoutStatus.REFUNDED));
+    if (existing.isPresent()) {
+      return Optional.empty();
+    }
+
+    Payout payout = new Payout();
+    payout.setContractId(event.contractId());
+    payout.setFreelancerId(event.freelancerId());
+    payout.setAmount(event.agreedAmount().doubleValue());
+    payout.setMethod(PayoutMethod.BANK_TRANSFER);
+    payout.setStatus(PayoutStatus.PENDING);
+    Map<String, Object> details = new HashMap<>();
+    details.put("proposalId", event.proposalId());
+    details.put("jobId", event.jobId());
+    payout.setTransactionDetails(details);
+
+    return Optional.of(createPayout(payout));
+  }
+
+  @Transactional
+  public Optional<Payout> refundPayoutFromProposalCancelled(ProposalCancelledEvent event) {
+    if (event == null || event.proposalId() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "proposal.cancelled payload is incomplete");
+    }
+
+    Optional<Payout> payoutOptional = payoutRepository.findRefundCandidateByProposalId(event.proposalId());
+    if (payoutOptional.isEmpty()) {
+      return Optional.empty();
+    }
+
+    Payout payout = payoutOptional.get();
+    if (payout.getStatus() == PayoutStatus.PENDING) {
+      payout.setStatus(PayoutStatus.REFUNDED);
+      Map<String, Object> details = payout.getTransactionDetails();
+      if (details == null) {
+        details = new HashMap<>();
+      }
+      details.put("refundReason", event.reason());
+      details.put("refundedAt", LocalDateTime.now().toString());
+      details.put("refundAmount", payout.getAmount());
+      payout.setTransactionDetails(details);
+      Payout saved = payoutRepository.save(payout);
+      payoutAuditService.recordPayoutEvent(saved, PayoutAuditService.REFUNDED, Map.of("reason", event.reason()));
+      return Optional.of(saved);
+    }
+
+    RefundRequest request = new RefundRequest();
+    request.setReversalScope("FULL");
+    request.setReason(event.reason());
+    PayoutReversalResultDTO result = reversePayout(payout.getId(), request);
+    return Optional.of(getPayoutById(result.getPayoutId()));
   }
 
 
