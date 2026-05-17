@@ -77,7 +77,6 @@ public class UserService {
             key = "T(com.team26.freelance.user.service.UserCacheKeys).user(#id)")
     @Transactional(readOnly = true)
     public UserResponseDTO findById(Long id) {
-        MDC.put("userId", String.valueOf(id));
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         return UserResponseDTO.fromUser(user);
@@ -94,7 +93,6 @@ public class UserService {
             key = "T(com.team26.freelance.user.service.UserCacheKeys).userProfile(#id)")
     @Transactional(readOnly = true)
     public UserProfileDTO getUserProfile(Long id) {
-        MDC.put("userId", String.valueOf(id));
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -240,7 +238,6 @@ public class UserService {
             key = "T(com.team26.freelance.user.service.UserCacheKeys).contractSummary(#userId)")
     @Transactional(readOnly = true)
     public UserContractSummaryDTO getUserContractSummary(Long userId) {
-        MDC.put("userId", String.valueOf(userId));
         userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         throw feignRequired("User contract summaries require contract-service Feign reads");
