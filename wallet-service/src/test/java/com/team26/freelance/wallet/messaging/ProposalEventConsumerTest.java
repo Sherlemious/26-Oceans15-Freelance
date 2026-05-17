@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 
@@ -41,7 +42,7 @@ class ProposalEventConsumerTest {
     Payout payout = payout(19L, 13L, 300.0, PayoutStatus.PENDING);
     when(payoutService.createPendingPayoutFromProposalCompleted(any())).thenReturn(Optional.of(payout));
 
-    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_COMPLETED));
+    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_COMPLETED, "corr-1"));
 
     verify(payoutService).createPendingPayoutFromProposalCompleted(event);
     verify(paymentEventPublisher).publishPaymentInitiated(any());
@@ -52,7 +53,7 @@ class ProposalEventConsumerTest {
     ProposalCompletedEvent event = new ProposalCompletedEvent(5L, 7L, 11L, 13L, BigDecimal.valueOf(300.0));
     when(payoutService.createPendingPayoutFromProposalCompleted(any())).thenReturn(Optional.empty());
 
-    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_COMPLETED));
+    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_COMPLETED, "corr-2"));
 
     verify(paymentEventPublisher, never()).publishPaymentInitiated(any());
   }
@@ -63,7 +64,7 @@ class ProposalEventConsumerTest {
     Payout refunded = payout(21L, 13L, 120.0, PayoutStatus.REFUNDED);
     when(payoutService.refundPayoutFromProposalCancelled(any())).thenReturn(Optional.of(refunded));
 
-    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_CANCELLED));
+    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_CANCELLED, "corr-3"));
 
     verify(payoutService).refundPayoutFromProposalCancelled(event);
     verify(paymentEventPublisher).publishPaymentRefunded(any());
@@ -74,14 +75,46 @@ class ProposalEventConsumerTest {
     ProposalCancelledEvent event = new ProposalCancelledEvent(5L, 7L, 11L, "client requested");
     when(payoutService.refundPayoutFromProposalCancelled(any())).thenReturn(Optional.empty());
 
-    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_CANCELLED));
+    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_CANCELLED, "corr-4"));
 
     verify(paymentEventPublisher, never()).publishPaymentRefunded(any());
   }
 
+  @Test
+  void clearsMdcAfterSuccessfulProcessing() throws Exception {
+    ProposalCompletedEvent event = new ProposalCompletedEvent(5L, 7L, 11L, 13L, BigDecimal.valueOf(300.0));
+    when(payoutService.createPendingPayoutFromProposalCompleted(any())).thenReturn(Optional.empty());
+
+    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_COMPLETED, "corr-mdc"));
+
+    org.junit.jupiter.api.Assertions.assertNull(MDC.get("correlationId"));
+    org.junit.jupiter.api.Assertions.assertNull(MDC.get("routingKey"));
+    org.junit.jupiter.api.Assertions.assertNull(MDC.get("proposalId"));
+    org.junit.jupiter.api.Assertions.assertNull(MDC.get("contractId"));
+    org.junit.jupiter.api.Assertions.assertNull(MDC.get("payoutId"));
+  }
+
+  @Test
+  void handlesMissingCorrelationIdSafely() throws Exception {
+    ProposalCancelledEvent event = new ProposalCancelledEvent(5L, 7L, 11L, "client requested");
+    when(payoutService.refundPayoutFromProposalCancelled(any())).thenReturn(Optional.empty());
+
+    consumer.onProposalEvent(messageFor(event, SagaTopics.PROPOSAL_CANCELLED));
+
+    verify(payoutService).refundPayoutFromProposalCancelled(event);
+    verify(paymentEventPublisher, never()).publishPaymentRefunded(any());
+  }
+
   private Message messageFor(Object event, String routingKey) throws Exception {
+    return messageFor(event, routingKey, null);
+  }
+
+  private Message messageFor(Object event, String routingKey, String correlationId) throws Exception {
     MessageProperties properties = new MessageProperties();
     properties.setReceivedRoutingKey(routingKey);
+    if (correlationId != null) {
+      properties.setHeader("correlationId", correlationId);
+    }
     byte[] body = objectMapper.writeValueAsString(event).getBytes(StandardCharsets.UTF_8);
     return new Message(body, properties);
   }
