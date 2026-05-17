@@ -32,10 +32,10 @@ public class ContractSagaConsumer {
     }
 
     @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(name = "contract.saga-listener.proposal",
+            value = @Queue(name = "contract.saga-listener",
                     arguments = {
                             @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-exchange", value = "contract.dlx"),
-                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.proposal.dlq")
+                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.dlq")
                     }),
             exchange = @Exchange(name = SagaTopics.PROPOSAL_EVENTS_EXCHANGE, type = "topic"),
             key = {SagaTopics.PROPOSAL_ACCEPTED, SagaTopics.PROPOSAL_COMPLETED, SagaTopics.PROPOSAL_CANCELLED}
@@ -144,10 +144,10 @@ public class ContractSagaConsumer {
     }
 
     @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(name = "contract.saga-listener.user",
+            value = @Queue(name = "contract.saga-listener",
                     arguments = {
                             @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-exchange", value = "contract.dlx"),
-                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.user.dlq")
+                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.dlq")
                     }),
             exchange = @Exchange(name = SagaTopics.USER_EVENTS_EXCHANGE, type = "topic"),
             key = SagaTopics.USER_DEACTIVATED
