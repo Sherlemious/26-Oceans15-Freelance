@@ -3,39 +3,44 @@ kind: Deployment
 metadata:
   name: prometheus
   namespace: monitoring
+
 spec:
   replicas: 1
+
   selector:
     matchLabels:
       app: prometheus
+
   template:
     metadata:
       labels:
         app: prometheus
+
     spec:
       containers:
         - name: prometheus
           image: prom/prometheus:v2.51.2
+
           args:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/prometheus
+
           ports:
             - containerPort: 9090
+
           volumeMounts:
-            - name: config
-              mountPath: /etc/prometheus
-            - name: storage
+            - name: prometheus-config-volume
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+
+            - name: prometheus-storage
               mountPath: /prometheus
-          readinessProbe:
-            httpGet:
-              path: /-/ready
-              port: 9090
-            initialDelaySeconds: 30
-            periodSeconds: 10
+
       volumes:
-        - name: config
+        - name: prometheus-config-volume
           configMap:
             name: prometheus-config
-        - name: storage
+
+        - name: prometheus-storage
           persistentVolumeClaim:
             claimName: prometheus-pvc

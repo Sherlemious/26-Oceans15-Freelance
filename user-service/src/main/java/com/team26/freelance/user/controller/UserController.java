@@ -1,5 +1,6 @@
 package com.team26.freelance.user.controller;
 
+import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UpdateRoleRequestDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
@@ -48,9 +49,9 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getById(@PathVariable Long id) {
+    public ResponseEntity<UserDTO> getById(@PathVariable Long id) {
         userAuthorizationService.requireOwnerOrAdmin(id);
-        return ResponseEntity.ok(userService.findById(id));
+        return ResponseEntity.ok(userService.findProviderUserById(id));
     }
 
     @GetMapping("/{id}/activity")

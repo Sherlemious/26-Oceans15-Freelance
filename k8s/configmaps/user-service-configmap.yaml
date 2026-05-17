@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-configmap
+  namespace: freelance
+data:
+  SPRING_DATASOURCE_URL: jdbc:postgresql://user-postgres:5432/freelancedb-users
+  SPRING_DATASOURCE_USERNAME: postgres
+  SPRING_DATASOURCE_PASSWORD: postgres
+  SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PORT: 6379
+  JWT_EXPIRATION: "86400000"
+  FEIGN_CONTRACT_SERVICE_URL: http://contract-service:8080
+  FEIGN_WALLET_SERVICE_URL: http://wallet-service:8080

@@ -24,16 +24,16 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         Optional<Proposal> findByIdWithMilestones(@Param("proposalId") Long proposalId);
 
         List<Proposal> findByStatusAndSubmittedAtBetweenOrderBySubmittedAtDesc(
-                        @Param("status") com.team26.freelance.proposal.model.ProposalStatus status,
-                        @Param("startDate") LocalDateTime startDate,
-                        @Param("endDate") LocalDateTime endDate);
+                        com.team26.freelance.proposal.model.ProposalStatus status,
+                        LocalDateTime startDate,
+                        LocalDateTime endDate);
 
         List<Proposal> findBySubmittedAtBetweenOrderBySubmittedAtDesc(
-                        @Param("startDate") LocalDateTime startDate,
-                        @Param("endDate") LocalDateTime endDate);
+                        LocalDateTime startDate,
+                        LocalDateTime endDate);
 
         List<Proposal> findByStatusOrderBySubmittedAtDesc(
-                        @Param("status") com.team26.freelance.proposal.model.ProposalStatus status);
+                        com.team26.freelance.proposal.model.ProposalStatus status);
 
         @Query(value = "SELECT role FROM users WHERE id = :freelancerId", nativeQuery = true)
         String findFreelancerRole(@Param("freelancerId") Long freelancerId);
@@ -121,7 +121,7 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         @Query(value = """
                         SELECT *
                         FROM proposals
-                        WHERE metadata @> jsonb_build_object(CAST(:jsonKey AS text), CAST(:jsonValue AS text))
+                        WHERE metadata @> jsonb_build_object(:jsonKey::text, :jsonValue::text)
                         """, nativeQuery = true)
         List<Proposal> findByMetadataField(@Param("jsonKey") String key, @Param("jsonValue") String value);
 
