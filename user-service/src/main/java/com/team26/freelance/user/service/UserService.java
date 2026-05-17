@@ -342,17 +342,52 @@ public class UserService {
         if (minContracts < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minContracts must be >= 0");
         }
+        String normalizedLang = lang.trim();
+        List<User> candidates = userRepository.findByPreferredLanguage(normalizedLang);
 
-        throw feignRequired("Language preference contract filtering requires contract-service completed contract counts");
+        return candidates.stream()
+                .filter(user -> getCompletedContractCount(user.getId()) >= minContracts)
+                .map(UserResponseDTO::fromUser)
+                .collect(Collectors.toList());
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F3_CACHE,
             key = "T(com.team26.freelance.user.service.UserCacheKeys).contractSummary(#userId)")
     @Transactional(readOnly = true)
     public UserContractSummaryDTO getUserContractSummary(Long userId) {
-        userRepository.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        throw feignRequired("User contract summaries require contract-service Feign reads");
+
+        try {
+            com.team26.freelance.contracts.dto.UserContractSummaryDTO summary =
+                    contractServiceClient.getUserContractSummary(userId);
+            return UserContractSummaryDTO.builder()
+                    .userId(user.getId())
+                    .name(user.getName())
+                    .totalContracts(summary == null || summary.getTotalContracts() == null ? 0L : summary.getTotalContracts())
+                    .completedContracts(summary == null || summary.getCompletedContracts() == null ? 0L : summary.getCompletedContracts())
+                    .terminatedContracts(summary == null || summary.getTerminatedContracts() == null ? 0L : summary.getTerminatedContracts())
+                    .totalEarnings(summary == null || summary.getTotalEarnings() == null ? BigDecimal.ZERO : summary.getTotalEarnings())
+                    .averageContractValue(summary == null || summary.getAverageContractValue() == null
+                            ? BigDecimal.ZERO : summary.getAverageContractValue())
+                    .build();
+        } catch (FeignException.NotFound ex) {
+            return UserContractSummaryDTO.builder()
+                    .userId(user.getId())
+                    .name(user.getName())
+                    .totalContracts(0L)
+                    .completedContracts(0L)
+                    .terminatedContracts(0L)
+                    .totalEarnings(BigDecimal.ZERO)
+                    .averageContractValue(BigDecimal.ZERO)
+                    .build();
+        } catch (FeignException ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        } catch (RuntimeException ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        }
     }
 
     @Transactional
