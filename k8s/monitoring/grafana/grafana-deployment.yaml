@@ -16,7 +16,7 @@ spec:
         app: grafana
     spec:
       securityContext:
-        fsGroup: 472          # grafana GID — ensures the PVC is writable by the process
+        fsGroup: 472 # grafana GID — ensures the PVC is writable by the process
         runAsUser: 472
         runAsGroup: 472
 
