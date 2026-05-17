@@ -1,5 +1,6 @@
 package com.team26.freelance.proposal.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -19,8 +20,10 @@ public class Proposal {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long jobId;
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "job_id", nullable = false, foreignKey = @ForeignKey(name = "fk_proposals_job_id"))
+    private JobReference job;
 
     @Column(nullable = false)
     private Long freelancerId;
@@ -71,11 +74,11 @@ public class Proposal {
     }
 
     public Long getJobId() {
-        return jobId;
+        return job != null ? job.getId() : null;
     }
 
     public void setJobId(Long jobId) {
-        this.jobId = jobId;
+        this.job = jobId != null ? new JobReference(jobId) : null;
     }
 
     public Long getFreelancerId() {
