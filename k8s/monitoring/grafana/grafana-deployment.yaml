@@ -3,78 +3,93 @@ kind: Deployment
 metadata:
   name: grafana
   namespace: monitoring
-
+  labels:
+    app: grafana
 spec:
   replicas: 1
-
   selector:
     matchLabels:
       app: grafana
-
   template:
     metadata:
       labels:
         app: grafana
-
     spec:
-      containers:
-        - name: grafana
-          image: grafana/grafana:10.4.2
+      securityContext:
+        fsGroup: 472          # grafana GID — ensures the PVC is writable by the process
+        runAsUser: 472
+        runAsGroup: 472
 
-          ports:
-            - containerPort: 3000
-
-          env:
-            - name: GF_SECURITY_ADMIN_USER
-              value: admin
-
-            - name: GF_SECURITY_ADMIN_PASSWORD
-              value: admin
-
+      initContainers:
+        - name: init-chown-data
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 472:472 /var/lib/grafana"]
+          securityContext:
+            runAsUser: 0
           volumeMounts:
             - name: grafana-storage
               mountPath: /var/lib/grafana
 
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.2
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: "admin"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "admin"
+            - name: GF_PATHS_PROVISIONING
+              value: "/etc/grafana/provisioning"
+            - name: GF_SERVER_HTTP_PORT
+              value: "3000"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
             - name: grafana-datasources
               mountPath: /etc/grafana/provisioning/datasources/
-
-            - name: grafana-dashboards
+              readOnly: true
+            - name: grafana-dashboard-provider
               mountPath: /etc/grafana/provisioning/dashboards/
-
-            - name: grafana-dashboard-json
-              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+            - name: grafana-dashboard-files
+              mountPath: /var/lib/grafana/dashboards/
+              readOnly: true
 
       volumes:
         - name: grafana-storage
           persistentVolumeClaim:
             claimName: grafana-pvc
-
         - name: grafana-datasources
           configMap:
             name: grafana-datasources
-
-        - name: grafana-dashboards
+        - name: grafana-dashboard-provider
           configMap:
-            name: grafana-dashboards
-            items:
-              - key: dashboards-provider.yaml
-                path: dashboards-provider.yaml
-
-        - name: grafana-dashboard-json
+            name: grafana-dashboard-provider
+        - name: grafana-dashboard-files
           configMap:
-            name: grafana-dashboards
-            items:
-              - key: user-dashboard.json
-                path: user-dashboard.json
-
-              - key: job-dashboard.json
-                path: job-dashboard.json
-
-              - key: proposal-dashboard.json
-                path: proposal-dashboard.json
-
-              - key: contract-dashboard.json
-                path: contract-dashboard.json
-
-              - key: wallet-dashboard.json
-                path: wallet-dashboard.json
+            name: grafana-dashboard-files
