@@ -1,9 +1,11 @@
 package com.team26.freelance.user.service;
 
+import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
 import com.team26.freelance.user.dto.UserProfileSkillDTO;
+import com.team26.freelance.user.dto.UserSkillResponseDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.config.CacheConfig;
 import com.team26.freelance.user.model.Role;
@@ -77,6 +79,13 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         return UserResponseDTO.fromUser(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserDTO findProviderUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        return toProviderUserDto(user);
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F8_CACHE,
@@ -317,6 +326,35 @@ public class UserService {
 
     private ResponseStatusException feignRequired(String reason) {
         return new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, reason);
+    }
+
+    private UserDTO toProviderUserDto(User user) {
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setName(user.getName());
+        dto.setEmail(user.getEmail());
+        dto.setPhone(user.getPhone());
+        dto.setRole(user.getRole() == null ? null : user.getRole().name());
+        dto.setStatus(user.getStatus() == null ? null : user.getStatus().name());
+        dto.setPreferences(user.getPreferences());
+        dto.setCreatedAt(user.getCreatedAt());
+        dto.setUserSkills(user.getUserSkills().stream()
+                .map(skill -> (Object) toProviderUserSkillDto(skill))
+                .collect(Collectors.toList()));
+        return dto;
+    }
+
+    private static UserSkillResponseDTO toProviderUserSkillDto(UserSkill skill) {
+        return UserSkillResponseDTO.builder()
+                .id(skill.getId())
+                .skillName(skill.getSkillName())
+                .category(skill.getCategory())
+                .yearsOfExperience(skill.getYearsOfExperience())
+                .proficiencyLevel(skill.getProficiencyLevel())
+                .isPrimary(skill.getIsPrimary())
+                .metadata(skill.getMetadata())
+                .createdAt(skill.getCreatedAt())
+                .build();
     }
 
     private void recordUserEvent(User user, String action, Map<String, Object> details) {
