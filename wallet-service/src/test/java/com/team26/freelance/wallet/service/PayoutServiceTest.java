@@ -25,12 +25,14 @@ import org.springframework.web.server.ResponseStatusException;
 class PayoutServiceTest {
 
   private PayoutRepository payoutRepository;
+  private WalletReadClientService walletReadClientService;
   private PayoutService payoutService;
 
   @BeforeEach
   void setUp() {
     payoutRepository = payoutRepositoryReturningNoSummaryRows();
-    payoutService = payoutServiceWith(payoutRepository);
+    walletReadClientService = mock(WalletReadClientService.class);
+    payoutService = payoutServiceWith(payoutRepository, walletReadClientService);
   }
 
   @Test
@@ -46,12 +48,28 @@ class PayoutServiceTest {
               assertThat(ex.getReason())
                   .isEqualTo("Freelancer not found or has no payouts");
             });
+    verify(walletReadClientService).getUser(freelancerId);
+  }
+
+  @Test
+  void getFreelancerPayoutSummaryPropagatesUserValidationFailure() {
+    Long freelancerId = 222L;
+    when(walletReadClientService.getUser(freelancerId))
+        .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: 222"));
+
+    assertThatThrownBy(() -> payoutService.getFreelancerPayoutSummary(freelancerId))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> {
+              assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+              assertThat(ex.getReason()).isEqualTo("User not found: 222");
+            });
   }
 
   @Test
   void getCompletedPayoutTotalByFreelancerReturnsCompletedTotalInDateRange() {
     PayoutRepository repository = mock(PayoutRepository.class);
-    PayoutService service = payoutServiceWith(repository);
+    PayoutService service = payoutServiceWith(repository, mock(WalletReadClientService.class));
     LocalDate startDate = LocalDate.of(2026, 3, 1);
     LocalDate endDate = LocalDate.of(2026, 3, 31);
 
@@ -76,7 +94,7 @@ class PayoutServiceTest {
   @Test
   void getCompletedPayoutTotalByFreelancerReturnsZeroWhenRepositoryHasNoRows() {
     PayoutRepository repository = mock(PayoutRepository.class);
-    PayoutService service = payoutServiceWith(repository);
+    PayoutService service = payoutServiceWith(repository, mock(WalletReadClientService.class));
 
     when(repository.getCompletedPayoutTotalByFreelancer(
             eq(999L),
@@ -94,7 +112,7 @@ class PayoutServiceTest {
   @Test
   void getCompletedPayoutTotalByFreelancerRejectsInvalidDateRange() {
     PayoutRepository repository = mock(PayoutRepository.class);
-    PayoutService service = payoutServiceWith(repository);
+    PayoutService service = payoutServiceWith(repository, mock(WalletReadClientService.class));
 
     assertThatThrownBy(
             () -> service.getCompletedPayoutTotalByFreelancer(
@@ -121,7 +139,8 @@ class PayoutServiceTest {
             });
   }
 
-  private static PayoutService payoutServiceWith(PayoutRepository payoutRepository) {
+  private static PayoutService payoutServiceWith(PayoutRepository payoutRepository,
+                                                 WalletReadClientService walletReadClientService) {
     return new PayoutService(
         payoutRepository,
         null,
@@ -131,6 +150,7 @@ class PayoutServiceTest {
         null,
         null,
         null,
+        walletReadClientService,
         new FreelancerPayoutSummaryObjectArrayAdapter(),
         new PromoCodeUsageObjectArrayAdapter());
   }

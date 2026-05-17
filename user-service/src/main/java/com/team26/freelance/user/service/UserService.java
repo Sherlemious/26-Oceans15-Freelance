@@ -15,6 +15,7 @@ import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
 
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -140,6 +141,7 @@ public class UserService {
     }
 
     public UserResponseDTO update(Long id, User updated) {
+        MDC.put("userId", String.valueOf(id));
         User existing = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         existing.setName(updated.getName());
@@ -156,6 +158,7 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO updateRole(Long id, String requestedRole) {
+        MDC.put("userId", String.valueOf(id));
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -175,6 +178,7 @@ public class UserService {
     }
 
     public void delete(Long id) {
+        MDC.put("userId", String.valueOf(id));
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         Map<String, Object> details = userDetails(user);
@@ -185,6 +189,7 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO deactivate(Long id) {
+        MDC.put("userId", String.valueOf(id));
         userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         throw feignRequired("User deactivation requires contract-service active contract checks");
@@ -240,6 +245,7 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO updatePreferences(Long userId, Map<String, Object> incomingPreferences) {
+        MDC.put("userId", String.valueOf(userId));
         if (incomingPreferences == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Invalid preferences payload: expected JSON object, got null");
@@ -265,6 +271,7 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO setPrimarySkill(Long userId, Long skillId) {
+        MDC.put("userId", String.valueOf(userId));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 

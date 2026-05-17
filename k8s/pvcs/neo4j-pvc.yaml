@@ -3,9 +3,11 @@ kind: PersistentVolumeClaim
 metadata:
   name: neo4j-pvc
   namespace: freelance
+
 spec:
   accessModes:
     - ReadWriteOnce
+
   resources:
     requests:
-      storage: 1Gi
+      storage: 5Gi

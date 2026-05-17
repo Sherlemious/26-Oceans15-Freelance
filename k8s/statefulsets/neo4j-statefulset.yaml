@@ -3,50 +3,46 @@ kind: StatefulSet
 metadata:
   name: neo4j
   namespace: freelance
+
 spec:
   serviceName: neo4j
+
   replicas: 1
+
   selector:
     matchLabels:
       app: neo4j
+
   template:
     metadata:
       labels:
         app: neo4j
+
     spec:
+      enableServiceLinks: false
       containers:
         - name: neo4j
           image: neo4j:latest
+
           ports:
             - containerPort: 7687
               name: bolt
+
             - containerPort: 7474
               name: http
+
           env:
             - name: NEO4J_AUTH
-              value: neo4j/neo4jpass
-            - name: NEO4J_server_memory_heap_initial__size
-              value: 512m
-            - name: NEO4J_server_memory_heap_max__size
-              value: 512m
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-secret
+                  key: NEO4J_AUTH
+
           volumeMounts:
-            - name: data
+            - name: neo4j-storage
               mountPath: /data
-          livenessProbe:
-            exec:
-              command:
-                - neo4j
-                - status
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            exec:
-              command:
-                - neo4j
-                - status
-            initialDelaySeconds: 10
-            periodSeconds: 10
+
       volumes:
-        - name: data
+        - name: neo4j-storage
           persistentVolumeClaim:
             claimName: neo4j-pvc
