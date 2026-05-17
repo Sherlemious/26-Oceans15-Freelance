@@ -4,9 +4,12 @@ import com.team26.freelance.user.adapter.MongoDocumentAdapter;
 import com.team26.freelance.user.config.CacheConfig;
 import com.team26.freelance.user.dto.ActivityFeedResponseDTO;
 import com.team26.freelance.user.dto.AuthEventDTO;
+import com.team26.freelance.user.logging.MdcUserScope;
 import com.team26.freelance.user.repository.UserRepository;
 import java.util.List;
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -19,6 +22,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class UserActivityService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserActivityService.class);
+    private static final long SLOW_OPERATION_THRESHOLD_MS = 1000L;
 
     private static final int MAX_PAGE_SIZE = 100;
     private static final String AUTH_EVENTS_COLLECTION = "auth_events";
@@ -39,28 +45,36 @@ public class UserActivityService {
             key = "T(com.team26.freelance.user.service.UserCacheKeys).activityFeed(#userId, #page, #size)")
     @Transactional(readOnly = true)
     public ActivityFeedResponseDTO getActivityFeed(Long userId, int page, int size) {
-        validatePagination(page, size);
-        int cappedSize = Math.min(size, MAX_PAGE_SIZE);
+        long startedAt = System.currentTimeMillis();
+        try (MdcUserScope ignored = MdcUserScope.put(userId)) {
+            validatePagination(page, size);
+            int cappedSize = Math.min(size, MAX_PAGE_SIZE);
 
-        if (!userRepository.existsById(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+            if (!userRepository.existsById(userId)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+            }
+
+            Criteria userCriteria = Criteria.where("userId").is(userId);
+            long totalElements = mongoTemplate.count(new Query(userCriteria), AUTH_EVENTS_COLLECTION);
+
+            Query query = new Query(Criteria.where("userId").is(userId))
+                    .with(Sort.by(Sort.Direction.DESC, "timestamp"))
+                    .skip((long) page * cappedSize)
+                    .limit(cappedSize);
+
+            List<AuthEventDTO> events = mongoTemplate
+                    .find(query, Document.class, AUTH_EVENTS_COLLECTION)
+                    .stream()
+                    .map(mongoDocumentAdapter::adapt)
+                    .toList();
+
+            long elapsedMs = System.currentTimeMillis() - startedAt;
+            if (elapsedMs > SLOW_OPERATION_THRESHOLD_MS) {
+                log.warn("Slow user activity feed took {}ms", elapsedMs);
+            }
+
+            return new ActivityFeedResponseDTO(events, page, cappedSize, totalElements);
         }
-
-        Criteria userCriteria = Criteria.where("userId").is(userId);
-        long totalElements = mongoTemplate.count(new Query(userCriteria), AUTH_EVENTS_COLLECTION);
-
-        Query query = new Query(Criteria.where("userId").is(userId))
-                .with(Sort.by(Sort.Direction.DESC, "timestamp"))
-                .skip((long) page * cappedSize)
-                .limit(cappedSize);
-
-        List<AuthEventDTO> events = mongoTemplate
-                .find(query, Document.class, AUTH_EVENTS_COLLECTION)
-                .stream()
-                .map(mongoDocumentAdapter::adapt)
-                .toList();
-
-        return new ActivityFeedResponseDTO(events, page, cappedSize, totalElements);
     }
 
     private void validatePagination(int page, int size) {

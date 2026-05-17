@@ -41,6 +41,7 @@ spring:
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    connection-timeout: ${SPRING_RABBITMQ_CONNECTION_TIMEOUT:60000}
     listener:
       simple:
         acknowledge-mode: auto
@@ -53,6 +54,9 @@ spring:
 jwt:
   secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
   expiration: ${JWT_EXPIRATION:86400000}
+
+loki:
+  url: ${LOKI_URL:http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push}
 
 cache:
   ttl:
