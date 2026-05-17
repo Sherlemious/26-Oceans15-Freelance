@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessagePostProcessor;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.core.RabbitOperations;
 import org.slf4j.MDC;
 
 import java.math.BigDecimal;
@@ -25,13 +25,13 @@ import static org.mockito.Mockito.verify;
 
 class PaymentEventPublisherTest {
 
-    private RabbitTemplate rabbitTemplate;
+    private RabbitOperations rabbitOperations;
     private PaymentEventPublisher publisher;
 
     @BeforeEach
     void setUp() {
-        rabbitTemplate = mock(RabbitTemplate.class);
-        publisher = new PaymentEventPublisher(rabbitTemplate);
+        rabbitOperations = mock(RabbitOperations.class);
+        publisher = new PaymentEventPublisher(rabbitOperations);
     }
 
     @AfterEach
@@ -45,7 +45,7 @@ class PaymentEventPublisherTest {
 
         publisher.publishPaymentInitiated(event);
 
-        verify(rabbitTemplate).convertAndSend(
+        verify(rabbitOperations).convertAndSend(
                 eq(SagaTopics.PAYMENT_EVENTS_EXCHANGE),
                 eq(SagaTopics.PAYMENT_INITIATED),
                 eq(event),
@@ -58,7 +58,7 @@ class PaymentEventPublisherTest {
 
         publisher.publishPaymentCompleted(event);
 
-        verify(rabbitTemplate).convertAndSend(
+        verify(rabbitOperations).convertAndSend(
                 eq(SagaTopics.PAYMENT_EVENTS_EXCHANGE),
                 eq(SagaTopics.PAYMENT_COMPLETED),
                 eq(event),
@@ -71,7 +71,7 @@ class PaymentEventPublisherTest {
 
         publisher.publishPaymentFailed(event);
 
-        verify(rabbitTemplate).convertAndSend(
+        verify(rabbitOperations).convertAndSend(
                 eq(SagaTopics.PAYMENT_EVENTS_EXCHANGE),
                 eq(SagaTopics.PAYMENT_FAILED),
                 eq(event),
@@ -84,7 +84,7 @@ class PaymentEventPublisherTest {
 
         publisher.publishPaymentRefunded(event);
 
-        verify(rabbitTemplate).convertAndSend(
+        verify(rabbitOperations).convertAndSend(
                 eq(SagaTopics.PAYMENT_EVENTS_EXCHANGE),
                 eq(SagaTopics.PAYMENT_REFUNDED),
                 eq(event),
@@ -99,7 +99,7 @@ class PaymentEventPublisherTest {
         publisher.publishPaymentInitiated(event);
 
         ArgumentCaptor<MessagePostProcessor> postProcessorCaptor = ArgumentCaptor.forClass(MessagePostProcessor.class);
-        verify(rabbitTemplate).convertAndSend(
+        verify(rabbitOperations).convertAndSend(
                 eq(SagaTopics.PAYMENT_EVENTS_EXCHANGE),
                 eq(SagaTopics.PAYMENT_INITIATED),
                 eq(event),
@@ -116,7 +116,7 @@ class PaymentEventPublisherTest {
         publisher.publishPaymentInitiated(event);
 
         ArgumentCaptor<MessagePostProcessor> postProcessorCaptor = ArgumentCaptor.forClass(MessagePostProcessor.class);
-        verify(rabbitTemplate).convertAndSend(
+        verify(rabbitOperations).convertAndSend(
                 eq(SagaTopics.PAYMENT_EVENTS_EXCHANGE),
                 eq(SagaTopics.PAYMENT_INITIATED),
                 eq(event),

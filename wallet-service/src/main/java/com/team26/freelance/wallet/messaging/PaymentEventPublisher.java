@@ -8,7 +8,7 @@ import com.team26.freelance.contracts.events.SagaTopics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.core.RabbitOperations;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,10 +17,10 @@ public class PaymentEventPublisher {
     private static final Logger log = LoggerFactory.getLogger(PaymentEventPublisher.class);
     private static final String CORRELATION_ID_HEADER = "correlationId";
 
-    private final RabbitTemplate rabbitTemplate;
+    private final RabbitOperations rabbitOperations;
 
-    public PaymentEventPublisher(RabbitTemplate rabbitTemplate) {
-        this.rabbitTemplate = rabbitTemplate;
+    public PaymentEventPublisher(RabbitOperations rabbitOperations) {
+        this.rabbitOperations = rabbitOperations;
     }
 
     public void publishPaymentInitiated(PaymentInitiatedEvent event) {
@@ -42,7 +42,7 @@ public class PaymentEventPublisher {
     private void publish(String routingKey, Object event, String eventName, Long payoutId, Long proposalId, Long contractId) {
         try {
             String correlationId = MDC.get(CORRELATION_ID_HEADER);
-            rabbitTemplate.convertAndSend(SagaTopics.PAYMENT_EVENTS_EXCHANGE, routingKey, event, message -> {
+            rabbitOperations.convertAndSend(SagaTopics.PAYMENT_EVENTS_EXCHANGE, routingKey, event, message -> {
                 if (correlationId != null && !correlationId.isBlank()) {
                     message.getMessageProperties().setHeader(CORRELATION_ID_HEADER, correlationId);
                 }
