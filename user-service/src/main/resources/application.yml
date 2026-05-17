@@ -41,19 +41,6 @@ spring:
       host: ${SPRING_DATA_REDIS_HOST:redis}
       port: ${SPRING_DATA_REDIS_PORT:6379}
       password: ${SPRING_DATA_REDIS_PASSWORD:redispass}
-  rabbitmq:
-    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
-    port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:guest}
-    password: ${SPRING_RABBITMQ_PASSWORD:guest}
-    listener:
-      simple:
-        default-requeue-rejected: false
-        retry:
-          enabled: true
-          initial-interval: 1000
-          max-attempts: 3
-
 jwt:
   secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
   expiration: ${JWT_EXPIRATION:86400000}
