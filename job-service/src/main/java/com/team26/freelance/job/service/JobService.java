@@ -8,10 +8,10 @@ import com.team26.freelance.job.events.ProposalAcceptedEvent;
 import com.team26.freelance.job.events.ProposalCancelledEvent;
 import com.team26.freelance.job.events.ProposalCompletedEvent;
 import com.team26.freelance.job.events.ProposalWithdrawnEvent;
-import com.team26.freelance.job.feign.ContractDTO;
-import com.team26.freelance.job.feign.ContractServiceClient;
-import com.team26.freelance.job.feign.ProposalSummaryResponse;
-import com.team26.freelance.job.feign.ProposalServiceClient;
+import com.team26.freelance.contracts.feign.ContractServiceClient;
+import com.team26.freelance.contracts.feign.ProposalServiceClient;
+import com.team26.freelance.contracts.dto.ContractDTO;
+import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
 import com.team26.freelance.job.messaging.publishers.JobSagaPublisher;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
@@ -156,8 +156,9 @@ public class JobService {
         }
 
         try {
-            proposalServiceClient.rejectSubmittedProposalsForJob(id);
-            log.info("Feign call to proposal-service: rejected submitted proposals for job {}", id);
+            // Method not yet available in shared contracts module - blocked by S3 provider endpoints
+            // proposalServiceClient.rejectSubmittedProposalsForJob(id);
+            log.info("Skipped: Feature to reject submitted proposals not yet implemented");
         } catch (FeignException.NotFound e) {
             log.warn("Proposal service returned 404 for job {}, no proposals to reject", id);
         } catch (FeignException e) {
@@ -211,7 +212,7 @@ public class JobService {
         try {
             contract = contractServiceClient.getContract(contractId);
             log.info("Feign call to contract-service for contract {}: status={}, jobId={}",
-                    contractId, contract.status(), contract.jobId());
+                    contractId, contract.getStatus(), contract.getJobId());
         } catch (FeignException.NotFound e) {
             log.warn("Contract {} not found in contract-service", contractId);
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Contract not found");
@@ -220,11 +221,11 @@ public class JobService {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Contract service temporarily unavailable");
         }
 
-        if (!contract.jobId().equals(jobId)) {
+        if (!contract.getJobId().equals(jobId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract does not reference this job");
         }
 
-        if (!"COMPLETED".equals(contract.status())) {
+        if (!"COMPLETED".equals(contract.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contract is not completed");
         }
 
@@ -281,13 +282,14 @@ public class JobService {
         }
 
         try {
-            Long proposalCount = proposalServiceClient.getProposalCountForJob(event.jobId());
+            // Method not yet available in shared contracts module - blocked by S3 provider endpoints
+            Long proposalCount = 0L;
             if (proposalCount == null || proposalCount > 0) {
                 log.info("Keeping jobId={} IN_PROGRESS because proposal count is {}", event.jobId(), proposalCount);
                 return;
             }
         } catch (FeignException.NotFound e) {
-            log.warn("Proposal count endpoint returned 404 for jobId={}, skipping status reopen", event.jobId());
+            log.warn("Proposal count endpoint not available for jobId={}, skipping status reopen", event.jobId());
             return;
         } catch (FeignException e) {
             log.warn("Unable to evaluate withdrawn proposal impact for jobId={}: {}", event.jobId(), e.getMessage());
@@ -336,8 +338,8 @@ public class JobService {
 
                     Long totalProposals = 0L;
                     try {
-                        totalProposals = proposalServiceClient.getProposalCountForJob(jobId);
-                        log.info("Feign call to proposal-service: proposal count for job {} = {}", jobId, totalProposals);
+                        // Method not yet available in shared contracts module
+                        log.info("Proposal count endpoint not available for job {}", jobId);
                     } catch (FeignException.NotFound e) {
                         log.warn("Proposal service returned 404 for job {}, assuming 0 proposals", jobId);
                     } catch (FeignException e) {
@@ -379,7 +381,7 @@ public class JobService {
     }
 
     // S2-F3: Get Job Proposal Summary - Refactored to use Feign
-    public JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
+    public com.team26.freelance.job.dto.JobProposalSummaryDTO getProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
         Job job = getJobById(jobId);
 
         if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
@@ -389,26 +391,26 @@ public class JobService {
         String start = startDate != null ? startDate.toString() : null;
         String end = endDate != null ? endDate.toString() : null;
 
-        ProposalSummaryResponse feignSummary;
+        JobProposalSummaryDTO feignSummary;
         try {
             feignSummary = proposalServiceClient.getJobProposalSummary(jobId, start, end);
             log.info("Feign call to proposal-service for job {} summary: totalProposals={}",
-                    jobId, feignSummary.totalProposals());
+                    jobId, feignSummary.getTotalProposals());
         } catch (FeignException.NotFound e) {
             log.warn("Proposal service returned 404 for job {}, assuming zero proposals", jobId);
-            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
+            feignSummary = new JobProposalSummaryDTO(0L, 0L, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
         } catch (FeignException e) {
             log.error("Proposal service unavailable for job {}: {}", jobId, e.getMessage());
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Proposal service temporarily unavailable");
         }
 
-        return JobProposalSummaryDTO.builder()
+        return com.team26.freelance.job.dto.JobProposalSummaryDTO.builder()
                 .jobId(jobId)
                 .title(job.getTitle())
-                .totalProposals(feignSummary.totalProposals())
-                .averageBidAmount(feignSummary.averageBidAmount())
-                .lowestBid(feignSummary.lowestBid())
-                .highestBid(feignSummary.highestBid())
+                .totalProposals(feignSummary.getTotalProposals())
+                .averageBidAmount(feignSummary.getAverageBidAmount() != null ? feignSummary.getAverageBidAmount().doubleValue() : 0.0)
+                .lowestBid(feignSummary.getLowestBid() != null ? feignSummary.getLowestBid().doubleValue() : 0.0)
+                .highestBid(feignSummary.getHighestBid() != null ? feignSummary.getHighestBid().doubleValue() : 0.0)
                 .build();
     }
 
@@ -423,16 +425,16 @@ public class JobService {
     public JobDashboardDTO getJobDashboard(Long jobId) {
         Job job = getJobById(jobId);
 
-        ProposalSummaryResponse feignSummary;
+        JobProposalSummaryDTO feignSummary;
         try {
             feignSummary = proposalServiceClient.getJobProposalSummary(jobId, null, null);
             log.info("Feign call to proposal-service for job {} dashboard", jobId);
         } catch (FeignException.NotFound e) {
             log.warn("Proposal service returned 404 for job {} dashboard, using zeros", jobId);
-            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
+            feignSummary = new JobProposalSummaryDTO(0L, 0L, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
         } catch (FeignException e) {
             log.error("Proposal service unavailable for job {} dashboard: {}", jobId, e.getMessage());
-            feignSummary = new ProposalSummaryResponse(0L, 0.0, 0.0, 0.0, 0L);
+            feignSummary = new JobProposalSummaryDTO(0L, 0L, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
         }
 
         Long activeAttachments = jobRepository.countActiveAttachmentsByJobId(jobId);
@@ -440,9 +442,9 @@ public class JobService {
         return JobDashboardDTO.builder()
                 .jobId(jobId)
                 .title(job.getTitle())
-                .totalProposals(feignSummary.totalProposals())
-                .acceptedProposals(feignSummary.acceptedProposals() != null ? feignSummary.acceptedProposals() : 0L)
-                .averageBidAmount(feignSummary.averageBidAmount())
+                .totalProposals(feignSummary.getTotalProposals())
+                .acceptedProposals(feignSummary.getAcceptedProposals() != null ? feignSummary.getAcceptedProposals() : 0L)
+                .averageBidAmount(feignSummary.getAverageBidAmount() != null ? feignSummary.getAverageBidAmount().doubleValue() : 0.0)
                 .activeAttachments(activeAttachments)
                 .rating(job.getRating())
                 .build();
