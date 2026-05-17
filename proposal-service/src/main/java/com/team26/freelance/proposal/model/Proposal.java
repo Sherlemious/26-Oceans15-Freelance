@@ -47,6 +47,9 @@ public class Proposal {
     private LocalDateTime submittedAt;
 
     @Column
+    private Long contractId;
+
+    @Column
     private LocalDateTime acceptedAt;
 
     @JsonManagedReference
@@ -140,6 +143,14 @@ public class Proposal {
 
     public void setAcceptedAt(LocalDateTime acceptedAt) {
         this.acceptedAt = acceptedAt;
+    }
+
+    public Long getContractId() {
+        return contractId;
+    }
+
+    public void setContractId(Long contractId) {
+        this.contractId = contractId;
     }
 
     public List<ProposalMilestone> getProposalMilestones() {
