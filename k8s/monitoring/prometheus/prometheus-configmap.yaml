@@ -39,4 +39,3 @@ data:
         static_configs:
           - targets:
               - wallet-service.freelance.svc.cluster.local:8080
-

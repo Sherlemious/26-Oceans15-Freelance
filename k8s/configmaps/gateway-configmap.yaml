@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-configmap
+  namespace: freelance
+data:
+  SERVER_PORT: "8080"
+  USER_SERVICE_URL: http://user-service:8080
+  JOB_SERVICE_URL: http://job-service:8080
+  PROPOSAL_SERVICE_URL: http://proposal-service:8080
+  CONTRACT_SERVICE_URL: http://contract-service:8080
+  WALLET_SERVICE_URL: http://wallet-service:8080

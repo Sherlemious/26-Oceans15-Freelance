@@ -10,6 +10,10 @@ COPY event-common/pom.xml event-common/pom.xml
 COPY event-common/src event-common/src
 RUN mvn -f event-common/pom.xml clean install -DskipTests --no-transfer-progress
 
+COPY contracts/pom.xml contracts/pom.xml
+COPY contracts/src contracts/src
+RUN mvn -f contracts/pom.xml clean install -DskipTests --no-transfer-progress
+
 # Build service
 COPY user-service/pom.xml user-service/pom.xml
 COPY user-service/src user-service/src
