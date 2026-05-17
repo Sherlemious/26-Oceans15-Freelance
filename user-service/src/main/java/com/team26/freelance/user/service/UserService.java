@@ -1,6 +1,5 @@
 package com.team26.freelance.user.service;
 
-import com.team26.freelance.user.adapter.ObjectArrayDtoAdapter;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
@@ -8,7 +7,6 @@ import com.team26.freelance.user.dto.UserProfileSkillDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.config.CacheConfig;
 import com.team26.freelance.user.model.Role;
-import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.observer.AuthEventSubject;
@@ -23,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,18 +46,15 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserSkillRepository userSkillRepository;
     private final AuthEventSubject authEventSubject;
-    private final ObjectArrayDtoAdapter objectArrayDtoAdapter;
     private final UserCacheEvictionService userCacheEvictionService;
 
     public UserService(UserRepository userRepository,
                        UserSkillRepository userSkillRepository,
                        AuthEventSubject authEventSubject,
-                       ObjectArrayDtoAdapter objectArrayDtoAdapter,
                        UserCacheEvictionService userCacheEvictionService) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.authEventSubject = authEventSubject;
-        this.objectArrayDtoAdapter = objectArrayDtoAdapter;
         this.userCacheEvictionService = userCacheEvictionService;
     }
 
@@ -182,18 +176,9 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO deactivate(Long id) {
-        User user = userRepository.findById(id)
+        userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        if (userRepository.countActiveContracts(id) > 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Cannot deactivate: user has active contracts");
-        }
-        user.setStatus(Status.DEACTIVATED);
-        userRepository.withdrawSubmittedProposals(id);
-        User savedUser = userRepository.save(user);
-        recordUserEvent(savedUser, USER_DEACTIVATED, userDetails(savedUser));
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
+        throw feignRequired("User deactivation requires contract-service active contract checks");
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F5_CACHE,
@@ -218,16 +203,7 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "startDate must be before endDate");
         }
-        LocalDateTime start = startDate.atStartOfDay();
-        LocalDateTime end = endDate.atTime(23, 59, 59);
-        return userRepository.findTopFreelancersByEarnings(start, end, limit).stream()
-                .map(row -> TopFreelancerDTO.builder()
-                        .userId(((Number) row[0]).longValue())
-                        .name((String) row[1])
-                        .totalEarnings(((Number) row[2]).doubleValue())
-                        .contractCount(((Number) row[3]).longValue())
-                        .build())
-                .collect(Collectors.toList());
+        throw feignRequired("Top freelancer reports require wallet-service and contract-service Feign reads");
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F9_CACHE,
@@ -241,9 +217,7 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minContracts must be >= 0");
         }
 
-        return userRepository.findByLanguageWithMinCompletedContracts(lang, minContracts).stream()
-                .map(UserResponseDTO::fromUser)
-                .collect(Collectors.toList());
+        throw feignRequired("Language preference contract filtering requires contract-service completed contract counts");
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F3_CACHE,
@@ -252,12 +226,7 @@ public class UserService {
     public UserContractSummaryDTO getUserContractSummary(Long userId) {
         userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        List<Object[]> summaryRows = userRepository.findUserContractSummaryById(userId);
-        if (summaryRows.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-        }
-        return objectArrayDtoAdapter.adapt(summaryRows.get(0));
+        throw feignRequired("User contract summaries require contract-service Feign reads");
     }
 
     @Transactional
@@ -344,6 +313,10 @@ public class UserService {
 
     private boolean containsIgnoreCase(String source, String term) {
         return source != null && source.toLowerCase(Locale.ROOT).contains(term.toLowerCase(Locale.ROOT));
+    }
+
+    private ResponseStatusException feignRequired(String reason) {
+        return new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, reason);
     }
 
     private void recordUserEvent(User user, String action, Map<String, Object> details) {
