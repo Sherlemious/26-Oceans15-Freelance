@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+
+data:
+  dashboards-provider.yaml: |
+    apiVersion: 1
+
+    providers:
+      - name: Freelance
+        orgId: 1
+        folder: Freelance
+        type: file
+        disableDeletion: false
+        editable: true
+
+        options:
+          path: /var/lib/grafana/dashboards
+
+  user-dashboard.json: |
+    {
+      "title": "User Service Dashboard",
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": []
+    }
+
+  job-dashboard.json: |
+    {
+      "title": "Job Service Dashboard",
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": []
+    }
+
+  proposal-dashboard.json: |
+    {
+      "title": "Proposal Service Dashboard",
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": []
+    }
+
+  contract-dashboard.json: |
+    {
+      "title": "Contract Service Dashboard",
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": []
+    }
+
+  wallet-dashboard.json: |
+    {
+      "title": "Wallet Service Dashboard",
+      "timezone": "browser",
+      "schemaVersion": 38,
+      "version": 1,
+      "panels": []
+    }
