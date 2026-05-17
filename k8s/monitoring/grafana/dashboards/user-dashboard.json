@@ -4,7 +4,7 @@
     { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
   ],
   "annotations": { "list": [] },
-  "description": "Logs and metrics for the user-service — panels pending service owner implementation",
+  "description": "Logs and metrics for the user-service",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -12,26 +12,134 @@
   "links": [],
   "panels": [
     {
-      "id": 1,
-      "type": "text",
-      "title": "Dashboard Pending",
-      "datasource": null,
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
-      "options": {
-        "content": "## User Service Dashboard\n\nThis dashboard is a provisioning placeholder.\n\nFinal LogQL and PromQL panels will be added by the **user-service** owner as part of their M3 slice work.",
-        "mode": "markdown"
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
       },
-      "targets": []
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "User Service Error Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"ERROR\"}[1m]))",
+          "legendFormat": "errors/min",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "id": 2,
+      "title": "Correlation ID Trace",
+      "description": "Filter all user-service logs by a specific X-Correlation-ID. Set var_correlationId in the URL or use the variable below.",
+      "type": "logs",
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "expr": "{app=\"freelance\", service=\"user-service\"} | json | correlationId=~\"${correlationId:pipe}\"",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "id": 3,
+      "title": "Feign Failure Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign\"[5m]))",
+          "legendFormat": "feign failures/5m",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "id": 4,
+      "title": "User Operations by userId",
+      "description": "Log volume per userId for user-scoped requests.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (userId) (count_over_time({app=\"freelance\", service=\"user-service\"} | json | userId != \"\" [5m]))",
+          "legendFormat": "userId={{userId}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "id": 5,
+      "title": "Auth Event Audit Log",
+      "description": "All auth-related events: USER_CREATED, USER_UPDATED, ROLE_CHANGED, USER_DELETED.",
+      "type": "logs",
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "expr": "{app=\"freelance\", service=\"user-service\"} | json | message =~ \"USER_CREATED|USER_UPDATED|ROLE_CHANGED|USER_DELETED|PREFERENCES_UPDATED|PRIMARY_SKILL_SET\"",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "refresh": "30s",
   "schemaVersion": 38,
-  "tags": ["user", "freelance"],
-  "templating": { "list": [] },
+  "tags": ["user", "freelance", "m3"],
+  "templating": {
+    "list": [
+      {
+        "name": "correlationId",
+        "label": "Correlation ID",
+        "type": "textbox",
+        "current": { "value": ".*" },
+        "hide": 0,
+        "options": [],
+        "query": ".*"
+      }
+    ]
+  },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
   "title": "User Service",
   "uid": "user-service",
-  "version": 1
+  "version": 2
 }
