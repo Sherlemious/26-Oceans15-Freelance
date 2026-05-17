@@ -12,8 +12,6 @@ import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.NonNull;
@@ -46,30 +44,17 @@ public class ProposalController {
         return ResponseEntity.ok(proposalService.getAllProposals());
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN') and @proposalAuthorization.canViewProposal(#id, authentication)")
-    @GetMapping("/{id}")
-    public ResponseEntity<Proposal> getProposalById(@NonNull @PathVariable Long id) {
-        return ResponseEntity.ok(proposalService.getProposalById(id));
-    }
-
     @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and (@proposalAuthorization.isAdmin(authentication) or @proposalAuthorization.getUid(authentication) == #request.freelancerId())")
     @PostMapping
     public ResponseEntity<Proposal> createProposal(@Valid @RequestBody CreateProposalDTO request) {
         return ResponseEntity.status(201).body(proposalService.createProposal(request));
     }
 
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
-    @PutMapping("/{id}")
-    public ResponseEntity<Proposal> updateProposal(@NonNull @PathVariable Long id,
-                                                   @Valid @RequestBody UpdateProposalDTO proposal) {
-        return ResponseEntity.ok(proposalService.updateProposal(id, proposal));
-    }
-
-    @PreAuthorize("hasRole('ADMIN')")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProposal(@NonNull @PathVariable Long id) {
-        proposalService.deleteProposal(id);
-        return ResponseEntity.noContent().build();
+    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
+    @PostMapping("/estimate")
+    public ResponseEntity<FeeEstimateDTO> estimateFee(@Valid @RequestBody FeeEstimateRequest request) {
+        return ResponseEntity.ok(proposalService.estimateFee(
+                request.bidAmount(), request.estimatedDays()));
     }
 
     @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
@@ -81,75 +66,23 @@ public class ProposalController {
         return ResponseEntity.ok(proposalService.searchByStatusAndDateRange(status, startDate, endDate));
     }
 
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN') and @proposalAuthorization.canAcceptProposal(#proposalId, authentication)")
-    @PutMapping("/{proposalId}/accept")
-    public ResponseEntity<Proposal> acceptProposal(@NonNull @PathVariable Long proposalId) {
-        return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
-    }
-
-    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
-    @PostMapping("/estimate")
-    public ResponseEntity<FeeEstimateDTO> estimateFee(@Valid @RequestBody FeeEstimateRequest request) {
-        return ResponseEntity.ok(proposalService.estimateFee(
-                request.getBidAmount(), request.getEstimatedDays()));
-    }
-
-    // ── S3-F4: Complete Proposal's Contract ─────────────────────────────────
-
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
-    @PutMapping("/{id}/complete")
-    public ResponseEntity<Proposal> completeProposalContract(@NonNull @PathVariable Long id) {
-        Proposal completedProposal = proposalService.completeProposalContract(id);
-        return ResponseEntity.ok(completedProposal);
-    }
-
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
-    @PutMapping("/{id}/withdraw")
-    public ResponseEntity<Proposal> withdrawProposal(@NonNull @PathVariable Long id) {
-        Proposal withdrawnProposal = proposalService.withdrawProposal(id);
-        return ResponseEntity.ok(withdrawnProposal);
-    }
-
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#proposalId, authentication)")
-    @PostMapping("/{proposalId}/milestones")
-    public ResponseEntity<Proposal> addMilestonesToProposal(@NonNull @PathVariable Long proposalId,
-            @RequestBody List<ProposalMilestone> milestones) {
-        Proposal updatedProposal = proposalService.addMilestoneToProposal(proposalId, milestones);
-        return ResponseEntity.ok(updatedProposal);
-    }
-
-    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN') and @proposalAuthorization.canViewProposal(#proposalId, authentication)")
-    @GetMapping("/{proposalId}/details")
-    public ResponseEntity<ProposalDetailsDTO> getProposalDetails(@NonNull @PathVariable Long proposalId) {
-        return ResponseEntity.ok(proposalService.getProposalDetails(proposalId));
-    }
-
-    // ── S3-F5: Filter Proposals by Metadata ─────────────────────────────────
-
     @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
     @GetMapping("/metadata/search")
     public ResponseEntity<List<Proposal>> searchByMetadata(
-            @NotBlank @RequestParam(required = true) String key,
-            @NotBlank @RequestParam(required = true) String value) {
-        List<Proposal> results = proposalService.filterProposalsByMetadata(key, value);
-        return ResponseEntity.ok(results);
+            @RequestParam(required = false) String key,
+            @RequestParam(required = false) String value) {
+        return ResponseEntity.ok(proposalService.filterProposalsByMetadata(key, value));
     }
-
-    // ── S3-F6: Proposal Analytics by Time Period ────────────────────────────
 
     @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
     @GetMapping("/analytics")
     public ResponseEntity<ProposalAnalyticsDTO> getAnalytics(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        // Convert to timestamp: start at 00:00:00, end at 23:59:59
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(LocalTime.MAX);
-        ProposalAnalyticsDTO report = proposalService.getProposalAnalytics(start, end);
-        return ResponseEntity.ok(report);
+        return ResponseEntity.ok(proposalService.getProposalAnalytics(start, end));
     }
-
-    // ── S3-F10: Proposal Analytics Dashboard ───────────────────────────────
 
     @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
     @GetMapping("/analytics/dashboard")
@@ -159,15 +92,6 @@ public class ProposalController {
         return ResponseEntity.ok(
                 proposalService.getProposalAnalyticsDashboard(startDate, endDate));
     }
-
-    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#proposalId, authentication)")
-    @PostMapping("/{proposalId}/record-interaction")
-    public ResponseEntity<String> recordInteraction(@PathVariable Long proposalId) {
-        String result = proposalService.recordInteraction(proposalId);
-        return ResponseEntity.ok(result);
-    }
-
-    // ── S3-F12: Recommendations ──────────────────────────────────────────
 
     @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
     @GetMapping("/recommendations")
@@ -204,5 +128,63 @@ public class ProposalController {
         );
     }
 
+    // ── Numeric-id routes (must stay after literal paths like /search) ─────
 
+    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN') and @proposalAuthorization.canViewProposal(#id, authentication)")
+    @GetMapping("/{id:\\d+}")
+    public ResponseEntity<Proposal> getProposalById(@NonNull @PathVariable Long id) {
+        return ResponseEntity.ok(proposalService.getProposalById(id));
+    }
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
+    @PutMapping("/{id:\\d+}")
+    public ResponseEntity<Proposal> updateProposal(@NonNull @PathVariable Long id,
+                                                   @Valid @RequestBody UpdateProposalDTO proposal) {
+        return ResponseEntity.ok(proposalService.updateProposal(id, proposal));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id:\\d+}")
+    public ResponseEntity<Void> deleteProposal(@NonNull @PathVariable Long id) {
+        proposalService.deleteProposal(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN') and @proposalAuthorization.canAcceptProposal(#proposalId, authentication)")
+    @PutMapping("/{proposalId:\\d+}/accept")
+    public ResponseEntity<Proposal> acceptProposal(@NonNull @PathVariable Long proposalId) {
+        return ResponseEntity.ok(proposalService.acceptProposal(proposalId));
+    }
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
+    @PutMapping("/{id:\\d+}/complete")
+    public ResponseEntity<Proposal> completeProposalContract(@NonNull @PathVariable Long id) {
+        return ResponseEntity.ok(proposalService.completeProposalContract(id));
+    }
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
+    @PutMapping("/{id:\\d+}/withdraw")
+    public ResponseEntity<Proposal> withdrawProposal(@NonNull @PathVariable Long id) {
+        return ResponseEntity.ok(proposalService.withdrawProposal(id));
+    }
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#proposalId, authentication)")
+    @PostMapping("/{proposalId:\\d+}/milestones")
+    public ResponseEntity<Proposal> addMilestonesToProposal(@NonNull @PathVariable Long proposalId,
+            @RequestBody List<ProposalMilestone> milestones) {
+        return ResponseEntity.ok(proposalService.addMilestoneToProposal(proposalId, milestones));
+    }
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN') and @proposalAuthorization.canViewProposal(#proposalId, authentication)")
+    @GetMapping("/{proposalId:\\d+}/details")
+    public ResponseEntity<ProposalDetailsDTO> getProposalDetails(@NonNull @PathVariable Long proposalId) {
+        return ResponseEntity.ok(proposalService.getProposalDetails(proposalId));
+    }
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#proposalId, authentication)")
+    @PostMapping("/{proposalId:\\d+}/record-interaction")
+    public ResponseEntity<Void> recordInteraction(@PathVariable Long proposalId) {
+        proposalService.recordInteraction(proposalId);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
 }
