@@ -20,46 +20,16 @@ data:
           path: /var/lib/grafana/dashboards
 
   user-dashboard.json: |
-    {
-      "title": "User Service Dashboard",
-      "timezone": "browser",
-      "schemaVersion": 38,
-      "version": 1,
-      "panels": []
-    }
+{{ .Files.Get "k8s/monitoring/grafana/dashboards/user-dashboard.json" | indent 4 }}
 
   job-dashboard.json: |
-    {
-      "title": "Job Service Dashboard",
-      "timezone": "browser",
-      "schemaVersion": 38,
-      "version": 1,
-      "panels": []
-    }
+{{ .Files.Get "k8s/monitoring/grafana/dashboards/job-dashboard.json" | indent 4 }}
 
   proposal-dashboard.json: |
-    {
-      "title": "Proposal Service Dashboard",
-      "timezone": "browser",
-      "schemaVersion": 38,
-      "version": 1,
-      "panels": []
-    }
+{{ .Files.Get "k8s/monitoring/grafana/dashboards/proposal-dashboard.json" | indent 4 }}
 
   contract-dashboard.json: |
-    {
-      "title": "Contract Service Dashboard",
-      "timezone": "browser",
-      "schemaVersion": 38,
-      "version": 1,
-      "panels": []
-    }
+{{ .Files.Get "k8s/monitoring/grafana/dashboards/contract-dashboard.json" | indent 4 }}
 
   wallet-dashboard.json: |
-    {
-      "title": "Wallet Service Dashboard",
-      "timezone": "browser",
-      "schemaVersion": 38,
-      "version": 1,
-      "panels": []
-    }
+{{ .Files.Get "k8s/monitoring/grafana/dashboards/wallet-dashboard.json" | indent 4 }}
