@@ -26,7 +26,7 @@ public class ContractSagaConsumer {
     private final ContractService contractService;
     private final ContractSagaPublisher contractSagaPublisher;
 
-    public ContractSagaConsumer(com.team26.freelance.contract.service.ContractService contractService, com.team26.freelance.contract.messaging.publishers.ContractSagaPublisher contractSagaPublisher) {
+    public ContractSagaConsumer(ContractService contractService, ContractSagaPublisher contractSagaPublisher) {
         this.contractService = contractService;
         this.contractSagaPublisher = contractSagaPublisher;
     }
@@ -39,8 +39,10 @@ public class ContractSagaConsumer {
                     }),
             exchange = @Exchange(name = SagaTopics.PROPOSAL_EVENTS_EXCHANGE, type = "topic"),
             key = {SagaTopics.PROPOSAL_ACCEPTED, SagaTopics.PROPOSAL_COMPLETED, SagaTopics.PROPOSAL_CANCELLED}
-    ), ackMode="AUTO")
-    public void handleProposalEvents(Map<String, Object> payload, org.springframework.amqp.support.AmqpHeaders amqpHeaders, @org.springframework.messaging.handler.annotation.Header(org.springframework.amqp.support.AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+    ), ackMode = "AUTO")
+    public void handleProposalEvents(Map<String, Object> payload,
+                                     org.springframework.amqp.support.AmqpHeaders amqpHeaders,
+                                     @org.springframework.messaging.handler.annotation.Header(org.springframework.amqp.support.AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
         log.info("Received event on {}: {}", routingKey, payload);
 
         if (SagaTopics.PROPOSAL_ACCEPTED.equals(routingKey)) {
@@ -72,7 +74,13 @@ public class ContractSagaConsumer {
                 contract.setAgreedAmount(amount != null ? amount : 0.0);
                 contract.setStatus(ContractStatus.ACTIVE);
                 contract.setStartDate(LocalDateTime.now());
-                contractService.createContract(contract);
+                Contract saved = contractService.createContract(contract);
+                contractSagaPublisher.publishContractCreated(
+                        saved.getId(),
+                        saved.getProposalId(),
+                        saved.getJobId(),
+                        saved.getFreelancerId(),
+                        saved.getAgreedAmount());
             } else {
                 throw e;
             }
@@ -87,7 +95,11 @@ public class ContractSagaConsumer {
             ContractDTO activeContract = contractService.getActiveContractForProposal(proposalId);
             Contract updateDetails = new Contract();
             updateDetails.setStatus(ContractStatus.COMPLETED);
-            contractService.update(activeContract.getId(), updateDetails);
+            Contract saved = contractService.update(activeContract.getId(), updateDetails);
+            contractSagaPublisher.publishContractStatusChanged(
+                    saved.getId(),
+                    ContractStatus.ACTIVE,
+                    ContractStatus.COMPLETED);
             log.info("Updated contract {} to COMPLETED for proposal {}", activeContract.getId(), proposalId);
         } catch (ResponseStatusException e) {
             log.warn("Received proposal.completed but no active contract found for proposalId: {}", proposalId);
@@ -98,16 +110,51 @@ public class ContractSagaConsumer {
         Long proposalId = extractLong(payload, "proposalId");
         if (proposalId == null) return;
 
+        // Try ACTIVE first, then COMPLETED (compensation case: payout failed after completion)
+        ContractDTO targetContract = null;
+        ContractStatus previousStatus = null;
+
         try {
-            ContractDTO activeContract = contractService.getActiveContractForProposal(proposalId);
+            targetContract = contractService.getActiveContractForProposal(proposalId);
+            previousStatus = ContractStatus.ACTIVE;
+        } catch (ResponseStatusException e) {
+            if (e.getStatusCode() != HttpStatus.NOT_FOUND) {
+                throw e;
+            }
+        }
+
+        if (targetContract == null) {
+            log.warn("Received proposal.cancelled but no active contract found for proposalId: {}. Nothing to terminate.", proposalId);
+            return;
+        }
+
+        try {
             Contract updateDetails = new Contract();
             updateDetails.setStatus(ContractStatus.TERMINATED);
-            contractService.update(activeContract.getId(), updateDetails);
-            contractSagaPublisher.publishContractCancelled(activeContract.getId(), proposalId);
-            log.info("Updated contract {} to TERMINATED and published contract.cancelled for proposal {}", activeContract.getId(), proposalId);
+            contractService.update(targetContract.getId(), updateDetails);
+            contractSagaPublisher.publishContractCancelled(targetContract.getId(), proposalId);
+            contractSagaPublisher.publishContractStatusChanged(
+                    targetContract.getId(),
+                    previousStatus,
+                    ContractStatus.TERMINATED);
+            log.info("Updated contract {} to TERMINATED and published events for proposal {}", targetContract.getId(), proposalId);
         } catch (ResponseStatusException e) {
-            log.warn("Received proposal.cancelled but no active contract found for proposalId: {}", proposalId);
+            log.warn("Failed to terminate contract {} for proposalId: {}: {}", targetContract.getId(), proposalId, e.getMessage());
         }
+    }
+
+    @RabbitListener(bindings = @QueueBinding(
+            value = @Queue(name = "contract.saga-listener.user",
+                    arguments = {
+                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-exchange", value = "contract.dlx"),
+                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.user.dlq")
+                    }),
+            exchange = @Exchange(name = SagaTopics.USER_EVENTS_EXCHANGE, type = "topic"),
+            key = SagaTopics.USER_DEACTIVATED
+    ), ackMode = "AUTO")
+    public void handleUserDeactivated(Map<String, Object> payload) {
+        log.info("Received user.deactivated event: {}", payload);
+        // Optional bookkeeping: log deactivation against ACTIVE contracts
     }
 
     private Long extractLong(Map<String, Object> payload, String key) {
@@ -120,19 +167,5 @@ public class ContractSagaConsumer {
         Object val = payload.get(key);
         if (val instanceof Number n) return n.doubleValue();
         return null;
-    }
-
-    @RabbitListener(bindings = @QueueBinding(
-            value = @Queue(name = "contract.saga-listener.user",
-                    arguments = {
-                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-exchange", value = "contract.dlx"),
-                            @org.springframework.amqp.rabbit.annotation.Argument(name = "x-dead-letter-routing-key", value = "contract.saga-listener.user.dlq")
-                    }),
-            exchange = @Exchange(name = SagaTopics.USER_EVENTS_EXCHANGE, type = "topic"),
-            key = SagaTopics.USER_DEACTIVATED
-    ), ackMode="AUTO")
-    public void handleUserDeactivated(Map<String, Object> payload) {
-        log.info("Received user.deactivated event: {}", payload);
-        // Optional bookkeeping: log deactivation against ACTIVE contracts
     }
 }
