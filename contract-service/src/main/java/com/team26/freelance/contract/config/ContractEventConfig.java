@@ -1,5 +1,6 @@
 package com.team26.freelance.contract.config;
 
+import com.team26.freelance.contracts.events.SagaTopics;
 import org.springframework.amqp.core.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,14 +8,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ContractEventConfig {
 
-    public static final String EXCHANGE_NAME = "contract.events";
-    public static final String PROPOSAL_EXCHANGE_NAME = "proposal.events";
-    public static final String USER_EXCHANGE_NAME = "user.events";
-
     // Exchanges
     @Bean
     public TopicExchange contractEventsExchange() {
-        return new TopicExchange(EXCHANGE_NAME);
+        return new TopicExchange(SagaTopics.CONTRACT_EVENTS_EXCHANGE);
     }
 
     @Bean
