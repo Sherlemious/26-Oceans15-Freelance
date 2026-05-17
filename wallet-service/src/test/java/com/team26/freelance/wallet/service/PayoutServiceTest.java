@@ -151,6 +151,7 @@ class PayoutServiceTest {
         null,
         null,
         walletReadClientService,
+        null,
         new FreelancerPayoutSummaryObjectArrayAdapter(),
         new PromoCodeUsageObjectArrayAdapter());
   }
