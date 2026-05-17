@@ -36,6 +36,9 @@ jwt:
   secret: ${JWT_SECRET:c2VjdXJlLWRlZmF1bHQta2V5LWZvci1kZXZlbG9wbWVudC1vbmx5}
   expiration: ${JWT_EXPIRATION:86400000}
 
+loki:
+  url: ${LOKI_URL:http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push}
+
 cache:
   ttl:
     proposals: ${CACHE_TTL_DETAIL:300}

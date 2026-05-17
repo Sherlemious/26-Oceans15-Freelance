@@ -16,3 +16,4 @@ data:
   FEIGN_CONTRACT_SERVICE_URL: http://contract-service:8080
   FEIGN_PROPOSAL_SERVICE_URL: http://proposal-service:8080
   SERVER_PORT: "8080"
+  LOKI_URL: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
