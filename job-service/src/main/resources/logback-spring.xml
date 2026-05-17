@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <springProperty scope="context"
+                    name="lokiUrl"
+                    source="loki.url"
+                    defaultValue="http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"/>
+
     <!-- Loki4J Appender for cloudnative logging -->
     <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
         <http>
-            <url>http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push</url>
+            <url>${lokiUrl}</url>
         </http>
         <format>
             <label>

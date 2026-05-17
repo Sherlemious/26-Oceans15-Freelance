@@ -121,9 +121,10 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         @Query(value = """
                         SELECT *
                         FROM proposals
-                        WHERE metadata @> jsonb_build_object(:jsonKey::text, :jsonValue::text)
+                        WHERE metadata IS NOT NULL
+                          AND metadata @> CAST(:jsonFilter AS jsonb)
                         """, nativeQuery = true)
-        List<Proposal> findByMetadataField(@Param("jsonKey") String key, @Param("jsonValue") String value);
+        List<Proposal> findByMetadataContains(@Param("jsonFilter") String jsonFilter);
 
         @Query(value = """
                         SELECT

@@ -1,6 +1,8 @@
 package com.team26.freelance.user.service;
 
 import com.team26.freelance.contracts.dto.UserDTO;
+import com.team26.freelance.contracts.feign.ContractServiceClient;
+import com.team26.freelance.contracts.feign.WalletServiceClient;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
@@ -11,10 +13,14 @@ import com.team26.freelance.user.config.CacheConfig;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
+import com.team26.freelance.user.logging.MdcUserScope;
 import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
 
+import feign.FeignException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -22,7 +28,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,6 +41,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     public static final String PREFERENCES_UPDATED = "PREFERENCES_UPDATED";
     public static final String USER_DEACTIVATED = "USER_DEACTIVATED";
@@ -49,15 +59,21 @@ public class UserService {
     private final UserSkillRepository userSkillRepository;
     private final AuthEventSubject authEventSubject;
     private final UserCacheEvictionService userCacheEvictionService;
+    private final WalletServiceClient walletServiceClient;
+    private final ContractServiceClient contractServiceClient;
 
     public UserService(UserRepository userRepository,
                        UserSkillRepository userSkillRepository,
                        AuthEventSubject authEventSubject,
-                       UserCacheEvictionService userCacheEvictionService) {
+                       UserCacheEvictionService userCacheEvictionService,
+                       WalletServiceClient walletServiceClient,
+                       ContractServiceClient contractServiceClient) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.authEventSubject = authEventSubject;
         this.userCacheEvictionService = userCacheEvictionService;
+        this.walletServiceClient = walletServiceClient;
+        this.contractServiceClient = contractServiceClient;
     }
 
     public UserResponseDTO create(User user) {
@@ -67,9 +83,12 @@ public class UserService {
 
         user.setPassword(encoder.encode(user.getPassword()));
         User savedUser = userRepository.save(user);
-        recordUserEvent(savedUser, USER_CREATED, userDetails(savedUser));
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
+        try (MdcUserScope ignored = MdcUserScope.put(savedUser.getId())) {
+            log.info("User {} saved with status={}", savedUser.getId(), savedUser.getStatus());
+            recordUserEvent(savedUser, USER_CREATED, userDetails(savedUser));
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
+        }
     }
 
     @Cacheable(cacheNames = CacheConfig.USER_DETAIL_CACHE,
@@ -140,54 +159,65 @@ public class UserService {
     }
 
     public UserResponseDTO update(Long id, User updated) {
-        User existing = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        existing.setName(updated.getName());
-        existing.setEmail(updated.getEmail());
-        existing.setPassword(encoder.encode(updated.getPassword()));
-        existing.setPhone(updated.getPhone());
-        existing.setStatus(updated.getStatus());
-        existing.setPreferences(updated.getPreferences());
-        User savedUser = userRepository.save(existing);
-        recordUserEvent(savedUser, USER_UPDATED, userDetails(savedUser));
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
+        try (MdcUserScope ignored = MdcUserScope.put(id)) {
+            User existing = userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            existing.setName(updated.getName());
+            existing.setEmail(updated.getEmail());
+            existing.setPassword(encoder.encode(updated.getPassword()));
+            existing.setPhone(updated.getPhone());
+            existing.setStatus(updated.getStatus());
+            existing.setPreferences(updated.getPreferences());
+            User savedUser = userRepository.save(existing);
+            log.info("User {} saved with status={}", savedUser.getId(), savedUser.getStatus());
+            recordUserEvent(savedUser, USER_UPDATED, userDetails(savedUser));
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
+        }
     }
 
     @Transactional
     public UserResponseDTO updateRole(Long id, String requestedRole) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        try (MdcUserScope ignored = MdcUserScope.put(id)) {
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        Role newRole = parseRequiredRole(requestedRole);
-        Role oldRole = user.getRole();
+            Role newRole = parseRequiredRole(requestedRole);
+            Role oldRole = user.getRole();
 
-        user.setRole(newRole);
-        User savedUser = userRepository.save(user);
+            user.setRole(newRole);
+            User savedUser = userRepository.save(user);
 
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("oldRole", oldRole == null ? null : oldRole.name());
-        details.put("newRole", newRole.name());
-        recordUserEvent(savedUser, ROLE_CHANGED, details);
-        userCacheEvictionService.evictUserMutationCaches(id);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("oldRole", oldRole == null ? null : oldRole.name());
+            details.put("newRole", newRole.name());
+            log.info("User {} role changed from {} to {}", id, oldRole, newRole);
+            recordUserEvent(savedUser, ROLE_CHANGED, details);
+            userCacheEvictionService.evictUserMutationCaches(id);
 
-        return UserResponseDTO.fromUser(savedUser);
+            return UserResponseDTO.fromUser(savedUser);
+        }
     }
 
     public void delete(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        Map<String, Object> details = userDetails(user);
-        userRepository.delete(user);
-        recordUserEvent(id, USER_DELETED, details);
-        userCacheEvictionService.evictUserMutationCaches(id);
+        try (MdcUserScope ignored = MdcUserScope.put(id)) {
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            Map<String, Object> details = userDetails(user);
+            userRepository.delete(user);
+            log.info("User {} deleted", id);
+            recordUserEvent(id, USER_DELETED, details);
+            userCacheEvictionService.evictUserMutationCaches(id);
+        }
     }
 
     @Transactional
     public UserResponseDTO deactivate(Long id) {
-        userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        throw feignRequired("User deactivation requires contract-service active contract checks");
+        try (MdcUserScope ignored = MdcUserScope.put(id)) {
+            userRepository.findById(id)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            throw feignRequired("User deactivation requires contract-service active contract checks");
+        }
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F5_CACHE,
@@ -210,9 +240,96 @@ public class UserService {
     public List<TopFreelancerDTO> getTopFreelancers(LocalDate startDate, LocalDate endDate, int limit) {
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "startDate must be before endDate");
+                    "startDate must be before or equal to endDate");
         }
-        throw feignRequired("Top freelancer reports require wallet-service and contract-service Feign reads");
+        if (limit <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be > 0");
+        }
+
+        long startedAt = System.nanoTime();
+        try {
+            String startDateParam = startDate.toString();
+            String endDateParam = endDate.toString();
+
+            return userRepository.findAll().stream()
+                    .filter(user -> user.getRole() == Role.FREELANCER)
+                    .map(freelancer -> topFreelancer(freelancer, startDateParam, endDateParam))
+                    .sorted(Comparator
+                            .comparing(TopFreelancerDTO::getTotalEarnings,
+                                    Comparator.nullsFirst(Comparator.naturalOrder()))
+                            .reversed()
+                            .thenComparing(TopFreelancerDTO::getUserId))
+                    .limit(limit)
+                    .collect(Collectors.toList());
+        } finally {
+            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+            if (elapsedMs > 1000) {
+                log.warn("Slow S1-F6 top-freelancers report took {}ms for startDate={} endDate={} limit={}",
+                        elapsedMs, startDate, endDate, limit);
+            }
+        }
+    }
+
+    private TopFreelancerDTO topFreelancer(User freelancer, String startDate, String endDate) {
+        Long freelancerId = freelancer.getId();
+        BigDecimal totalEarnings = getFreelancerPayoutTotal(freelancerId, startDate, endDate);
+        long contractCount = getCompletedContractCount(freelancerId);
+
+        return TopFreelancerDTO.builder()
+                .userId(freelancerId)
+                .name(freelancer.getName())
+                .totalEarnings(totalEarnings.doubleValue())
+                .contractCount(contractCount)
+                .build();
+    }
+
+    private BigDecimal getFreelancerPayoutTotal(Long freelancerId, String startDate, String endDate) {
+        log.info("Calling WalletServiceClient.getFreelancerPayoutTotal freelancerId={} startDate={} endDate={}",
+                freelancerId, startDate, endDate);
+        try {
+            BigDecimal total = walletServiceClient.getFreelancerPayoutTotal(freelancerId, startDate, endDate);
+            log.info("WalletServiceClient.getFreelancerPayoutTotal returned successfully for freelancerId={}",
+                    freelancerId);
+            return total == null ? BigDecimal.ZERO : total;
+        } catch (FeignException.NotFound ex) {
+            log.warn("WalletServiceClient.getFreelancerPayoutTotal returned 404 for freelancerId={}",
+                    freelancerId);
+            return BigDecimal.ZERO;
+        } catch (FeignException ex) {
+            log.warn("WalletServiceClient.getFreelancerPayoutTotal failed for freelancerId={} status={}",
+                    freelancerId, ex.status(), ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Wallet service temporarily unavailable", ex);
+        } catch (RuntimeException ex) {
+            log.warn("WalletServiceClient.getFreelancerPayoutTotal failed for freelancerId={}",
+                    freelancerId, ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Wallet service temporarily unavailable", ex);
+        }
+    }
+
+    private long getCompletedContractCount(Long freelancerId) {
+        log.info("Calling ContractServiceClient.getCompletedContractCountForUser userId={}", freelancerId);
+        try {
+            long count = contractServiceClient.getCompletedContractCountForUser(freelancerId);
+            log.info("ContractServiceClient.getCompletedContractCountForUser returned successfully for userId={}",
+                    freelancerId);
+            return count;
+        } catch (FeignException.NotFound ex) {
+            log.warn("ContractServiceClient.getCompletedContractCountForUser returned 404 for userId={}",
+                    freelancerId);
+            return 0L;
+        } catch (FeignException ex) {
+            log.warn("ContractServiceClient.getCompletedContractCountForUser failed for userId={} status={}",
+                    freelancerId, ex.status(), ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        } catch (RuntimeException ex) {
+            log.warn("ContractServiceClient.getCompletedContractCountForUser failed for userId={}",
+                    freelancerId, ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        }
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F9_CACHE,
@@ -240,54 +357,60 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO updatePreferences(Long userId, Map<String, Object> incomingPreferences) {
-        if (incomingPreferences == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid preferences payload: expected JSON object, got null");
+        try (MdcUserScope ignored = MdcUserScope.put(userId)) {
+            if (incomingPreferences == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid preferences payload: expected JSON object, got null");
+            }
+
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+            Map<String, Object> merged = new HashMap<>(
+                    user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
+            );
+            merged.putAll(incomingPreferences);
+
+            user.setPreferences(merged);
+            User savedUser = userRepository.save(user);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("updatedKeys", incomingPreferences.keySet());
+            details.put("preferences", savedUser.getPreferences());
+            log.info("User {} preferences updated", userId);
+            recordUserEvent(savedUser, PREFERENCES_UPDATED, details);
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
         }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        Map<String, Object> merged = new HashMap<>(
-                user.getPreferences() != null ? user.getPreferences() : new HashMap<>()
-        );
-        merged.putAll(incomingPreferences);
-
-        user.setPreferences(merged);
-        User savedUser = userRepository.save(user);
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("updatedKeys", incomingPreferences.keySet());
-        details.put("preferences", savedUser.getPreferences());
-        recordUserEvent(savedUser, PREFERENCES_UPDATED, details);
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
     }
 
     @Transactional
     public UserResponseDTO setPrimarySkill(Long userId, Long skillId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        try (MdcUserScope ignored = MdcUserScope.put(userId)) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        UserSkill targetSkill = userSkillRepository.findById(skillId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UserSkill not found"));
+            UserSkill targetSkill = userSkillRepository.findById(skillId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "UserSkill not found"));
 
-        if (!targetSkill.getUser().getId().equals(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill does not belong to user");
+            if (!targetSkill.getUser().getId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Skill does not belong to user");
+            }
+
+            for (UserSkill userSkill : user.getUserSkills()) {
+                userSkill.setIsPrimary(false);
+            }
+            targetSkill.setIsPrimary(true);
+
+            User savedUser = userRepository.save(user);
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("skillId", targetSkill.getId());
+            details.put("skillName", targetSkill.getSkillName());
+            details.put("category", targetSkill.getCategory());
+            log.info("User {} primary skill set to {}", userId, skillId);
+            recordUserEvent(savedUser, PRIMARY_SKILL_SET, details);
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
         }
-
-        for (UserSkill userSkill : user.getUserSkills()) {
-            userSkill.setIsPrimary(false);
-        }
-        targetSkill.setIsPrimary(true);
-
-        User savedUser = userRepository.save(user);
-        Map<String, Object> details = new LinkedHashMap<>();
-        details.put("skillId", targetSkill.getId());
-        details.put("skillName", targetSkill.getSkillName());
-        details.put("category", targetSkill.getCategory());
-        recordUserEvent(savedUser, PRIMARY_SKILL_SET, details);
-        userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-        return UserResponseDTO.fromUser(savedUser);
     }
 
     private String normalizeFilter(String value) {
@@ -325,6 +448,7 @@ public class UserService {
     }
 
     private ResponseStatusException feignRequired(String reason) {
+        log.warn("Feign call to downstream service failed: {}", reason);
         return new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, reason);
     }
 

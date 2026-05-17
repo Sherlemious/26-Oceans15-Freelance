@@ -24,6 +24,8 @@ spec:
                 name: proposal-service-configmap
             - secretRef:
                 name: proposal-postgres-secret
+            - secretRef:
+                name: neo4j-secret
           env:
             - name: JWT_SECRET
               valueFrom:
