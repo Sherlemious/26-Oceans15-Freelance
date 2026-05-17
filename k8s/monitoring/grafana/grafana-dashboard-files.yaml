@@ -1130,11 +1130,11 @@ data:
         {
           "datasource": {
             "type": "loki",
-            "uid": "Loki"
+            "uid": "loki"
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "logs"
+              "unit": "short"
             },
             "overrides": []
           },
@@ -1158,6 +1158,10 @@ data:
           },
           "targets": [
             {
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
               "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"ERROR\"}[1m]))",
               "legendFormat": "errors/min",
               "refId": "A"
@@ -1169,11 +1173,11 @@ data:
         {
           "datasource": {
             "type": "loki",
-            "uid": "Loki"
+            "uid": "loki"
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "logs"
+              "unit": "short"
             },
             "overrides": []
           },
@@ -1197,6 +1201,10 @@ data:
           },
           "targets": [
             {
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
               "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Slow \" [5m]))",
               "legendFormat": "slow warnings",
               "refId": "A"
@@ -1208,11 +1216,11 @@ data:
         {
           "datasource": {
             "type": "loki",
-            "uid": "Loki"
+            "uid": "loki"
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "logs"
+              "unit": "short"
             },
             "overrides": []
           },
@@ -1236,17 +1244,224 @@ data:
           },
           "targets": [
             {
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
               "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\"} |= \"returned successfully\" [5m]))",
               "legendFormat": "feign success",
               "refId": "A"
             },
             {
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
               "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Feign call to\" [5m]))",
               "legendFormat": "feign failure",
               "refId": "B"
             }
           ],
           "title": "Wallet Feign Call Outcomes",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 8
+          },
+          "id": 4,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum by (uri) (rate(http_server_requests_seconds_count{job=\"wallet-service\"}[1m]))",
+              "legendFormat": "{{uri}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Wallet HTTP Request Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 8
+          },
+          "id": 5,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(rate(http_server_requests_seconds_count{job=\"wallet-service\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"wallet-service\"}[5m]))",
+              "legendFormat": "5xx ratio",
+              "refId": "A"
+            }
+          ],
+          "title": "Wallet HTTP 5xx Error Ratio",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 8
+          },
+          "id": 6,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m])))",
+              "legendFormat": "P50",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m])))",
+              "legendFormat": "P95",
+              "refId": "B"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m])))",
+              "legendFormat": "P99",
+              "refId": "C"
+            }
+          ],
+          "title": "Wallet HTTP Latency Percentiles",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 16
+          },
+          "id": 7,
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(jvm_memory_used_bytes{job=\"wallet-service\",area=\"heap\"})",
+              "legendFormat": "heap used",
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "expr": "sum(jvm_memory_max_bytes{job=\"wallet-service\",area=\"heap\"})",
+              "legendFormat": "heap max",
+              "refId": "B"
+            }
+          ],
+          "title": "Wallet JVM Heap Usage",
           "type": "timeseries"
         }
       ],

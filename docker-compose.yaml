@@ -20,9 +20,7 @@ services:
     image: mongo:latest
     container_name: freelance-mongodb
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: rootpass
-      MONGO_INITDB_DATABASE: freelancemongo
+      MONGO_INITDB_DATABASE: freelancedb
     ports:
       - "27017:27017"
     volumes:
@@ -137,6 +135,7 @@ services:
       start_period: 60s
 
   user-service:
+    image: user-service:latest
     build:
       context: .
       dockerfile: user-service/Dockerfile
@@ -146,9 +145,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/freelancedb
       SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PORT: "6379"
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
     depends_on:
@@ -158,6 +157,7 @@ services:
         condition: service_healthy
 
   job-service:
+    image: job-service:latest
     build:
       context: .
       dockerfile: job-service/Dockerfile
@@ -167,9 +167,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/freelancedb
       SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PORT: "6379"
       SPRING_ELASTICSEARCH_URIS: http://elasticsearch:9200
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
@@ -182,6 +182,7 @@ services:
         condition: service_healthy
 
   proposal-service:
+    image: proposal-service:latest
     build:
       context: .
       dockerfile: proposal-service/Dockerfile
@@ -191,9 +192,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/freelancedb
       SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PORT: "6379"
       SPRING_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD:-redispass}
       SPRING_NEO4J_URI: bolt://neo4j:7687
       SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
@@ -213,6 +214,7 @@ services:
         condition: service_healthy
 
   contract-service:
+    image: contract-service:latest
     build:
       context: .
       dockerfile: contract-service/Dockerfile
@@ -222,9 +224,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/freelancedb
       SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PORT: "6379"
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
@@ -240,6 +242,7 @@ services:
         condition: service_healthy
 
   wallet-service:
+    image: wallet-service:latest
     build:
       context: .
       dockerfile: wallet-service/Dockerfile
@@ -249,10 +252,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/freelancedb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_DATA_MONGODB_URI: mongodb://root:rootpass@mongo:27017/freelancemongo?authSource=admin
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/freelancedb
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PASSWORD: ${SPRING_REDIS_PASSWORD:-redispass}
-      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PORT: "6379"
       SPRING_CASSANDRA_CONTACT_POINTS: cassandra
       SPRING_CASSANDRA_PORT: 9042
       SPRING_CASSANDRA_LOCAL_DATACENTER: datacenter1
@@ -264,6 +267,34 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  api-gateway:
+    image: api-gateway:latest
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      USER_SERVICE_URL: http://user-service:8080
+      JOB_SERVICE_URL: http://job-service:8080
+      PROPOSAL_SERVICE_URL: http://proposal-service:8080
+      CONTRACT_SERVICE_URL: http://contract-service:8080
+      WALLET_SERVICE_URL: http://wallet-service:8080
+      JWT_SECRET: ${JWT_SECRET}
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      user-service:
+        condition: service_started
+      job-service:
+        condition: service_started
+      proposal-service:
+        condition: service_started
+      contract-service:
+        condition: service_started
+      wallet-service:
+        condition: service_started
 
 volumes:
   pgdata:
