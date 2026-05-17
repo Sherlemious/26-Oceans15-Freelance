@@ -6,9 +6,9 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
 import com.team26.freelance.job.config.JobEventConfig;
-import com.team26.freelance.job.events.JobClosedEvent;
-import com.team26.freelance.job.events.JobRatedEvent;
-import com.team26.freelance.job.events.JobStatusChangedEvent;
+import com.team26.freelance.contracts.events.JobClosedEvent;
+import com.team26.freelance.contracts.events.JobRatedEvent;
+import com.team26.freelance.contracts.events.JobStatusChangedEvent;
 
 @Service
 public class JobSagaPublisher {

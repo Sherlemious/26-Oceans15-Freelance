@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team26.freelance.job.config.JobEventConfig;
-import com.team26.freelance.job.events.ProposalAcceptedEvent;
-import com.team26.freelance.job.events.ProposalCancelledEvent;
-import com.team26.freelance.job.events.ProposalCompletedEvent;
-import com.team26.freelance.job.events.ProposalWithdrawnEvent;
+import com.team26.freelance.contracts.events.ProposalAcceptedEvent;
+import com.team26.freelance.contracts.events.ProposalCancelledEvent;
+import com.team26.freelance.contracts.events.ProposalCompletedEvent;
+import com.team26.freelance.contracts.events.ProposalWithdrawnEvent;
 import com.team26.freelance.job.service.JobService;
 
 @Component
