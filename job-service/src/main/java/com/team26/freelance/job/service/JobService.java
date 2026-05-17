@@ -1,18 +1,22 @@
 package com.team26.freelance.job.service;
 
 import com.team26.freelance.job.dto.*;
-import com.team26.freelance.job.events.JobClosedEvent;
-import com.team26.freelance.job.events.JobRatedEvent;
-import com.team26.freelance.job.events.JobStatusChangedEvent;
-import com.team26.freelance.job.events.ProposalAcceptedEvent;
-import com.team26.freelance.job.events.ProposalCancelledEvent;
-import com.team26.freelance.job.events.ProposalCompletedEvent;
-import com.team26.freelance.job.events.ProposalWithdrawnEvent;
+
+import com.team26.freelance.contracts.events.JobClosedEvent;
+import com.team26.freelance.contracts.events.JobRatedEvent;
+import com.team26.freelance.contracts.events.JobStatusChangedEvent;
+import com.team26.freelance.contracts.events.ProposalAcceptedEvent;
+import com.team26.freelance.contracts.events.ProposalCancelledEvent;
+import com.team26.freelance.contracts.events.ProposalCompletedEvent;
+import com.team26.freelance.contracts.events.ProposalWithdrawnEvent;
+
+
 import com.team26.freelance.contracts.feign.ContractServiceClient;
 import com.team26.freelance.contracts.feign.ProposalServiceClient;
 import com.team26.freelance.contracts.dto.ContractDTO;
 import com.team26.freelance.contracts.dto.JobDTO;
 import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
+
 import com.team26.freelance.job.messaging.publishers.JobSagaPublisher;
 import com.team26.freelance.job.model.Job;
 import com.team26.freelance.job.model.JobAttachment;
