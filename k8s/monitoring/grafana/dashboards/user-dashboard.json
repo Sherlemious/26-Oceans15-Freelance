@@ -1,7 +1,5 @@
 {
-  "title": "User Service Dashboard",
-  "timezone": "browser",
-  "schemaVersion": 38,
-  "version": 1,
-  "panels": []
+  "note": "This file is intentionally not a Grafana dashboard definition.",
+  "provisioningSource": "grafana-dashboards ConfigMap",
+  "reason": "Avoid drift with the provisioned dashboard JSON."
 }
