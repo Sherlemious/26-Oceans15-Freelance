@@ -3,10 +3,10 @@ package com.team26.freelance.contract.service;
 import com.team26.freelance.contract.dto.FreelancerPerformanceDTO;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.FreelancerPerformanceProjection;
-import com.team26.freelance.contract.client.UserServiceClient;
-import feign.FeignException;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.slf4j.MDC;
 
 import java.time.LocalDateTime;
@@ -14,12 +14,12 @@ import java.time.LocalDateTime;
 @Service
 public class FreelancerPerformanceService {
     private final ContractRepository contractRepository;
-    private final UserServiceClient userServiceClient;
+    private final ContractReadClientService contractReadClientService;
 
     public FreelancerPerformanceService(ContractRepository contractRepository,
-                                        UserServiceClient userServiceClient) {
+                                        ContractReadClientService contractReadClientService) {
         this.contractRepository = contractRepository;
-        this.userServiceClient = userServiceClient;
+        this.contractReadClientService = contractReadClientService;
     }
 
     @Cacheable(value = "contract-s4-f8", key = "@contractCacheKeys.featureKeyWithId('S4-F8', #freelancerId, #startDateParam, #endDateParam)")
@@ -27,9 +27,11 @@ public class FreelancerPerformanceService {
         MDC.put("userId", freelancerId.toString());
         try {
             try {
-                userServiceClient.getUser(freelancerId);
-            } catch (FeignException.NotFound e) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
+                contractReadClientService.getUser(freelancerId);
+            } catch (ResponseStatusException e) {
+                if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
+                }
             } catch (Exception e) {
                 // ignore — proceed with local data if user-service is unavailable
             }

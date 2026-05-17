@@ -1,6 +1,6 @@
-package com.team26.freelance.contract.messaging.subscriber;
+package com.team26.freelance.contract.messaging.consumers;
 
-import com.team26.freelance.contract.messaging.publisher.ContractSagaPublisher;
+import com.team26.freelance.contract.messaging.publishers.ContractSagaPublisher;
 import com.team26.freelance.contracts.events.SagaTopics;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
@@ -26,7 +26,7 @@ public class ContractSagaConsumer {
     private final ContractService contractService;
     private final ContractSagaPublisher contractSagaPublisher;
 
-    public ContractSagaConsumer(com.team26.freelance.contract.service.ContractService contractService, com.team26.freelance.contract.messaging.publisher.ContractSagaPublisher contractSagaPublisher) {
+    public ContractSagaConsumer(com.team26.freelance.contract.service.ContractService contractService, com.team26.freelance.contract.messaging.publishers.ContractSagaPublisher contractSagaPublisher) {
         this.contractService = contractService;
         this.contractSagaPublisher = contractSagaPublisher;
     }

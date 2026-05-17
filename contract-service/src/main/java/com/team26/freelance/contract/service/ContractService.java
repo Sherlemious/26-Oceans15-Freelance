@@ -12,15 +12,13 @@ import com.team26.freelance.contract.model.MilestoneStatus;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEvent;
 import com.team26.freelance.contract.model.cassandra.ContractMilestoneEventKey;
 import com.team26.freelance.contract.observer.ContractEventSubject;
-import com.team26.freelance.contract.messaging.publisher.ContractSagaPublisher;
+import com.team26.freelance.contract.messaging.publishers.ContractSagaPublisher;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.repository.ContractRepository;
 import com.team26.freelance.contract.repository.cassandra.ContractMilestoneEventRepository;
-import com.team26.freelance.contract.service.ContractAnalyticsService;
-import com.team26.freelance.contract.client.JobServiceClient;
-import com.team26.freelance.contract.client.UserServiceClient;
-import feign.FeignException;
+import com.team26.freelance.contracts.dto.JobDTO;
+import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.contracts.dto.ContractDTO;
 import com.team26.freelance.contracts.dto.UserContractSummaryDTO;
 import org.slf4j.Logger;
@@ -47,6 +45,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -63,8 +62,6 @@ public class ContractService {
     private final ContractSagaPublisher contractSagaPublisher;
     private final CassandraTemplate cassandraTemplate;
     private final CassandraRowAdapter cassandraRowAdapter;
-    private final UserServiceClient userServiceClient;
-    private final JobServiceClient jobServiceClient;
     private final ContractReadClientService contractReadClientService;
 
     public ContractService(ContractRepository contractRepository,
@@ -75,8 +72,6 @@ public class ContractService {
             ContractSagaPublisher contractSagaPublisher,
             CassandraTemplate cassandraTemplate,
             CassandraRowAdapter cassandraRowAdapter,
-            UserServiceClient userServiceClient,
-            JobServiceClient jobServiceClient,
             ContractReadClientService contractReadClientService) {
         this.contractRepository = contractRepository;
         this.cacheEvictionService = cacheEvictionService;
@@ -86,8 +81,6 @@ public class ContractService {
         this.contractSagaPublisher = contractSagaPublisher;
         this.cassandraTemplate = cassandraTemplate;
         this.cassandraRowAdapter = cassandraRowAdapter;
-        this.userServiceClient = userServiceClient;
-        this.jobServiceClient = jobServiceClient;
         this.contractReadClientService = contractReadClientService;
     }
 
@@ -311,22 +304,24 @@ public class ContractService {
     @Cacheable(value = "contract-s4-f1", key = "@contractCacheKeys.featureKeyWithId('S4-F1', #userId)")
     public Contract getActiveContractForUser(Long userId) {
         MDC.put("userId", userId.toString());
-try {
-    try {
-        userServiceClient.getUser(userId);
-    } catch (FeignException.NotFound e) {
-        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-    } catch (Exception e) {
-        // ignore
-    }
-    return contractRepository
-            .findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(
-                    userId, ContractStatus.ACTIVE, userId, ContractStatus.ACTIVE)
-            .orElseThrow(() -> new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "Active contract not found"));
-} finally {
-    MDC.remove("userId");
-}
+        try {
+            try {
+                contractReadClientService.getUser(userId);
+            } catch (ResponseStatusException e) {
+                if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+                }
+            } catch (Exception e) {
+                // ignore
+            }
+            return contractRepository
+                    .findFirstByFreelancerIdAndStatusOrClientIdAndStatusOrderByCreatedAtDesc(
+                            userId, ContractStatus.ACTIVE, userId, ContractStatus.ACTIVE)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Active contract not found"));
+        } finally {
+            MDC.remove("userId");
+        }
     }
 
     public UserContractSummaryDTO getUserContractSummary(Long userId) {
@@ -431,25 +426,25 @@ public Contract createContract(Contract contract) {
                         minAmount, maxAmount, parsedStatus);
         List<ContractSummaryDTO> contractSummaries = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
-        Map<Long, String> freelancerNames = new HashMap<>();
-        Map<Long, String> jobTitles = new HashMap<>();
+        Map<Long, String> freelancerNames = new ConcurrentHashMap<>();
+        Map<Long, String> jobTitles = new ConcurrentHashMap<>();
 
         Set<Long> freelancerIds = contracts.stream().map(Contract::getFreelancerId).filter(Objects::nonNull).collect(Collectors.toSet());
         Set<Long> jobIds = contracts.stream().map(Contract::getJobId).filter(Objects::nonNull).collect(Collectors.toSet());
 
 freelancerIds.parallelStream().forEach(id -> {
     try {
-        Map<String, Object> user = userServiceClient.getUser(id);
-        freelancerNames.put(id, user != null && user.get("name") != null ? String.valueOf(user.get("name")) : "Unknown User");
-    } catch (FeignException e) {
+        UserDTO user = contractReadClientService.getUser(id);
+        freelancerNames.put(id, user != null && user.getName() != null ? user.getName() : "Unknown User");
+    } catch (Exception e) {
         freelancerNames.put(id, "Unknown User");
     }
 });
 jobIds.parallelStream().forEach(id -> {
     try {
-        Map<String, Object> job = jobServiceClient.getJob(id);
-        jobTitles.put(id, job != null && job.get("title") != null ? String.valueOf(job.get("title")) : "Unknown Job");
-    } catch (FeignException e) {
+        JobDTO job = contractReadClientService.getJob(id);
+        jobTitles.put(id, job != null && job.getTitle() != null ? job.getTitle() : "Unknown Job");
+    } catch (Exception e) {
         jobTitles.put(id, "Unknown Job");
     }
 });

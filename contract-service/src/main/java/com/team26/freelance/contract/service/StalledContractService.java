@@ -3,9 +3,8 @@ package com.team26.freelance.contract.service;
 import com.team26.freelance.contract.dto.StalledContractDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.repository.ContractRepository;
-import com.team26.freelance.contract.client.JobServiceClient;
-import com.team26.freelance.contract.client.UserServiceClient;
-import feign.FeignException;
+import com.team26.freelance.contracts.dto.JobDTO;
+import com.team26.freelance.contracts.dto.UserDTO;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -20,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,15 +32,12 @@ public class StalledContractService {
     private static final long SLOW_OPERATION_THRESHOLD_MS = 1000L;
 
     private final ContractRepository contractRepository;
-    private final UserServiceClient userServiceClient;
-    private final JobServiceClient jobServiceClient;
+    private final ContractReadClientService contractReadClientService;
 
     public StalledContractService(ContractRepository contractRepository,
-                                  UserServiceClient userServiceClient,
-                                  JobServiceClient jobServiceClient) {
+                                  ContractReadClientService contractReadClientService) {
         this.contractRepository = contractRepository;
-        this.userServiceClient = userServiceClient;
-        this.jobServiceClient = jobServiceClient;
+        this.contractReadClientService = contractReadClientService;
     }
 
     @Cacheable(value = "contract-s4-f9", key = "@contractCacheKeys.featureKey('S4-F9', #maxProgress, #stalledDays)")
@@ -57,18 +54,18 @@ public class StalledContractService {
 
         freelancerIds.parallelStream().forEach(id -> {
             try {
-                Map<String, Object> user = userServiceClient.getUser(id);
-                freelancerNames.put(id, user != null && user.get("name") != null ? String.valueOf(user.get("name")) : "Unknown User");
-            } catch (FeignException e) {
+                UserDTO user = contractReadClientService.getUser(id);
+                freelancerNames.put(id, user != null && user.getName() != null ? user.getName() : "Unknown User");
+            } catch (Exception e) {
                 freelancerNames.put(id, "Unknown User");
             }
         });
 
         jobIds.parallelStream().forEach(id -> {
             try {
-                Map<String, Object> job = jobServiceClient.getJob(id);
-                jobTitles.put(id, job != null && job.get("title") != null ? String.valueOf(job.get("title")) : "Unknown Job");
-            } catch (FeignException e) {
+                JobDTO job = contractReadClientService.getJob(id);
+                jobTitles.put(id, job != null && job.getTitle() != null ? job.getTitle() : "Unknown Job");
+            } catch (Exception e) {
                 jobTitles.put(id, "Unknown Job");
             }
         });

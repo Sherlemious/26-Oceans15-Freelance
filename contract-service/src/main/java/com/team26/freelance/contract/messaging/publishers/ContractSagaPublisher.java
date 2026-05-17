@@ -1,4 +1,4 @@
-package com.team26.freelance.contract.messaging.publisher;
+package com.team26.freelance.contract.messaging.publishers;
 
 import com.team26.freelance.contracts.events.SagaTopics;
 import com.team26.freelance.contract.model.ContractStatus;

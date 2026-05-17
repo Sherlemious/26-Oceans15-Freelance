@@ -1,7 +1,5 @@
 package com.team26.freelance.contract.messaging;
 
-import com.team26.freelance.contract.messaging.publisher.ContractSagaPublisher;
-import com.team26.freelance.contract.messaging.subscriber.ContractSagaConsumer;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.model.ContractStatus;
 import com.team26.freelance.contract.service.ContractService;
@@ -29,13 +27,13 @@ class ContractSagaConsumerTest {
     private ContractService contractService;
 
     @Mock
-    private com.team26.freelance.contract.messaging.publisher.ContractSagaPublisher contractSagaPublisher;
+    private com.team26.freelance.contract.messaging.publishers.ContractSagaPublisher contractSagaPublisher;
 
-    private com.team26.freelance.contract.messaging.subscriber.ContractSagaConsumer consumer;
+    private com.team26.freelance.contract.messaging.consumers.ContractSagaConsumer consumer;
 
     @BeforeEach
     void setUp() {
-        consumer = new com.team26.freelance.contract.messaging.subscriber.ContractSagaConsumer(contractService, contractSagaPublisher);
+        consumer = new com.team26.freelance.contract.messaging.consumers.ContractSagaConsumer(contractService, contractSagaPublisher);
     }
 
     @Test
