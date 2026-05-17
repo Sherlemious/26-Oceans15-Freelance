@@ -197,7 +197,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "s"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -208,6 +208,49 @@
         "y": 8
       },
       "id": 5,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"wallet-service\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"wallet-service\"}[5m]))",
+          "legendFormat": "5xx ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Wallet HTTP 5xx Error Ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "id": 6,
       "options": {
         "legend": {
           "displayMode": "list",
@@ -264,11 +307,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 8
+        "w": 12,
+        "x": 0,
+        "y": 16
       },
-      "id": 6,
+      "id": 7,
       "options": {
         "legend": {
           "displayMode": "list",
@@ -286,7 +329,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "jvm_memory_used_bytes{job=\"wallet-service\", area=\"heap\"}",
+          "expr": "sum(jvm_memory_used_bytes{job=\"wallet-service\",area=\"heap\"})",
           "legendFormat": "heap used",
           "refId": "A"
         },
@@ -295,7 +338,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "jvm_memory_max_bytes{job=\"wallet-service\", area=\"heap\"}",
+          "expr": "sum(jvm_memory_max_bytes{job=\"wallet-service\",area=\"heap\"})",
           "legendFormat": "heap max",
           "refId": "B"
         }

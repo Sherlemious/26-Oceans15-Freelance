@@ -1,5 +1,6 @@
 package com.team26.freelance.job.controller;
 
+import com.team26.freelance.contracts.dto.JobDTO;
 import com.team26.freelance.job.dto.*;
 import com.team26.freelance.job.service.CacheEvictionService;
 import com.team26.freelance.job.service.JobSearchService;
@@ -49,8 +50,8 @@ public class JobController {
 
     @GetMapping("/{id}")
     @Cacheable(value = "job", key = "'job-service::job::' + #id")
-    public Job getJobById(@PathVariable Long id) {
-        return jobService.getJobById(id);
+    public JobDTO getJobById(@PathVariable Long id) {
+        return jobService.getJobAsDTO(id);
     }
 
     @PutMapping("/{id}")

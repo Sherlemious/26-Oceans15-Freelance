@@ -8,6 +8,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ContractEventConfig {
 
+    public static final String CONTRACT_DLX_EXCHANGE = "contract.dlx";
+    public static final String CONTRACT_SAGA_LISTENER_QUEUE = "contract.saga-listener";
+    public static final String CONTRACT_SAGA_LISTENER_DLQ = "contract.saga-listener.dlq";
+
     // Exchanges
     @Bean
     public TopicExchange contractEventsExchange() {
@@ -15,48 +19,66 @@ public class ContractEventConfig {
     }
 
     @Bean
-    public TopicExchange dlxExchange() {
-        return new TopicExchange("contract.dlx");
+    public TopicExchange proposalEventsExchange() {
+        return new TopicExchange(SagaTopics.PROPOSAL_EVENTS_EXCHANGE);
+    }
+
+    @Bean
+    public TopicExchange userEventsExchange() {
+        return new TopicExchange(SagaTopics.USER_EVENTS_EXCHANGE);
+    }
+
+    @Bean
+    public TopicExchange contractDeadLetterExchange() {
+        return new TopicExchange(CONTRACT_DLX_EXCHANGE);
     }
 
     // Queues
     @Bean
-    public Queue sagaListenerProposalQueue() {
-        return QueueBuilder.durable("contract.saga-listener.proposal")
-                .withArgument("x-dead-letter-exchange", "contract.dlx")
-                .withArgument("x-dead-letter-routing-key", "contract.saga-listener.proposal.dlq")
+    public Queue contractSagaListenerQueue() {
+        return QueueBuilder.durable(CONTRACT_SAGA_LISTENER_QUEUE)
+                .withArgument("x-dead-letter-exchange", CONTRACT_DLX_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", CONTRACT_SAGA_LISTENER_DLQ)
                 .build();
     }
 
     @Bean
-    public Queue sagaListenerProposalDlq() {
-        return QueueBuilder.durable("contract.saga-listener.proposal.dlq").build();
+    public Queue contractSagaListenerDlq() {
+        return QueueBuilder.durable(CONTRACT_SAGA_LISTENER_DLQ).build();
     }
 
     @Bean
-    public Binding dlqProposalBinding() {
-        return BindingBuilder.bind(sagaListenerProposalDlq())
-                .to(dlxExchange())
-                .with("contract.saga-listener.proposal.dlq");
+    public Binding contractSagaListenerDlqBinding() {
+        return BindingBuilder.bind(contractSagaListenerDlq())
+                .to(contractDeadLetterExchange())
+                .with(CONTRACT_SAGA_LISTENER_DLQ);
     }
 
     @Bean
-    public Queue sagaListenerUserQueue() {
-        return QueueBuilder.durable("contract.saga-listener.user")
-                .withArgument("x-dead-letter-exchange", "contract.dlx")
-                .withArgument("x-dead-letter-routing-key", "contract.saga-listener.user.dlq")
-                .build();
+    public Binding proposalAcceptedBinding() {
+        return BindingBuilder.bind(contractSagaListenerQueue())
+                .to(proposalEventsExchange())
+                .with(SagaTopics.PROPOSAL_ACCEPTED);
     }
 
     @Bean
-    public Queue sagaListenerUserDlq() {
-        return QueueBuilder.durable("contract.saga-listener.user.dlq").build();
+    public Binding proposalCompletedBinding() {
+        return BindingBuilder.bind(contractSagaListenerQueue())
+                .to(proposalEventsExchange())
+                .with(SagaTopics.PROPOSAL_COMPLETED);
     }
 
     @Bean
-    public Binding dlqUserBinding() {
-        return BindingBuilder.bind(sagaListenerUserDlq())
-                .to(dlxExchange())
-                .with("contract.saga-listener.user.dlq");
+    public Binding proposalCancelledBinding() {
+        return BindingBuilder.bind(contractSagaListenerQueue())
+                .to(proposalEventsExchange())
+                .with(SagaTopics.PROPOSAL_CANCELLED);
+    }
+
+    @Bean
+    public Binding userDeactivatedBinding() {
+        return BindingBuilder.bind(contractSagaListenerQueue())
+                .to(userEventsExchange())
+                .with(SagaTopics.USER_DEACTIVATED);
     }
 }

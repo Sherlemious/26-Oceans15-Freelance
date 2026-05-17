@@ -4,11 +4,14 @@ import com.team26.freelance.user.dto.RegisterResponseDTO;
 import com.team26.freelance.user.dto.LoginResponseDTO;
 import com.team26.freelance.user.dto.LoginRequestDTO;
 import com.team26.freelance.user.dto.RegisterRequestDTO;
+import com.team26.freelance.user.logging.MdcUserScope;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,8 @@ import java.util.Map;
 
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     private final UserRepository userRepository;
     private final AuthEventSubject authEventSubject;
@@ -59,7 +64,10 @@ public class AuthService {
         user.setStatus(Status.ACTIVE);
         User savedUser = userRepository.save(user);
 
-        logAuthEvent(savedUser.getId(), "REGISTERED", Map.of("email", savedUser.getEmail()));
+        try (MdcUserScope ignored = MdcUserScope.put(savedUser.getId())) {
+            log.info("User {} registered", savedUser.getId());
+            logAuthEvent(savedUser.getId(), "REGISTERED", Map.of("email", savedUser.getEmail()));
+        }
 
         String token = jwtService.generateToken(savedUser);
 
@@ -78,7 +86,10 @@ public class AuthService {
                     HttpStatus.UNAUTHORIZED,
                     "Invalid credentials");
         }
-        logAuthEvent(user.getId(), "LOGGED_IN", Map.of("email", user.getEmail()));
+        try (MdcUserScope ignored = MdcUserScope.put(user.getId())) {
+            log.info("User {} logged in", user.getId());
+            logAuthEvent(user.getId(), "LOGGED_IN", Map.of("email", user.getEmail()));
+        }
 
         String token = jwtService.generateToken(user);
         return new LoginResponseDTO(token, user.getId(), user.getRole());
