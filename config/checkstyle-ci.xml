@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!--
+  Minimal CI ruleset: fast feedback without full Google/Sun style enforcement.
+  Tighten over time (e.g. import checks, Javadoc) as the codebase converges.
+-->
+<module name="Checker">
+  <property name="charset" value="UTF-8"/>
+  <property name="severity" value="error"/>
+  <module name="TreeWalker">
+    <module name="EmptyStatement"/>
+    <module name="SimplifyBooleanExpression"/>
+    <module name="StringLiteralEquality"/>
+    <module name="ModifiedControlVariable"/>
+    <module name="NestedForDepth">
+      <property name="max" value="3"/>
+    </module>
+  </module>
+</module>

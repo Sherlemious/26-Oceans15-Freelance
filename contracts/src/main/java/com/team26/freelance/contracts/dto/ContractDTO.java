@@ -1,6 +1,7 @@
 package com.team26.freelance.contracts.dto;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 public class ContractDTO {
     private Long id;
@@ -12,6 +13,8 @@ public class ContractDTO {
     private String status;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
+    private Map<String, Object> metadata;
+    private LocalDateTime createdAt;
 
     public ContractDTO() {
     }
@@ -34,6 +37,30 @@ public class ContractDTO {
         this.status = status;
         this.startDate = startDate;
         this.endDate = endDate;
+    }
+
+    public ContractDTO(Long id,
+                       Long jobId,
+                       Long freelancerId,
+                       Long clientId,
+                       Long proposalId,
+                       Double agreedAmount,
+                       String status,
+                       LocalDateTime startDate,
+                       LocalDateTime endDate,
+                       Map<String, Object> metadata,
+                       LocalDateTime createdAt) {
+        this.id = id;
+        this.jobId = jobId;
+        this.freelancerId = freelancerId;
+        this.clientId = clientId;
+        this.proposalId = proposalId;
+        this.agreedAmount = agreedAmount;
+        this.status = status;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.metadata = metadata;
+        this.createdAt = createdAt;
     }
 
     public Long getId() {
@@ -106,5 +133,21 @@ public class ContractDTO {
 
     public void setEndDate(LocalDateTime endDate) {
         this.endDate = endDate;
+    }
+
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
+
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

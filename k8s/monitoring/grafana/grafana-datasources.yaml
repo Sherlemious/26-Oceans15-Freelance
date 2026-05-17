@@ -3,19 +3,28 @@ kind: ConfigMap
 metadata:
   name: grafana-datasources
   namespace: monitoring
+  labels:
+    app: grafana
 data:
   datasources.yaml: |
     apiVersion: 1
     datasources:
-      - name: Loki
-        uid: loki
-        type: loki
-        access: proxy
-        url: http://loki.monitoring.svc.cluster.local:3100
-        isDefault: false
       - name: Prometheus
         uid: prometheus
         type: prometheus
-        access: proxy
         url: http://prometheus.monitoring.svc.cluster.local:9090
+        access: proxy
         isDefault: true
+        editable: false
+        jsonData:
+          timeInterval: "15s"
+
+      - name: Loki
+        uid: loki
+        type: loki
+        url: http://loki.monitoring.svc.cluster.local:3100
+        access: proxy
+        isDefault: false
+        editable: false
+        jsonData:
+          maxLines: 1000
