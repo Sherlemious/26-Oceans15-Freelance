@@ -22,12 +22,24 @@ spec:
           envFrom:
             - configMapRef:
                 name: job-service-configmap
+            - secretRef:
+                name: job-postgres-secret
           env:
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: jwt-secret
                   key: jwt-secret
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: job-postgres-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: job-postgres-secret
+                  key: POSTGRES_PASSWORD
             - name: SPRING_PROFILES_ACTIVE
               value: "k8s"
           readinessProbe:
@@ -53,4 +65,3 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
-
