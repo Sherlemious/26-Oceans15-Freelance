@@ -5,8 +5,6 @@ metadata:
   namespace: freelance
 data:
   SPRING_DATASOURCE_URL: jdbc:postgresql://job-postgres:5432/freelancedb-jobs
-  SPRING_DATASOURCE_USERNAME: jobuser
-  SPRING_DATASOURCE_PASSWORD: jobpass123
   SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/freelancedb
   SPRING_REDIS_HOST: redis
   SPRING_REDIS_PORT: "6379"
@@ -18,4 +16,4 @@ data:
   FEIGN_CONTRACT_SERVICE_URL: http://contract-service:8080
   FEIGN_PROPOSAL_SERVICE_URL: http://proposal-service:8080
   SERVER_PORT: "8080"
-
+  LOKI_URL: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push

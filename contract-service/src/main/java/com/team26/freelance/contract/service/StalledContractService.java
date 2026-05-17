@@ -3,6 +3,8 @@ package com.team26.freelance.contract.service;
 import com.team26.freelance.contract.dto.StalledContractDTO;
 import com.team26.freelance.contract.model.Contract;
 import com.team26.freelance.contract.repository.ContractRepository;
+import com.team26.freelance.contracts.dto.JobDTO;
+import com.team26.freelance.contracts.dto.UserDTO;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,6 +17,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -39,21 +45,38 @@ public class StalledContractService {
         long startedAt = System.nanoTime();
         List<Contract> contracts = contractRepository.findStalledContractCandidates(maxProgress, stalledDays);
         List<StalledContractDTO> dtos = new ArrayList<>();
-        Map<Long, String> freelancerNames = new HashMap<>();
-        Map<Long, String> jobTitles = new HashMap<>();
+
+        Set<Long> freelancerIds = contracts.stream().map(Contract::getFreelancerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> jobIds = contracts.stream().map(Contract::getJobId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, String> freelancerNames = new ConcurrentHashMap<>();
+        Map<Long, String> jobTitles = new ConcurrentHashMap<>();
+
+        freelancerIds.parallelStream().forEach(id -> {
+            try {
+                UserDTO user = contractReadClientService.getUser(id);
+                freelancerNames.put(id, user != null && user.getName() != null ? user.getName() : "Unknown User");
+            } catch (Exception e) {
+                freelancerNames.put(id, "Unknown User");
+            }
+        });
+
+        jobIds.parallelStream().forEach(id -> {
+            try {
+                JobDTO job = contractReadClientService.getJob(id);
+                jobTitles.put(id, job != null && job.getTitle() != null ? job.getTitle() : "Unknown Job");
+            } catch (Exception e) {
+                jobTitles.put(id, "Unknown Job");
+            }
+        });
 
         try {
             for (Contract contract : contracts) {
                 putMdc("contractId", contract.getId());
                 putMdc("userId", contract.getFreelancerId());
                 putMdc("jobId", contract.getJobId());
-                String freelancerName = freelancerNames.computeIfAbsent(
-                        contract.getFreelancerId(),
-                        freelancerId -> contractReadClientService.getUser(freelancerId).getName());
-                String jobTitle = jobTitles.computeIfAbsent(
-                        contract.getJobId(),
-                        jobId -> contractReadClientService.getJob(jobId).getTitle());
-
+                String freelancerName = freelancerNames.getOrDefault(contract.getFreelancerId(), "Unknown User");
+                String jobTitle = jobTitles.getOrDefault(contract.getJobId(), "Unknown Job");
                 dtos.add(new StalledContractDTO(
                         contract.getId(),
                         freelancerName,
