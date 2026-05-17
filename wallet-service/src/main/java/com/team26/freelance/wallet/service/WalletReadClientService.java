@@ -1,11 +1,11 @@
 package com.team26.freelance.wallet.service;
 
-import com.team26.freelance.wallet.client.ContractServiceClient;
-import com.team26.freelance.wallet.client.JobServiceClient;
-import com.team26.freelance.wallet.client.UserServiceClient;
-import com.team26.freelance.wallet.client.dto.ContractDTO;
-import com.team26.freelance.wallet.client.dto.JobDTO;
-import com.team26.freelance.wallet.client.dto.UserDTO;
+import com.team26.freelance.contracts.feign.ContractServiceClient;
+import com.team26.freelance.contracts.feign.JobServiceClient;
+import com.team26.freelance.contracts.feign.UserServiceClient;
+import com.team26.freelance.contracts.dto.ContractDTO;
+import com.team26.freelance.contracts.dto.JobDTO;
+import com.team26.freelance.contracts.dto.UserDTO;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
