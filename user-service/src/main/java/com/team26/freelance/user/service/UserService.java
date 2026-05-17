@@ -1,6 +1,8 @@
 package com.team26.freelance.user.service;
 
 import com.team26.freelance.contracts.dto.UserDTO;
+import com.team26.freelance.contracts.feign.ContractServiceClient;
+import com.team26.freelance.contracts.feign.WalletServiceClient;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
 import com.team26.freelance.user.dto.UserContractSummaryDTO;
 import com.team26.freelance.user.dto.UserProfileDTO;
@@ -16,6 +18,7 @@ import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
 
+import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +28,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,15 +59,21 @@ public class UserService {
     private final UserSkillRepository userSkillRepository;
     private final AuthEventSubject authEventSubject;
     private final UserCacheEvictionService userCacheEvictionService;
+    private final WalletServiceClient walletServiceClient;
+    private final ContractServiceClient contractServiceClient;
 
     public UserService(UserRepository userRepository,
                        UserSkillRepository userSkillRepository,
                        AuthEventSubject authEventSubject,
-                       UserCacheEvictionService userCacheEvictionService) {
+                       UserCacheEvictionService userCacheEvictionService,
+                       WalletServiceClient walletServiceClient,
+                       ContractServiceClient contractServiceClient) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.authEventSubject = authEventSubject;
         this.userCacheEvictionService = userCacheEvictionService;
+        this.walletServiceClient = walletServiceClient;
+        this.contractServiceClient = contractServiceClient;
     }
 
     public UserResponseDTO create(User user) {
@@ -229,9 +240,96 @@ public class UserService {
     public List<TopFreelancerDTO> getTopFreelancers(LocalDate startDate, LocalDate endDate, int limit) {
         if (startDate.isAfter(endDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "startDate must be before endDate");
+                    "startDate must be before or equal to endDate");
         }
-        throw feignRequired("Top freelancer reports require wallet-service and contract-service Feign reads");
+        if (limit <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "limit must be > 0");
+        }
+
+        long startedAt = System.nanoTime();
+        try {
+            String startDateParam = startDate.toString();
+            String endDateParam = endDate.toString();
+
+            return userRepository.findAll().stream()
+                    .filter(user -> user.getRole() == Role.FREELANCER)
+                    .map(freelancer -> topFreelancer(freelancer, startDateParam, endDateParam))
+                    .sorted(Comparator
+                            .comparing(TopFreelancerDTO::getTotalEarnings,
+                                    Comparator.nullsFirst(Comparator.naturalOrder()))
+                            .reversed()
+                            .thenComparing(TopFreelancerDTO::getUserId))
+                    .limit(limit)
+                    .collect(Collectors.toList());
+        } finally {
+            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+            if (elapsedMs > 1000) {
+                log.warn("Slow S1-F6 top-freelancers report took {}ms for startDate={} endDate={} limit={}",
+                        elapsedMs, startDate, endDate, limit);
+            }
+        }
+    }
+
+    private TopFreelancerDTO topFreelancer(User freelancer, String startDate, String endDate) {
+        Long freelancerId = freelancer.getId();
+        BigDecimal totalEarnings = getFreelancerPayoutTotal(freelancerId, startDate, endDate);
+        long contractCount = getCompletedContractCount(freelancerId);
+
+        return TopFreelancerDTO.builder()
+                .userId(freelancerId)
+                .name(freelancer.getName())
+                .totalEarnings(totalEarnings.doubleValue())
+                .contractCount(contractCount)
+                .build();
+    }
+
+    private BigDecimal getFreelancerPayoutTotal(Long freelancerId, String startDate, String endDate) {
+        log.info("Calling WalletServiceClient.getFreelancerPayoutTotal freelancerId={} startDate={} endDate={}",
+                freelancerId, startDate, endDate);
+        try {
+            BigDecimal total = walletServiceClient.getFreelancerPayoutTotal(freelancerId, startDate, endDate);
+            log.info("WalletServiceClient.getFreelancerPayoutTotal returned successfully for freelancerId={}",
+                    freelancerId);
+            return total == null ? BigDecimal.ZERO : total;
+        } catch (FeignException.NotFound ex) {
+            log.warn("WalletServiceClient.getFreelancerPayoutTotal returned 404 for freelancerId={}",
+                    freelancerId);
+            return BigDecimal.ZERO;
+        } catch (FeignException ex) {
+            log.warn("WalletServiceClient.getFreelancerPayoutTotal failed for freelancerId={} status={}",
+                    freelancerId, ex.status(), ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Wallet service temporarily unavailable", ex);
+        } catch (RuntimeException ex) {
+            log.warn("WalletServiceClient.getFreelancerPayoutTotal failed for freelancerId={}",
+                    freelancerId, ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Wallet service temporarily unavailable", ex);
+        }
+    }
+
+    private long getCompletedContractCount(Long freelancerId) {
+        log.info("Calling ContractServiceClient.getCompletedContractCountForUser userId={}", freelancerId);
+        try {
+            long count = contractServiceClient.getCompletedContractCountForUser(freelancerId);
+            log.info("ContractServiceClient.getCompletedContractCountForUser returned successfully for userId={}",
+                    freelancerId);
+            return count;
+        } catch (FeignException.NotFound ex) {
+            log.warn("ContractServiceClient.getCompletedContractCountForUser returned 404 for userId={}",
+                    freelancerId);
+            return 0L;
+        } catch (FeignException ex) {
+            log.warn("ContractServiceClient.getCompletedContractCountForUser failed for userId={} status={}",
+                    freelancerId, ex.status(), ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        } catch (RuntimeException ex) {
+            log.warn("ContractServiceClient.getCompletedContractCountForUser failed for userId={}",
+                    freelancerId, ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        }
     }
 
     @Cacheable(cacheNames = CacheConfig.S1_F9_CACHE,
