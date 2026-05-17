@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wallet-service-configmap
+  namespace: freelance
+data:
+  SPRING_DATASOURCE_URL: jdbc:postgresql://wallet-postgres:5432/freelancedb-wallet
+  SPRING_DATASOURCE_USERNAME: postgres
+  SPRING_DATASOURCE_PASSWORD: postgres
+  SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/freelancedb
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_DATA_REDIS_PASSWORD: redispass
+  SPRING_RABBITMQ_HOST: rabbitmq
+  SPRING_RABBITMQ_PORT: "5672"
+  SPRING_RABBITMQ_USERNAME: guest
+  SPRING_RABBITMQ_PASSWORD: guest
+  FEIGN_USER_SERVICE_URL: http://user-service:8080
+  FEIGN_CONTRACT_SERVICE_URL: http://contract-service:8080
+  FEIGN_JOB_SERVICE_URL: http://job-service:8080
+  SERVER_PORT: "8080"
