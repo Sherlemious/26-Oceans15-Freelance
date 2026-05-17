@@ -1,0 +1,37 @@
+{
+  "__requires": [
+    { "type": "datasource", "id": "loki",       "name": "Loki",       "version": "1.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Logs and metrics for the proposal-service — panels pending service owner implementation",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Dashboard Pending",
+      "datasource": null,
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "content": "## Proposal Service Dashboard\n\nThis dashboard is a provisioning placeholder.\n\nFinal LogQL and PromQL panels will be added by the **proposal-service** owner as part of their M3 slice work.",
+        "mode": "markdown"
+      },
+      "targets": []
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["proposal", "freelance"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Proposal Service",
+  "uid": "proposal-service",
+  "version": 1
+}
