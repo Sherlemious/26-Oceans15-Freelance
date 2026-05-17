@@ -1,0 +1,13 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: contract-service
+          uri: http://contract-service:8080
+          predicates:
+            - Path=/api/contracts/**
