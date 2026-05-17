@@ -11,12 +11,12 @@
   "panels": [
     {
       "datasource": {
-        "type": "loki",
-        "uid": "loki"
+        "type": "prometheus",
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "logs"
+          "unit": "reqps"
         },
         "overrides": []
       },
@@ -40,22 +40,22 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"ERROR\"}[1m]))",
-          "legendFormat": "errors/min",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"wallet-service\"}[5m]))",
+          "legendFormat": "requests/sec",
           "refId": "A"
         }
       ],
-      "title": "Wallet Error Rate",
+      "title": "Wallet HTTP Request Rate",
       "type": "timeseries"
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "loki"
+        "type": "prometheus",
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "logs"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -79,22 +79,22 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Slow \" [5m]))",
-          "legendFormat": "slow warnings",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"wallet-service\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"wallet-service\"}[5m]))",
+          "legendFormat": "5xx ratio",
           "refId": "A"
         }
       ],
-      "title": "Wallet Slow Operations",
+      "title": "Wallet HTTP 5xx Error Ratio",
       "type": "timeseries"
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "loki"
+        "type": "prometheus",
+        "uid": "prometheus"
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "logs"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -118,17 +118,17 @@
       },
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\"} |= \"returned successfully\" [5m]))",
-          "legendFormat": "feign success",
+          "expr": "sum(jvm_memory_used_bytes{job=\"wallet-service\",area=\"heap\"})",
+          "legendFormat": "heap used",
           "refId": "A"
         },
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Feign call to\" [5m]))",
-          "legendFormat": "feign failure",
+          "expr": "sum(jvm_memory_max_bytes{job=\"wallet-service\",area=\"heap\"})",
+          "legendFormat": "heap max",
           "refId": "B"
         }
       ],
-      "title": "Wallet Feign Call Outcomes",
+      "title": "Wallet JVM Heap Usage",
       "type": "timeseries"
     }
   ],
