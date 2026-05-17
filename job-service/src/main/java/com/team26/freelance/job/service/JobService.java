@@ -11,6 +11,7 @@ import com.team26.freelance.job.events.ProposalWithdrawnEvent;
 import com.team26.freelance.contracts.feign.ContractServiceClient;
 import com.team26.freelance.contracts.feign.ProposalServiceClient;
 import com.team26.freelance.contracts.dto.ContractDTO;
+import com.team26.freelance.contracts.dto.JobDTO;
 import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
 import com.team26.freelance.job.messaging.publishers.JobSagaPublisher;
 import com.team26.freelance.job.model.Job;
@@ -36,7 +37,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-public class JobService {
+public class    JobService {
 
     private final JobRepository jobRepository;
     private final JobSearchService jobSearchService;
@@ -102,6 +103,10 @@ public class JobService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Job not found"
                 ));
+    }
+
+    public JobDTO getJobAsDTO(Long jobId) {
+        return JobDTOMapper.toJobDTO(getJobById(jobId));
     }
 
     @Transactional
