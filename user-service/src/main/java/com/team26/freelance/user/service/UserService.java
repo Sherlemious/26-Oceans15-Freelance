@@ -11,12 +11,15 @@ import com.team26.freelance.user.dto.UserSkillResponseDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.config.CacheConfig;
 import com.team26.freelance.user.model.Role;
+import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.logging.MdcUserScope;
+import com.team26.freelance.user.messaging.publishers.UserEventPublisher;
 import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
+import com.team26.freelance.contracts.events.UserDeactivatedEvent;
 
 import feign.FeignException;
 import org.slf4j.Logger;
@@ -61,19 +64,22 @@ public class UserService {
     private final UserCacheEvictionService userCacheEvictionService;
     private final WalletServiceClient walletServiceClient;
     private final ContractServiceClient contractServiceClient;
+    private final UserEventPublisher userEventPublisher;
 
     public UserService(UserRepository userRepository,
                        UserSkillRepository userSkillRepository,
                        AuthEventSubject authEventSubject,
                        UserCacheEvictionService userCacheEvictionService,
                        WalletServiceClient walletServiceClient,
-                       ContractServiceClient contractServiceClient) {
+                       ContractServiceClient contractServiceClient,
+                       UserEventPublisher userEventPublisher) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.authEventSubject = authEventSubject;
         this.userCacheEvictionService = userCacheEvictionService;
         this.walletServiceClient = walletServiceClient;
         this.contractServiceClient = contractServiceClient;
+        this.userEventPublisher = userEventPublisher;
     }
 
     public UserResponseDTO create(User user) {
@@ -214,9 +220,26 @@ public class UserService {
     @Transactional
     public UserResponseDTO deactivate(Long id) {
         try (MdcUserScope ignored = MdcUserScope.put(id)) {
-            userRepository.findById(id)
+            User user = userRepository.findById(id)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-            throw feignRequired("User deactivation requires contract-service active contract checks");
+
+            int activeContracts = getActiveContractCount(user.getId());
+            if (activeContracts > 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "User has active contracts and cannot be deactivated");
+            }
+
+            if (user.getStatus() == Status.DEACTIVATED) {
+                return UserResponseDTO.fromUser(user);
+            }
+
+            user.setStatus(Status.DEACTIVATED);
+            User savedUser = userRepository.save(user);
+            log.info("User {} saved with status={}", savedUser.getId(), savedUser.getStatus());
+            recordUserEvent(savedUser, USER_DEACTIVATED, userDetails(savedUser));
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            userEventPublisher.publishUserDeactivated(new UserDeactivatedEvent(savedUser.getId()));
+            return UserResponseDTO.fromUser(savedUser);
         }
     }
 
@@ -327,6 +350,28 @@ public class UserService {
         } catch (RuntimeException ex) {
             log.warn("ContractServiceClient.getCompletedContractCountForUser failed for userId={}",
                     freelancerId, ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        }
+    }
+
+    private int getActiveContractCount(Long userId) {
+        log.info("Calling ContractServiceClient.getActiveContractCountForUser userId={}", userId);
+        try {
+            int count = contractServiceClient.getActiveContractCountForUser(userId);
+            log.info("ContractServiceClient.getActiveContractCountForUser returned successfully for userId={}",
+                    userId);
+            return count;
+        } catch (FeignException.NotFound ex) {
+            log.warn("ContractServiceClient.getActiveContractCountForUser returned 404 for userId={}", userId);
+            return 0;
+        } catch (FeignException ex) {
+            log.warn("ContractServiceClient.getActiveContractCountForUser failed for userId={} status={}",
+                    userId, ex.status(), ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        } catch (RuntimeException ex) {
+            log.warn("ContractServiceClient.getActiveContractCountForUser failed for userId={}", userId, ex);
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Contract service temporarily unavailable", ex);
         }
