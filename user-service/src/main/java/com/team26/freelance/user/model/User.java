@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,6 +46,12 @@ public class User {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> preferences = new HashMap<>();
 
+    @Column(nullable = false)
+    private Long completedContracts = 0L;
+
+    @Column(nullable = false, precision = 19, scale = 2)
+    private BigDecimal totalEarnings = BigDecimal.ZERO;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -75,6 +82,10 @@ public class User {
     public void setStatus(Status status) { this.status = status; }
     public Map<String, Object> getPreferences() { return preferences; }
     public void setPreferences(Map<String, Object> preferences) { this.preferences = preferences; }
+    public Long getCompletedContracts() { return completedContracts; }
+    public void setCompletedContracts(Long completedContracts) { this.completedContracts = completedContracts; }
+    public BigDecimal getTotalEarnings() { return totalEarnings; }
+    public void setTotalEarnings(BigDecimal totalEarnings) { this.totalEarnings = totalEarnings; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public List<UserSkill> getUserSkills() { return userSkills; }
