@@ -385,6 +385,21 @@ public class ContractService {
         }
     }
 
+    public ContractDTO getContractForProposalByStatus(Long proposalId, ContractStatus status) {
+        MDC.put("proposalId", proposalId.toString());
+        try {
+            Contract contract = contractRepository.findFirstByProposalIdAndStatusOrderByCreatedAtDesc(
+                            proposalId, status)
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Contract not found for proposal and status"));
+            MDC.put("contractId", contract.getId().toString());
+            return toContractDTO(contract);
+        } finally {
+            MDC.remove("contractId");
+            MDC.remove("proposalId");
+        }
+    }
+
     @Transactional
 public Contract createContract(Contract contract) {
     putMdc("jobId", contract.getJobId());
