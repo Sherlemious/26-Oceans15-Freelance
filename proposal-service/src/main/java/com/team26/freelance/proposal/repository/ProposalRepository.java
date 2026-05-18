@@ -163,4 +163,14 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         // Removed native SQL methods that queried other services' Postgres schemas.
         // Enrichment and existence checks must go through Feign clients to respect service boundaries.
 
+        @Query(value = "SELECT COUNT(id), " +
+                "SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END), " +
+                "AVG(bid_amount), MIN(bid_amount), MAX(bid_amount) " +
+                "FROM proposals WHERE job_id = :jobId " +
+                "AND submitted_at >= :start AND submitted_at <= :end", nativeQuery = true)
+        List<Object[]> getJobProposalSummaryAggregations(
+                @Param("jobId") Long jobId,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end);
+
 }
