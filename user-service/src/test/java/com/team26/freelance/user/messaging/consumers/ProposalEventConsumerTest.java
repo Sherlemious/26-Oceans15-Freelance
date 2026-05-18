@@ -69,6 +69,7 @@ class ProposalEventConsumerTest {
         assertNotNull(processedLog);
         assertEquals("acl192-corr-success", consumedLog.getMDCPropertyMap().get(CORRELATION_ID_KEY));
         assertEquals("acl192-corr-success", processedLog.getMDCPropertyMap().get(CORRELATION_ID_KEY));
+        assertTrue(processedLog.getFormattedMessage().contains("correlationId=acl192-corr-success"));
     }
 
     @Test
@@ -129,6 +130,8 @@ class ProposalEventConsumerTest {
         assertNotNull(failureLog);
         Map<String, String> mdcMap = failureLog.getMDCPropertyMap();
         assertEquals("acl192-corr-failure", mdcMap.get(CORRELATION_ID_KEY));
+        assertTrue(failureLog.getFormattedMessage().contains("DLQ"));
+        assertTrue(failureLog.getFormattedMessage().contains("correlationId=acl192-corr-failure"));
         assertNull(MDC.get(CORRELATION_ID_KEY));
     }
 
