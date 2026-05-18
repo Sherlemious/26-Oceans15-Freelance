@@ -135,17 +135,21 @@ curl -i "$BASE/actuator/health"
 
 Expected: HTTP `200`.
 
-Check service health endpoints through the gateway.
+Do not treat `/api/*/health` as a public check. On some builds, these endpoints are protected and return `401` without a bearer token.
+
+Use `GET /actuator/health` as the canonical unauthenticated smoke check.
+
+If you still want to check service health routes, call them with any valid token after login:
 
 ```bash
-curl -i "$BASE/api/users/health"
-curl -i "$BASE/api/jobs/health"
-curl -i "$BASE/api/proposals/health"
-curl -i "$BASE/api/contracts/health"
-curl -i "$BASE/api/payouts/health"
+curl -i "$BASE/api/users/health" -H "Authorization: Bearer $CLIENT_TOKEN"
+curl -i "$BASE/api/jobs/health" -H "Authorization: Bearer $CLIENT_TOKEN"
+curl -i "$BASE/api/proposals/health" -H "Authorization: Bearer $CLIENT_TOKEN"
+curl -i "$BASE/api/contracts/health" -H "Authorization: Bearer $CLIENT_TOKEN"
+curl -i "$BASE/api/payouts/health" -H "Authorization: Bearer $CLIENT_TOKEN"
 ```
 
-Expected: HTTP `200` for each health endpoint.
+Expected: HTTP `200` for each route when authenticated.
 
 Check RabbitMQ queues and consumers.
 
@@ -484,6 +488,16 @@ Repeat Phase 3 and Phase 4 to create a new `$JOB_ID`, `$PROPOSAL_ID`, `$CONTRACT
 
 Then run Phase 5 to complete work and create a `$PAYOUT_ID` in `PENDING` status.
 
+Fail-fast precondition check before calling simulated failure:
+
+```bash
+PAYOUT_STATUS=$(curl -sS -f "$BASE/api/payouts/$PAYOUT_ID" -H "Authorization: Bearer $FREELANCER_TOKEN" | jq -r '.status')
+printf 'precheck payoutId=%s payoutStatus=%s\n' "$PAYOUT_ID" "$PAYOUT_STATUS"
+test "$PAYOUT_STATUS" = "PENDING"
+```
+
+If this precheck is not `PENDING`, stop and start a fresh run. Do not reuse a contract whose payout is already `COMPLETED`, `FAILED`, or `REFUNDED`.
+
 Process payout with simulated gateway failure.
 
 ```bash
@@ -634,21 +648,37 @@ kubectl logs deployment/wallet-service -n freelance --since=30m
 
 ## Phase 10 - Database Source-Of-Truth Verification
 
-Use PostgreSQL to prove state persisted correctly. If the Postgres pod name differs, update the command after `kubectl get pods -n freelance`.
+This Kubernetes setup has one PostgreSQL StatefulSet per service, not a single `postgres-0` pod.
 
-List tables quickly.
+Use these pod names:
+
+- `proposal-postgres-0` for proposal rows.
+- `job-postgres-0` for job rows.
+- `contract-postgres-0` for contract rows.
+- `wallet-postgres-0` for payout rows.
+
+Quick check that all PostgreSQL pods exist:
 
 ```bash
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c '\dt'
+kubectl get pods -n freelance | grep 'postgres-0'
 ```
 
-For any run, verify proposal/job/contract/payout rows by ID.
+List tables in each DB using the pod's own env vars (`POSTGRES_USER`, `POSTGRES_DB`):
 
 ```bash
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c "select id, status, job_id, freelancer_id, contract_id from proposals where id = ${PROPOSAL_ID};"
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c "select id, status, client_id, title from jobs where id = ${JOB_ID};"
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c "select id, status, proposal_id, job_id, client_id, freelancer_id, agreed_amount from contracts where id = ${CONTRACT_ID};"
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c "select id, status, contract_id, freelancer_id, amount, transaction_details from payouts where contract_id = ${CONTRACT_ID};"
+kubectl exec -n freelance proposal-postgres-0 -- sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt"'
+kubectl exec -n freelance job-postgres-0 -- sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt"'
+kubectl exec -n freelance contract-postgres-0 -- sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt"'
+kubectl exec -n freelance wallet-postgres-0 -- sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt"'
+```
+
+For any run, verify proposal/job/contract/payout rows by ID from the correct DB pod:
+
+```bash
+kubectl exec -n freelance proposal-postgres-0 -- sh -lc "psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"select id, status, job_id, freelancer_id, contract_id from proposals where id = ${PROPOSAL_ID};\""
+kubectl exec -n freelance job-postgres-0 -- sh -lc "psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"select id, status, client_id, title from jobs where id = ${JOB_ID};\""
+kubectl exec -n freelance contract-postgres-0 -- sh -lc "psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"select id, status, proposal_id, job_id, client_id, freelancer_id, agreed_amount from contracts where id = ${CONTRACT_ID};\""
+kubectl exec -n freelance wallet-postgres-0 -- sh -lc "psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"select id, status, contract_id, freelancer_id, amount, transaction_details from payouts where contract_id = ${CONTRACT_ID};\""
 ```
 
 Expected database state must match API state. If API and DB disagree, suspect stale cache or wrong read path.
@@ -802,10 +832,10 @@ kubectl describe pod <bad-pod-name> -n freelance
 Source-of-truth rows:
 
 ```bash
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c "select * from proposals where id = ${PROPOSAL_ID};"
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c "select * from jobs where id = ${JOB_ID};"
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c "select * from contracts where id = ${CONTRACT_ID};"
-kubectl exec -n freelance postgres-0 -- psql -U postgres -d freelancedb -c "select * from payouts where contract_id = ${CONTRACT_ID};"
+kubectl exec -n freelance proposal-postgres-0 -- sh -lc "psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"select * from proposals where id = ${PROPOSAL_ID};\""
+kubectl exec -n freelance job-postgres-0 -- sh -lc "psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"select * from jobs where id = ${JOB_ID};\""
+kubectl exec -n freelance contract-postgres-0 -- sh -lc "psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"select * from contracts where id = ${CONTRACT_ID};\""
+kubectl exec -n freelance wallet-postgres-0 -- sh -lc "psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\" -c \"select * from payouts where contract_id = ${CONTRACT_ID};\""
 ```
 
 Common failure signatures and likely causes:
