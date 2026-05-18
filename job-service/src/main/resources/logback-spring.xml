@@ -8,14 +8,14 @@
         <http>
             <url>${lokiUrl}</url>
         </http>
-        <format>
-            <label>
-                <pattern>app=freelance,service=${appName},level=%level,env=k8s</pattern>
-            </label>
-            <message>
-                <pattern>{"timestamp":"%d{ISO8601}","level":"%level","service":"${appName}","thread":"%thread","logger":"%logger{36}","correlationId":"%X{correlationId:-}","jobId":"%X{jobId:-}","proposalId":"%X{proposalId:-}","routingKey":"%X{routingKey:-}","message":"%msg"}</pattern>
-            </message>
-        </format>
+        <labels>
+            app=freelance
+            service=${appName}
+            level=%level
+            env=k8s
+        </labels>
+        <structuredMetadata>off</structuredMetadata>
+        <message class="com.team26.freelance.job.logging.JobServiceJsonLogLayout"/>
     </appender>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
