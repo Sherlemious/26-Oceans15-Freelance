@@ -29,9 +29,9 @@ spring:
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/freelancedb}
     redis:
-      host: ${SPRING_REDIS_HOST:localhost}
+      host: ${SPRING_REDIS_HOST:redis}
       port: ${SPRING_REDIS_PORT:6379}
-      password: ${SPRING_REDIS_PASSWORD:}
+      password: ${SPRING_REDIS_PASSWORD:redispass}
 
   elasticsearch:
     uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
@@ -93,3 +93,4 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+
