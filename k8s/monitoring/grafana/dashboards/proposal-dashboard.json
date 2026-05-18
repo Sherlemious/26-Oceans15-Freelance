@@ -4,7 +4,7 @@
     { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
   ],
   "annotations": { "list": [] },
-  "description": "Metrics and logs for proposal-service — HTTP requests, latency, and RabbitMQ throughput",
+  "description": "Metrics and logs for proposal-service — HTTP requests, latency, logs, and RabbitMQ throughput",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -12,11 +12,38 @@
   "links": [],
   "panels": [
     {
+      "title": "Error Rate (Loki)",
+      "type": "timeseries",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate({app=\"freelance\", service=\"proposal-service\", level=\"ERROR\"}[5m]))" }
+      ]
+    },
+    {
+      "title": "Saga State Transitions",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"routingKey\"" }
+      ]
+    },
+    {
+      "title": "Correlation ID Traces",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"correlationId\"" }
+      ]
+    },
+    {
       "id": 1,
       "type": "stat",
       "title": "HTTP Request Rate (req/sec)",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
       "targets": [
         {
           "expr": "rate(http_server_requests_seconds_count{job=\"proposal-service\"}[1m])",
@@ -45,7 +72,7 @@
       "type": "graph",
       "title": "HTTP Response Latency Percentiles",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
@@ -85,7 +112,7 @@
       "type": "graph",
       "title": "RabbitMQ Throughput",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
       "targets": [
         {
           "expr": "rate(rabbitmq_channel_messages_published_total{vhost=\"/\"}[1m])",
@@ -125,7 +152,7 @@
       "type": "logs",
       "title": "Saga State Transitions (proposalId MDC)",
       "datasource": "Loki",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
           "expr": "{job=\"proposal-service\"} | json | proposalId != \"\"",
@@ -145,7 +172,7 @@
       "type": "logs",
       "title": "RabbitMQ Consumer Errors (proposal.saga-feedback)",
       "datasource": "Loki",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "targets": [
         {
           "expr": "{job=\"proposal-service\"} |= \"SagaFeedbackConsumer\" |= \"error\"",
@@ -159,14 +186,13 @@
         "prettifyLogMessage": false,
         "enableLogDetails": true
       }
-    }
-    ,
+    },
     {
       "id": 6,
       "type": "stat",
       "title": "HTTP 5xx Rate (errors/sec)",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
       "targets": [
         {
           "expr": "rate(http_server_requests_seconds_count{job=\"proposal-service\",status=~\"5..\"}[1m])",
@@ -195,7 +221,7 @@
       "type": "stat",
       "title": "Service Up",
       "datasource": "Prometheus",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 16 },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 24 },
       "targets": [
         {
           "expr": "up{job=\"proposal-service\"}",
@@ -227,7 +253,7 @@
       "type": "graph",
       "title": "JVM Heap Memory Used",
       "datasource": "Prometheus",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "targets": [
         {
           "expr": "jvm_memory_used_bytes{job=\"proposal-service\",area=\"heap\"}",
@@ -262,5 +288,5 @@
   "timezone": "browser",
   "title": "Proposal Service",
   "uid": "proposal-service",
-  "version": 1
+  "version": 2
 }

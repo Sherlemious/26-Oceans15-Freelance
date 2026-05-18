@@ -1,310 +1,369 @@
 {
-  "annotations": {
-    "list": []
-  },
+  "__requires": [
+    { "type": "datasource", "id": "loki", "name": "Loki", "version": "1.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Contract-service observability — S4 read Feign enrichment, saga consumers, HTTP metrics, JVM and pool health.",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
     {
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 0
-      },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
       "id": 1,
+      "title": "Contract Error Rate",
+      "description": "ERROR-level log lines per minute (§11.3 panel 1).",
+      "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"ERROR\"}[1m]))",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\", level=\"ERROR\"}[1m]))",
           "legendFormat": "errors/min",
           "refId": "A"
         }
-      ],
-      "title": "Contract Error Rate",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 0
-      },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
       "id": 2,
+      "title": "S4 Feign Call Outcomes",
+      "description": "Successful user/job Feign reads vs degradation warnings (§11.3 panel 4).",
+      "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"UserServiceClient.getUser returned successfully\"[5m]))",
-          "legendFormat": "user read success",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} | json | message |= \"UserServiceClient.getUser returned successfully\"[5m]))",
+          "legendFormat": "user read ok",
           "refId": "A"
         },
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"JobServiceClient.getJob returned successfully\"[5m]))",
-          "legendFormat": "job read success",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} | json | message |= \"JobServiceClient.getJob returned successfully\"[5m]))",
+          "legendFormat": "job read ok",
           "refId": "B"
         },
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign call to\"[5m]))",
-          "legendFormat": "read feign failure",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\", level=\"WARN\"} | json | message |= \"Feign call to\"[5m]))",
+          "legendFormat": "feign failure",
           "refId": "C"
         }
-      ],
-      "title": "S4 Read Feign Outcomes",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 0
-      },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
       "id": 3,
+      "title": "Contract Saga Event Audit",
+      "description": "RabbitMQ publish/consume audit for contract saga (§11.3 panel 3).",
+      "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Slow \"[5m]))",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} | json | message |= \"Publishing contract\"[5m]))",
+          "legendFormat": "published",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} | json | message |= \"Received event on\"[5m]))",
+          "legendFormat": "consumed",
+          "refId": "B"
+        },
+        {
+          "expr": "sum by (routingKey) (count_over_time({app=\"freelance\", service=\"contract-service\"} | json | routingKey != \"\" [5m]))",
+          "legendFormat": "{{routingKey}}",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "id": 4,
+      "title": "S4 Slow Operations",
+      "description": "S4-F3 enrichment and other ops exceeding the slow threshold (§11.3 panel 6).",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\", level=\"WARN\"} | json | message |= \"Slow \"[5m]))",
           "legendFormat": "slow warnings",
           "refId": "A"
         }
-      ],
-      "title": "S4 Read Slow Operations",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 8
-      },
-      "id": 4,
-      "targets": [
-        {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"saved with status\"[5m]))",
-          "legendFormat": "contract writes",
-          "refId": "A"
-        },
-        {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"milestones/track\"[5m]))",
-          "legendFormat": "milestone track requests",
-          "refId": "B"
-        },
-        {
-          "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Failed to log contract event to MongoDB\"[5m]))",
-          "legendFormat": "event log failures",
-          "refId": "C"
-        }
-      ],
-      "title": "S4 Events And Milestones",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 8
-      },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
       "id": 5,
+      "title": "Correlation ID Trace",
+      "description": "Cross-request trace via X-Correlation-ID MDC (§11.3 panel 2).",
+      "type": "logs",
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
       "targets": [
         {
-          "expr": "sum by (uri, method) (rate(http_server_requests_seconds_count{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))",
-          "legendFormat": "{{method}} {{uri}}",
+          "expr": "{app=\"freelance\", service=\"contract-service\"} | json | correlationId=~\"${correlationId:pipe}\"",
           "refId": "A"
         }
-      ],
-      "title": "Contract HTTP Request Rate",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 8
-      },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
       "id": 6,
+      "title": "Contract Writes by proposalId",
+      "description": "DB saves and saga-side contract mutations filtered by proposalId MDC.",
+      "type": "logs",
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
-          "legendFormat": "P50 {{uri}}",
+          "expr": "{app=\"freelance\", service=\"contract-service\"} | json | proposalId != \"\" | message |= \"saved with status\"",
           "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
-          "legendFormat": "P95 {{uri}}",
-          "refId": "B"
-        },
-        {
-          "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
-          "legendFormat": "P99 {{uri}}",
-          "refId": "C"
         }
-      ],
-      "title": "Contract HTTP Latency",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        },
+        "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 16
-      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
       "id": 7,
+      "title": "HTTP Request Rate",
+      "description": "Requests per second per contract endpoint (§11.4 panel 1).",
+      "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(jvm_memory_used_bytes{job=\"contract-service\",area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"contract-service\",area=\"heap\"})",
-          "legendFormat": "heap used",
+          "expr": "sum by (uri, method, status) (rate(http_server_requests_seconds_count{job=\"contract-service\", uri=~\"/api/contracts.*\"}[5m]))",
+          "legendFormat": "{{method}} {{uri}} {{status}}",
           "refId": "A"
         }
-      ],
-      "title": "Contract JVM Heap Usage",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        },
+        "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 16
-      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
       "id": 8,
+      "title": "HTTP Latency Percentiles",
+      "description": "P50/P95/P99 latency for contract APIs — S4-F3 enrichment signal (§11.4 panel 2).",
+      "type": "timeseries",
       "targets": [
         {
-          "expr": "hikaricp_connections_active{job=\"contract-service\"}",
-          "legendFormat": "active",
+          "expr": "histogram_quantile(0.50, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"contract-service\", uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+          "legendFormat": "p50 {{method}} {{uri}}",
           "refId": "A"
         },
         {
-          "expr": "hikaricp_connections_max{job=\"contract-service\"}",
-          "legendFormat": "max",
+          "expr": "histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"contract-service\", uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+          "legendFormat": "p95 {{method}} {{uri}}",
           "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"contract-service\", uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+          "legendFormat": "p99 {{method}} {{uri}}",
+          "refId": "C"
         }
-      ],
-      "title": "Contract DB Connections",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 8
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 32 },
+      "id": 9,
+      "title": "JVM Heap Usage",
+      "description": "Heap pressure before OOM during saga fan-out (§11.4 panel 3).",
+      "type": "stat",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
       },
-      "id": 4,
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"contract-service\"}[5m])) by (le))",
-          "legendFormat": "p95 latency",
+          "expr": "sum(jvm_memory_used_bytes{job=\"contract-service\", area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"contract-service\", area=\"heap\"}) * 100",
+          "legendFormat": "heap %",
           "refId": "A"
         }
-      ],
-      "title": "Contract HTTP p95 Latency",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        },
+        "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 8
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 32 },
+      "id": 10,
+      "title": "Hikari Connection Pool Usage",
+      "description": "Active vs max DB connections during enrichment (§11.4 panel 4).",
+      "type": "stat",
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
       },
-      "id": 5,
       "targets": [
         {
-          "expr": "hikaricp_connections{application=\"contract-service\", pool=\"HikariPool-1\"}",
-          "legendFormat": "{{state}}",
+          "expr": "hikaricp_connections_active{job=\"contract-service\"} / hikaricp_connections_max{job=\"contract-service\"} * 100",
+          "legendFormat": "{{pool}}",
           "refId": "A"
         }
-      ],
-      "title": "Contract DB Connection Pool",
-      "type": "timeseries"
+      ]
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 8
-      },
-      "id": 6,
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 32 },
+      "id": 11,
+      "title": "Redis Cache Hit Ratio",
+      "description": "S4 cached GET effectiveness (§11.4 panel 5).",
+      "type": "timeseries",
       "targets": [
         {
-          "expr": "jvm_memory_used_bytes{application=\"contract-service\", area=\"heap\"}",
-          "legendFormat": "heap used",
+          "expr": "sum(rate(cache_gets_total{job=\"contract-service\", result=\"hit\"}[5m])) / (sum(rate(cache_gets_total{job=\"contract-service\", result=\"hit\"}[5m])) + sum(rate(cache_gets_total{job=\"contract-service\", result=\"miss\"}[5m])))",
+          "legendFormat": "hit ratio",
           "refId": "A"
         }
-      ],
-      "title": "Contract JVM Health",
-      "type": "timeseries"
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "id": 12,
+      "title": "RabbitMQ contract.saga-listener Throughput",
+      "description": "Consumer lag signal for contract saga queue (§11.4 panel 6).",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"contract.saga-listener\"}[5m])",
+          "legendFormat": "delivered/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(rabbitmq_queue_messages_published_total{queue=\"contract.saga-listener\"}[5m])",
+          "legendFormat": "published/s",
+          "refId": "B"
+        },
+        {
+          "expr": "rabbitmq_queue_messages{queue=\"contract.saga-listener\"}",
+          "legendFormat": "depth",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "id": 13,
+      "title": "HTTP 5xx Error Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"contract-service\", status=~\"5..\"}[5m]))",
+          "legendFormat": "5xx/s",
+          "refId": "A"
+        }
+      ]
     }
   ],
-  "refresh": "15s",
+  "refresh": "30s",
   "schemaVersion": 39,
-  "tags": [
-    "freelance",
-    "contract-service",
-    "m3"
-  ],
+  "tags": ["freelance", "contract-service", "m3", "observability"],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "correlationId",
+        "label": "Correlation ID",
+        "type": "textbox",
+        "current": { "value": ".*" },
+        "hide": 0,
+        "options": [],
+        "query": ".*"
+      }
+    ]
   },
-  "time": {
-    "from": "now-1h",
-    "to": "now"
-  },
+  "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
   "title": "Contract Service",
   "uid": "contract-service",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

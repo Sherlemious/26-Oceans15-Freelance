@@ -16,6 +16,6 @@ public interface ProposalServiceClient {
     @GetMapping("/api/proposals/job/{jobId}/summary")
     JobProposalSummaryDTO getJobProposalSummary(
             @PathVariable("jobId") Long jobId,
-            @RequestParam("startDate") String startDate,
-            @RequestParam("endDate") String endDate);
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate);
 }

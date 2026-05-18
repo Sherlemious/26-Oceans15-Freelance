@@ -1,4 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <springProperty scope="context" name="serviceName" source="spring.application.name" defaultValue="wallet-service"/>
+    <springProperty scope="context" name="lokiUrl" source="LOKI_URL" defaultValue="http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"/>
+
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{ISO8601} %-5level [%thread] %logger{36} - %msg%n</pattern>
@@ -7,35 +11,34 @@
 
     <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
         <http>
-            <url>http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push</url>
+            <url>${lokiUrl}</url>
+            <useProtobufApi>false</useProtobufApi>
         </http>
-        <format>
-            <label>
-                <pattern>app=freelance,service=wallet-service,level=%level,env=k8s</pattern>
-            </label>
-            <message>
-                <pattern>
-                    {
-                      "timestamp": "%d{ISO8601}",
-                      "level": "%level",
-                      "service": "wallet-service",
-                      "thread": "%thread",
-                      "logger": "%logger{36}",
-                      "correlationId": "%X{correlationId:-}",
-                      "payoutId": "%X{payoutId:-}",
-                      "contractId": "%X{contractId:-}",
-                      "proposalId": "%X{proposalId:-}",
-                      "userId": "%X{userId:-}",
-                      "routingKey": "%X{routingKey:-}",
-                      "message": "%msg"
-                    }
-                </pattern>
-            </message>
-        </format>
+        <batch>
+            <timeoutMs>1000</timeoutMs>
+        </batch>
+        <labels>
+            app=freelance
+            service=${serviceName}
+            level=%level
+            env=k8s
+        </labels>
+        <structuredMetadata>off</structuredMetadata>
+        <message>
+            <pattern>{"timestamp":"%d{ISO8601}","level":"%level","service":"${serviceName}","thread":"%thread","logger":"%logger{36}","correlationId":"%X{correlationId:-}","payoutId":"%X{payoutId:-}","contractId":"%X{contractId:-}","proposalId":"%X{proposalId:-}","userId":"%X{userId:-}","routingKey":"%X{routingKey:-}","message":"%replace(%msg){'\"','\\\"'}"}</pattern>
+        </message>
     </appender>
 
-    <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="LOKI"/>
-    </root>
+    <springProfile name="k8s">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="LOKI"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!k8s">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
 </configuration>

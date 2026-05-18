@@ -74,7 +74,6 @@ public class ProposalService {
     private final ProposalCacheEvictionService cacheEvictionService;
     private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
     private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
-
     @Value("${cache.ttl.analytics:600}")
     private long cacheTtlSeconds;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -540,26 +539,6 @@ public class ProposalService {
                 .build();
     }
 
-    public JobProposalSummaryDTO getJobProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
-        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate cannot be after endDate");
-        }
-
-        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
-        LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
-
-        List<Object[]> results = proposalRepository.getJobProposalSummaryAggregations(jobId, start, end);
-        Object[] row = results.isEmpty() ? new Object[5] : results.get(0);
-
-        long total = row[0] != null ? ((Number) row[0]).longValue() : 0L;
-        long accepted = row[1] != null ? ((Number) row[1]).longValue() : 0L;
-        BigDecimal avgBid = row[2] != null ? BigDecimal.valueOf(((Number) row[2]).doubleValue()) : BigDecimal.ZERO;
-        BigDecimal minBid = row[3] != null ? BigDecimal.valueOf(((Number) row[3]).doubleValue()) : BigDecimal.ZERO;
-        BigDecimal maxBid = row[4] != null ? BigDecimal.valueOf(((Number) row[4]).doubleValue()) : BigDecimal.ZERO;
-
-        return new JobProposalSummaryDTO(total, accepted, avgBid, minBid, maxBid);
-    }
-
     // ── S3-F10 ─────────────────────────────────────────────────────────────
 
     public ProposalAnalyticsDashboardDTO getProposalAnalyticsDashboard(
@@ -800,6 +779,74 @@ public class ProposalService {
         }).toList();
     }
 
+    // ── M3: Feign Client Try-Catch Wrappers ─────────────────────────────────
+
+    public UserDTO getUser(Long userId) {
+        try {
+            return userServiceClient.getUser(userId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch user " + userId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public JobDTO getJob(Long jobId) {
+        try {
+            return jobServiceClient.getJob(jobId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch job " + jobId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public ContractDTO getContract(Long contractId) {
+        try {
+            return contractServiceClient.getContract(contractId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch contract " + contractId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public ContractDTO getActiveContractForProposal(Long proposalId) {
+        try {
+            return contractServiceClient.getActiveContractForProposal(proposalId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch active contract for proposal " + proposalId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+// ── M3: Job Proposal Summary Endpoint Logic ─────────────────────────────
+
+    public com.team26.freelance.contracts.dto.JobProposalSummaryDTO getJobProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+
+        List<Object[]> results = proposalRepository.getJobProposalSummaryAggregations(jobId, start, end);
+
+        // Return zeros using the contracts DTO constructor
+        if (results == null || results.isEmpty() || results.get(0)[0] == null || ((Number) results.get(0)[0]).longValue() == 0) {
+            return new com.team26.freelance.contracts.dto.JobProposalSummaryDTO(
+                    0L, 0L, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
+        }
+
+        Object[] row = results.get(0);
+        long totalProposals = row[0] != null ? ((Number) row[0]).longValue() : 0L;
+        long acceptedProposals = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        double averageBid = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
+        double lowestBid = row[3] != null ? ((Number) row[3]).doubleValue() : 0.0;
+        double highestBid = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
+
+        // Return populated DTO, converting doubles to BigDecimals
+        return new com.team26.freelance.contracts.dto.JobProposalSummaryDTO(
+                totalProposals,
+                acceptedProposals,
+                java.math.BigDecimal.valueOf(averageBid),
+                java.math.BigDecimal.valueOf(lowestBid),
+                java.math.BigDecimal.valueOf(highestBid)
+        );
+    }
     /**
      * Saga abandonment reaper: detects proposals stuck in PAYMENT_PENDING beyond
      * saga.payout.abandon-after (default PT72H, configurable in application.yml).

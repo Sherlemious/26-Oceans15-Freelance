@@ -1,60 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <springProperty scope="context"
-                    name="lokiUrl"
-                    source="loki.url"
-                    defaultValue="http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"/>
+    <springProperty scope="context" name="serviceName" source="spring.application.name" defaultValue="job-service"/>
+    <springProperty scope="context" name="lokiUrl" source="LOKI_URL" defaultValue="http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"/>
 
-    <!-- Loki4J Appender for cloudnative logging -->
-    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
-        <http>
-            <url>${lokiUrl}</url>
-        </http>
-        <format>
-            <label>
-                <pattern>app=freelance,service=${spring.application.name},level=%level,env=k8s</pattern>
-            </label>
-            <message>
-                <pattern>
-                    {
-                      "timestamp": "%d{ISO8601}",
-                      "level": "%level",
-                      "service": "${spring.application.name}",
-                      "thread": "%thread",
-                      "logger": "%logger{36}",
-                      "correlationId": "%X{correlationId:-}",
-                      "jobId": "%X{jobId:-}",
-                      "proposalId": "%X{proposalId:-}",
-                      "routingKey": "%X{routingKey:-}",
-                      "message": "%msg"
-                    }
-                </pattern>
-            </message>
-        </format>
-    </appender>
-
-    <!-- Console appender for local development -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- Root logger: use Loki in production, console in development -->
+    <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
+        <http>
+            <url>${lokiUrl}</url>
+            <useProtobufApi>false</useProtobufApi>
+        </http>
+        <batch>
+            <timeoutMs>1000</timeoutMs>
+        </batch>
+        <labels>
+            app=freelance
+            service=${serviceName}
+            level=%level
+            env=k8s
+        </labels>
+        <structuredMetadata>off</structuredMetadata>
+        <message>
+            <pattern>{"timestamp":"%d{ISO8601}","level":"%level","service":"${serviceName}","thread":"%thread","logger":"%logger{36}","correlationId":"%X{correlationId:-}","jobId":"%X{jobId:-}","proposalId":"%X{proposalId:-}","routingKey":"%X{routingKey:-}","message":"%replace(%msg){'\"','\\\"'}"}</pattern>
+        </message>
+    </appender>
+
     <springProfile name="k8s">
         <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
             <appender-ref ref="LOKI"/>
         </root>
     </springProfile>
+
     <springProfile name="!k8s">
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
     </springProfile>
 
-    <!-- Specific loggers for debugging -->
     <logger name="com.team26.freelance.job.feign" level="DEBUG"/>
     <logger name="org.springframework.cloud.openfeign" level="DEBUG"/>
     <logger name="feign" level="DEBUG"/>
 </configuration>
-
