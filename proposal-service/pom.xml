@@ -24,11 +24,6 @@
         </dependency>
         <dependency>
             <groupId>com.team26.freelance</groupId>
-            <artifactId>contracts</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.team26.freelance</groupId>
             <artifactId>event-common</artifactId>
             <version>1.0.0</version>
         </dependency>
@@ -106,11 +101,6 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-            <version>4.1.0</version>
         </dependency>
     </dependencies>
     <build>
