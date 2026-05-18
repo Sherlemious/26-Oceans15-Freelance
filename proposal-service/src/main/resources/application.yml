@@ -51,6 +51,14 @@ cache:
     analytics: ${CACHE_TTL_DASHBOARD:600}
     activity: ${CACHE_TTL_ACTIVITY:120}
 
+feign:
+  user-service:
+    url: ${FEIGN_USER_SERVICE_URL:http://user-service:8080}
+  job-service:
+    url: ${FEIGN_JOB_SERVICE_URL:http://job-service:8080}
+  contract-service:
+    url: ${FEIGN_CONTRACT_SERVICE_URL:http://contract-service:8080}
+
 management:
   endpoints:
     web:
