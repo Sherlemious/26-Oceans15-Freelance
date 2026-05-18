@@ -16,9 +16,6 @@ import com.team26.freelance.proposal.dto.UpdateProposalDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDashboardDTO;
 import com.team26.freelance.proposal.dto.JobRecommendationDTO;
-import com.team26.freelance.proposal.feign.ContractServiceClient;
-import com.team26.freelance.proposal.feign.JobServiceClient;
-import com.team26.freelance.proposal.feign.UserServiceClient;
 import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
@@ -72,10 +69,6 @@ public class ProposalService {
     private final ProposalCacheEvictionService cacheEvictionService;
     private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
     private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
-    private final UserServiceClient userServiceClient;
-    private final JobServiceClient jobServiceClient;
-    private final ContractServiceClient contractServiceClient;
-
     @Value("${cache.ttl.analytics:600}")
     private long cacheTtlSeconds;
     private final RedisTemplate<String, Object> redisTemplate;
