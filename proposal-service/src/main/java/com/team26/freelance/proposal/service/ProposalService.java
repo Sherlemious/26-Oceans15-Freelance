@@ -833,6 +833,8 @@ public class ProposalService {
                 java.math.BigDecimal.valueOf(lowestBid),
                 java.math.BigDecimal.valueOf(highestBid)
         );
+    }
+
     /**
      * Saga abandonment reaper: detects proposals stuck in PAYMENT_PENDING beyond
      * saga.payout.abandon-after (default PT72H, configurable in application.yml).

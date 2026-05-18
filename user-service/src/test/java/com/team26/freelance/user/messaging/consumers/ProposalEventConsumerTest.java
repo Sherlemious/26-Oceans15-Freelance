@@ -12,12 +12,14 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team26.freelance.contracts.events.SagaTopics;
+import com.team26.freelance.user.service.UserProposalEventService;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.amqp.core.Message;
@@ -28,11 +30,13 @@ class ProposalEventConsumerTest {
     private static final String CORRELATION_ID_KEY = "correlationId";
 
     private ProposalEventConsumer consumer;
+    private UserProposalEventService userProposalEventService;
     private ListAppender<ILoggingEvent> logAppender;
 
     @BeforeEach
     void setUp() {
-        consumer = new ProposalEventConsumer(new ObjectMapper());
+        userProposalEventService = Mockito.mock(UserProposalEventService.class);
+        consumer = new ProposalEventConsumer(new ObjectMapper(), userProposalEventService);
 
         Logger logger = (Logger) LoggerFactory.getLogger(ProposalEventConsumer.class);
         logAppender = new ListAppender<>();
@@ -58,7 +62,7 @@ class ProposalEventConsumerTest {
 
         assertNull(MDC.get(CORRELATION_ID_KEY));
 
-        ILoggingEvent consumedLog = findLog("Consumed proposal event");
+        ILoggingEvent consumedLog = findLog("Consuming proposal event");
         ILoggingEvent processedLog = findLog("Processed proposal event");
 
         assertNotNull(consumedLog);
@@ -76,7 +80,7 @@ class ProposalEventConsumerTest {
 
         consumer.onProposalEvent(message);
 
-        ILoggingEvent consumedLog = findLog("Consumed proposal event");
+        ILoggingEvent consumedLog = findLog("Consuming proposal event");
         assertNotNull(consumedLog);
         String correlationId = consumedLog.getMDCPropertyMap().get(CORRELATION_ID_KEY);
         assertNotNull(correlationId);
@@ -99,7 +103,7 @@ class ProposalEventConsumerTest {
         consumer.onProposalEvent(second);
 
         List<ILoggingEvent> consumedLogs = logAppender.list.stream()
-                .filter(event -> event.getFormattedMessage().contains("Consumed proposal event"))
+                .filter(event -> event.getFormattedMessage().contains("Consuming proposal event"))
                 .toList();
 
         assertEquals(2, consumedLogs.size());
@@ -121,7 +125,7 @@ class ProposalEventConsumerTest {
 
         assertThrows(IllegalArgumentException.class, () -> consumer.onProposalEvent(message));
 
-        ILoggingEvent failureLog = findLog("Failed processing proposal event");
+        ILoggingEvent failureLog = findLog("Failed to process proposal event");
         assertNotNull(failureLog);
         Map<String, String> mdcMap = failureLog.getMDCPropertyMap();
         assertEquals("acl192-corr-failure", mdcMap.get(CORRELATION_ID_KEY));
