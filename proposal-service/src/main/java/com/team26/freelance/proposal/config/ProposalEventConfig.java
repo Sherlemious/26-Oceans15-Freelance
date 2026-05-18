@@ -19,8 +19,12 @@ import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -36,6 +40,18 @@ public class ProposalEventConfig {
     public static final String PROPOSAL_SAGA_FEEDBACK_DLQ = "proposal.saga-feedback.dlq";
     public static final String PROPOSAL_USER_SAGA_QUEUE = "proposal.user.saga-listener";
     public static final String PROPOSAL_USER_SAGA_DLQ = "proposal.user.saga-listener.dlq";
+
+    @Bean
+    public MessageConverter rabbitMessageConverter() {
+        return new Jackson2JsonMessageConverter();
+    }
+
+    @Bean
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(messageConverter);
+        return template;
+    }
 
     @Bean
     public TopicExchange proposalEventsExchange() {
