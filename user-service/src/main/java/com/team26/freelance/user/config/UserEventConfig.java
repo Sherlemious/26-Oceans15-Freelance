@@ -5,6 +5,8 @@ import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -75,5 +77,10 @@ public class UserEventConfig {
         return BindingBuilder.bind(userProposalSagaDeadLetterQueue)
                 .to(userDeadLetterExchange)
                 .with(USER_PROPOSAL_SAGA_DLQ);
+    }
+
+    @Bean
+    public MessageConverter rabbitMessageConverter() {
+        return new Jackson2JsonMessageConverter();
     }
 }
