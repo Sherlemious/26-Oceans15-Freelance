@@ -19,6 +19,8 @@ import com.team26.freelance.proposal.dto.JobRecommendationDTO;
 import com.team26.freelance.proposal.feign.ContractServiceClient;
 import com.team26.freelance.proposal.feign.JobServiceClient;
 import com.team26.freelance.proposal.feign.UserServiceClient;
+import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
+import com.team26.freelance.contracts.dto.ProposalDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
@@ -28,6 +30,9 @@ import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 import org.springframework.data.neo4j.core.Neo4jClient;
+import com.team26.freelance.contracts.dto.UserDTO;
+import com.team26.freelance.contracts.dto.JobDTO;
+import com.team26.freelance.contracts.dto.ContractDTO;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
@@ -50,6 +55,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Duration;
 import java.time.LocalTime;
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -122,6 +128,17 @@ public class ProposalService {
     public Proposal getProposalById(@NonNull Long id) {
         return proposalRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+    }
+
+    public ProposalDTO getProposalDtoById(@NonNull Long id) {
+        Proposal proposal = getProposalById(id);
+        return new ProposalDTO(
+                proposal.getId(),
+                proposal.getJobId(),
+                proposal.getFreelancerId(),
+                proposal.getStatus() != null ? proposal.getStatus().name() : null,
+                proposal.getBidAmount() != null ? BigDecimal.valueOf(proposal.getBidAmount()) : null,
+                proposal.getAcceptedAt());
     }
 
     public Proposal createProposal(CreateProposalDTO request) {
@@ -521,6 +538,26 @@ public class ProposalService {
                 .withAverageBid(averageBid)
                 .withAcceptanceRate(acceptanceRate)
                 .build();
+    }
+
+    public JobProposalSummaryDTO getJobProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate cannot be after endDate");
+        }
+
+        LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime end = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
+
+        List<Object[]> results = proposalRepository.getJobProposalSummaryAggregations(jobId, start, end);
+        Object[] row = results.isEmpty() ? new Object[5] : results.get(0);
+
+        long total = row[0] != null ? ((Number) row[0]).longValue() : 0L;
+        long accepted = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        BigDecimal avgBid = row[2] != null ? BigDecimal.valueOf(((Number) row[2]).doubleValue()) : BigDecimal.ZERO;
+        BigDecimal minBid = row[3] != null ? BigDecimal.valueOf(((Number) row[3]).doubleValue()) : BigDecimal.ZERO;
+        BigDecimal maxBid = row[4] != null ? BigDecimal.valueOf(((Number) row[4]).doubleValue()) : BigDecimal.ZERO;
+
+        return new JobProposalSummaryDTO(total, accepted, avgBid, minBid, maxBid);
     }
 
     // ── S3-F10 ─────────────────────────────────────────────────────────────

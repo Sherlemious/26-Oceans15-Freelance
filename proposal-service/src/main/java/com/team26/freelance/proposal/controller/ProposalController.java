@@ -8,6 +8,8 @@ import com.team26.freelance.proposal.dto.ProposalDetailsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDashboardDTO;
 import com.team26.freelance.proposal.dto.JobRecommendationDTO;
+import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
+import com.team26.freelance.contracts.dto.ProposalDTO;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.service.ProposalService;
@@ -96,7 +98,7 @@ public class ProposalController {
     @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN')")
     @GetMapping("/recommendations")
     public ResponseEntity<List<JobRecommendationDTO>> getRecommendations(
-            @RequestParam Long freelancerId,
+        @NonNull @RequestParam Long freelancerId,
             @RequestParam(required = false) Integer limit,
             Authentication authentication
     ) {
@@ -132,8 +134,8 @@ public class ProposalController {
 
     @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN') and @proposalAuthorization.canViewProposal(#id, authentication)")
     @GetMapping("/{id:\\d+}")
-    public ResponseEntity<Proposal> getProposalById(@NonNull @PathVariable Long id) {
-        return ResponseEntity.ok(proposalService.getProposalById(id));
+    public ResponseEntity<ProposalDTO> getProposalById(@NonNull @PathVariable Long id) {
+        return ResponseEntity.ok(proposalService.getProposalDtoById(id));
     }
 
     @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#id, authentication)")
@@ -183,8 +185,18 @@ public class ProposalController {
 
     @PreAuthorize("hasAnyRole('FREELANCER', 'ADMIN') and @proposalAuthorization.canModifyProposal(#proposalId, authentication)")
     @PostMapping("/{proposalId:\\d+}/record-interaction")
-    public ResponseEntity<Void> recordInteraction(@PathVariable Long proposalId) {
+    public ResponseEntity<Void> recordInteraction(@NonNull @PathVariable Long proposalId) {
         proposalService.recordInteraction(proposalId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+    // ── M3: Job Summary Read Endpoint ───────────────────────────────────────
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
+    @GetMapping("/job/{jobId}/summary")
+    public ResponseEntity<JobProposalSummaryDTO> getJobProposalSummary(
+            @PathVariable Long jobId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(proposalService.getJobProposalSummary(jobId, startDate, endDate));
     }
 }
