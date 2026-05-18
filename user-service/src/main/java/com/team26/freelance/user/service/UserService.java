@@ -1,6 +1,7 @@
 package com.team26.freelance.user.service;
 
 import com.team26.freelance.contracts.dto.UserDTO;
+import com.team26.freelance.contracts.events.UserDeactivatedEvent;
 import com.team26.freelance.contracts.feign.ContractServiceClient;
 import com.team26.freelance.contracts.feign.WalletServiceClient;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
@@ -10,7 +11,9 @@ import com.team26.freelance.user.dto.UserProfileSkillDTO;
 import com.team26.freelance.user.dto.UserSkillResponseDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.config.CacheConfig;
+import com.team26.freelance.user.messaging.publishers.UserEventPublisher;
 import com.team26.freelance.user.model.Role;
+import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.logging.MdcUserScope;
@@ -27,6 +30,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -61,19 +66,22 @@ public class UserService {
     private final UserCacheEvictionService userCacheEvictionService;
     private final WalletServiceClient walletServiceClient;
     private final ContractServiceClient contractServiceClient;
+    private final UserEventPublisher userEventPublisher;
 
     public UserService(UserRepository userRepository,
                        UserSkillRepository userSkillRepository,
                        AuthEventSubject authEventSubject,
                        UserCacheEvictionService userCacheEvictionService,
                        WalletServiceClient walletServiceClient,
-                       ContractServiceClient contractServiceClient) {
+                       ContractServiceClient contractServiceClient,
+                       UserEventPublisher userEventPublisher) {
         this.userRepository = userRepository;
         this.userSkillRepository = userSkillRepository;
         this.authEventSubject = authEventSubject;
         this.userCacheEvictionService = userCacheEvictionService;
         this.walletServiceClient = walletServiceClient;
         this.contractServiceClient = contractServiceClient;
+        this.userEventPublisher = userEventPublisher;
     }
 
     public UserResponseDTO create(User user) {
@@ -214,9 +222,31 @@ public class UserService {
     @Transactional
     public UserResponseDTO deactivate(Long id) {
         try (MdcUserScope ignored = MdcUserScope.put(id)) {
-            userRepository.findById(id)
+            User user = userRepository.findById(id)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-            throw feignRequired("User deactivation requires contract-service active contract checks");
+            int activeContracts = getActiveContractCount(id);
+            if (activeContracts > 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "User has active contracts and cannot be deactivated");
+            }
+
+            if (user.getStatus() == Status.DEACTIVATED) {
+                return UserResponseDTO.fromUser(user);
+            }
+
+            Status oldStatus = user.getStatus();
+            user.setStatus(Status.DEACTIVATED);
+            User savedUser = userRepository.save(user);
+
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("oldStatus", oldStatus == null ? null : oldStatus.name());
+            details.put("newStatus", Status.DEACTIVATED.name());
+
+            log.info("User {} saved with status={}", savedUser.getId(), savedUser.getStatus());
+            recordUserEvent(savedUser, USER_DEACTIVATED, details);
+            userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
+            publishUserDeactivatedAfterCommit(savedUser.getId());
+            return UserResponseDTO.fromUser(savedUser);
         }
     }
 
@@ -327,6 +357,28 @@ public class UserService {
         } catch (RuntimeException ex) {
             log.warn("ContractServiceClient.getCompletedContractCountForUser failed for userId={}",
                     freelancerId, ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        }
+    }
+
+    private int getActiveContractCount(Long userId) {
+        log.info("Calling ContractServiceClient.getActiveContractCountForUser userId={}", userId);
+        try {
+            int count = contractServiceClient.getActiveContractCountForUser(userId);
+            log.info("ContractServiceClient.getActiveContractCountForUser returned successfully for userId={}",
+                    userId);
+            return count;
+        } catch (FeignException.NotFound ex) {
+            log.warn("ContractServiceClient.getActiveContractCountForUser returned 404 for userId={}", userId);
+            return 0;
+        } catch (FeignException ex) {
+            log.warn("ContractServiceClient.getActiveContractCountForUser failed for userId={} status={}",
+                    userId, ex.status(), ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Contract service temporarily unavailable", ex);
+        } catch (RuntimeException ex) {
+            log.warn("ContractServiceClient.getActiveContractCountForUser failed for userId={}", userId, ex);
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Contract service temporarily unavailable", ex);
         }
@@ -525,6 +577,20 @@ public class UserService {
         payload.put("userId", userId);
         payload.put("details", details == null ? Map.of() : details);
         authEventSubject.notifyObservers(action, payload);
+    }
+
+    private void publishUserDeactivatedAfterCommit(Long userId) {
+        UserDeactivatedEvent event = new UserDeactivatedEvent(userId);
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    userEventPublisher.publishUserDeactivated(event);
+                }
+            });
+        } else {
+            userEventPublisher.publishUserDeactivated(event);
+        }
     }
 
     private Map<String, Object> userDetails(User user) {

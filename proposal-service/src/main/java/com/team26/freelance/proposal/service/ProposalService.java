@@ -25,6 +25,13 @@ import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 import org.springframework.data.neo4j.core.Neo4jClient;
+import com.team26.freelance.contracts.dto.UserDTO;
+import com.team26.freelance.contracts.dto.JobDTO;
+import com.team26.freelance.contracts.dto.ContractDTO;
+import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
+import com.team26.freelance.contracts.feign.ContractServiceClient;
+import com.team26.freelance.contracts.feign.JobServiceClient;
+import com.team26.freelance.contracts.feign.UserServiceClient;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
@@ -36,6 +43,12 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import feign.FeignException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,6 +63,8 @@ import java.util.Set;
 @Service
 public class ProposalService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ProposalService.class);
+
     private final Neo4jInteractionRepository neo4jInteractionRepository;
     private final ProposalEventSubject eventSubject;
     private final ProposalRepository proposalRepository;
@@ -57,7 +72,6 @@ public class ProposalService {
     private final ProposalCacheEvictionService cacheEvictionService;
     private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
     private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
-
     @Value("${cache.ttl.analytics:600}")
     private long cacheTtlSeconds;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -65,6 +79,10 @@ public class ProposalService {
     private final MongoDocumentAdapter mongoDocumentAdapter;
     private final Neo4jClient neo4jClient;
     private final Neo4jRecordAdapter neo4jRecordAdapter;
+    private final ProposalEventPublisher proposalEventPublisher;
+    private final UserServiceClient userServiceClient;
+    private final JobServiceClient jobServiceClient;
+    private final ContractServiceClient contractServiceClient;
 
     // MERGED CONSTRUCTOR
     public ProposalService(ProposalRepository proposalRepository,
@@ -76,7 +94,11 @@ public class ProposalService {
             ProposalEventSubject eventSubject,
             Neo4jInteractionRepository neo4jInteractionRepository,
             Neo4jClient neo4jClient,
-            Neo4jRecordAdapter neo4jRecordAdapter) {
+            Neo4jRecordAdapter neo4jRecordAdapter,
+            ProposalEventPublisher proposalEventPublisher,
+            UserServiceClient userServiceClient,
+            JobServiceClient jobServiceClient,
+            ContractServiceClient contractServiceClient) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
         this.cacheEvictionService = cacheEvictionService;
@@ -87,6 +109,10 @@ public class ProposalService {
         this.neo4jInteractionRepository = neo4jInteractionRepository;
         this.neo4jClient = neo4jClient;
         this.neo4jRecordAdapter = neo4jRecordAdapter;
+        this.proposalEventPublisher = proposalEventPublisher;
+        this.userServiceClient = userServiceClient;
+        this.jobServiceClient = jobServiceClient;
+        this.contractServiceClient = contractServiceClient;
     }
 
     // ── CRUD (Reads Cached, Writes Evict) ──────────────────────────────────
@@ -187,10 +213,17 @@ public class ProposalService {
     }
 
     private void validateFreelancer(Long freelancerId) {
-        String role = proposalRepository.findFreelancerRole(freelancerId);
-        if (role == null || !role.equalsIgnoreCase("FREELANCER")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Invalid freelancer ID or user is not a freelancer");
+        try {
+            var user = userServiceClient.getUser(freelancerId);
+            if (user == null || user.getRole() == null || !"FREELANCER".equalsIgnoreCase(user.getRole())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid freelancer ID or user is not a freelancer");
+            }
+        } catch (FeignException.NotFound nf) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid freelancer ID or user is not a freelancer");
+        } catch (Exception e) {
+            logger.warn("UserService unreachable while validating freelancerId={}", freelancerId, e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "User service unavailable");
         }
     }
 
@@ -207,13 +240,46 @@ public class ProposalService {
                     "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
         }
 
+        // Feign validation: Ensure freelancer has FREELANCER role
+        try {
+            var user = userServiceClient.getUser(proposal.getFreelancerId());
+            if (user == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
+            }
+            if (user.getRole() == null || !"FREELANCER".equalsIgnoreCase(user.getRole())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "User is not a freelancer");
+            }
+        } catch (feign.FeignException.NotFound nf) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.warn("Failed to validate freelancer role for freelancerId={}", proposal.getFreelancerId(), e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Unable to validate freelancer role");
+        }
+
+        MDC.put("proposalId", proposalId.toString());
+        ProposalStatus oldStatus = proposal.getStatus();
+        
         proposal.setStatus(ProposalStatus.ACCEPTED);
         proposal.setAcceptedAt(LocalDateTime.now());
-        proposalRepository.updateJobStatusToInProgress(proposal.getJobId());
-        proposalRepository.insertContractFromProposal(proposalId);
 
         Proposal saved = proposalRepository.save(proposal);
         cacheEvictionService.evictProposalCaches(saved.getId());
+        
+        logger.info("Proposal {} transitioning {} -> ACCEPTED", proposalId, oldStatus);
+
+        // Publish proposal.accepted event
+        proposalEventPublisher.publishProposalAccepted(
+            proposalId,
+            proposal.getJobId(),
+            proposal.getFreelancerId(),
+            java.math.BigDecimal.valueOf(proposal.getBidAmount())
+        );
+
+        MDC.remove("proposalId");
         return saved;
     }
 
@@ -249,20 +315,56 @@ public class ProposalService {
                     "Proposal status must be ACCEPTED to complete work");
         }
 
-        Long activeContractId = proposalRepository.findActiveContractIdByProposalId(proposalId);
-        if (activeContractId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No ACTIVE contract found for this proposal");
+        // Feign pre-checks
+        Long activeContractId = null;
+        try {
+            // Check job status is not CLOSED
+            var job = jobServiceClient.getJob(proposal.getJobId());
+            if (job != null && "CLOSED".equals(job.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Job is already closed");
+            }
+
+            // Check freelancer is ACTIVE
+            var user = userServiceClient.getUser(proposal.getFreelancerId());
+            if (user == null || !"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Freelancer is not active");
+            }
+
+            // Check active contract exists
+            var contract = contractServiceClient.getActiveContractForProposal(proposalId);
+            if (contract == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No active contract found for this proposal");
+            }
+            activeContractId = contract.getId();
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            logger.warn("Failed to validate pre-conditions for proposalId={}", proposalId, e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Unable to validate pre-conditions");
         }
 
-        proposalRepository.markContractAsCompleted(activeContractId);
-        proposalRepository.updateJobStatusToClosed(proposal.getJobId());
-        proposalRepository.insertPendingPayout(activeContractId, proposal.getFreelancerId(), proposal.getBidAmount());
+        MDC.put("proposalId", proposalId.toString());
+        ProposalStatus oldStatus = proposal.getStatus();
+        
+        // Set status to COMPLETING (saga trigger)
+        proposal.setStatus(ProposalStatus.COMPLETING);
 
         Proposal saved = proposalRepository.save(proposal);
         cacheEvictionService.evictProposalCaches(saved.getId());
+        
+        logger.info("Proposal {} transitioning {} -> COMPLETING (saga trigger)", proposalId, oldStatus);
 
-        eventSubject.notifyObservers("PROPOSAL_COMPLETED", saved);
+        // Publish proposal.completed event (saga trigger)
+        proposalEventPublisher.publishProposalCompleted(
+            proposalId,
+            proposal.getJobId(),
+            proposal.getFreelancerId(),
+            activeContractId,
+            java.math.BigDecimal.valueOf(proposal.getBidAmount())
+        );
 
+        MDC.remove("proposalId");
         return saved;
     }
 
@@ -276,17 +378,24 @@ public class ProposalService {
                     "Only SUBMITTED or SHORTLISTED proposals can be withdrawn");
         }
 
+        MDC.put("proposalId", proposalId.toString());
+        ProposalStatus oldStatus = proposal.getStatus();
+        
         proposal.setStatus(ProposalStatus.WITHDRAWN);
-
-        if (proposal.getJobId() != null) {
-            int activeProposals = proposalRepository.countActiveProposals(proposal.getJobId());
-            if (activeProposals == 0) {
-                proposalRepository.reopenJob(proposal.getJobId());
-            }
-        }
 
         Proposal saved = proposalRepository.save(proposal);
         cacheEvictionService.evictProposalCaches(saved.getId());
+        
+        logger.info("Proposal {} transitioning {} -> WITHDRAWN", proposalId, oldStatus);
+
+        // Publish proposal.withdrawn event
+        proposalEventPublisher.publishProposalWithdrawn(
+            proposalId,
+            proposal.getJobId(),
+            proposal.getFreelancerId()
+        );
+
+        MDC.remove("proposalId");
         return saved;
     }
 
@@ -551,18 +660,28 @@ public class ProposalService {
             return;
         }
 
-        // c) Fetch missing data natively from Postgres
-        String freelancerName = proposalRepository.findFreelancerNameByIdNative(proposal.getFreelancerId());
-        if (freelancerName == null)
-            freelancerName = "Unknown Freelancer";
-
-        List<Object[]> jobDetailsList = proposalRepository.findJobDetailsByIdNative(proposal.getJobId());
+        // c) Fetch missing data via Feign clients
+        String freelancerName = "Unknown Freelancer";
         String jobTitle = "Unknown Job";
         String jobCategory = "OTHER";
-        if (jobDetailsList != null && !jobDetailsList.isEmpty()) {
-            Object[] jobDetails = jobDetailsList.get(0);
-            jobTitle = jobDetails[0] != null ? jobDetails[0].toString() : "Unknown Job";
-            jobCategory = jobDetails[1] != null ? jobDetails[1].toString() : "OTHER";
+
+        try {
+            var user = userServiceClient.getUser(proposal.getFreelancerId());
+            if (user != null) {
+                freelancerName = user.getName();
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to fetch freelancer details via Feign for proposalId={}", proposalId, e);
+        }
+
+        try {
+            var job = jobServiceClient.getJob(proposal.getJobId());
+            if (job != null) {
+                jobTitle = job.getTitle();
+                jobCategory = job.getCategory();
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to fetch job details via Feign for proposalId={}", proposalId, e);
         }
 
         // d) Mutate Neo4j Graph
@@ -589,8 +708,14 @@ public class ProposalService {
 
     @Cacheable(value = "proposal-service::S3-F12", key = "#freelancerId + '-' + #limit")
     public List<JobRecommendationDTO> getRecommendedJobsForFreelancer(@NonNull Long freelancerId, int limit) {
-        if (!proposalRepository.existsUserByIdNative(freelancerId)) {
+        // Verify freelancer exists via UserService Feign client (avoid direct DB access)
+        try {
+            userServiceClient.getUser(freelancerId);
+        } catch (FeignException.NotFound nf) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
+        } catch (Exception e) {
+            logger.warn("UserService unreachable while verifying freelancerId={}", freelancerId, e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "User service unavailable");
         }
 
         // Traverse recommendation graph in Neo4j (DP-7 Adapter maps Record -> DTO)
@@ -622,21 +747,144 @@ public class ProposalService {
             return List.of();
         }
 
-        // Enrich with job details from PostgreSQL (title, category) using a single
-        // batch query
-        List<Long> jobIds = rawRecommendations.stream().map(JobRecommendationDTO::getJobId).toList();
-        Map<Long, Object[]> jobDetailsMap = new java.util.HashMap<>();
-        if (!jobIds.isEmpty()) {
-            proposalRepository.findJobDetailsByIdsNative(jobIds)
-                    .forEach(row -> jobDetailsMap.put(((Number) row[0]).longValue(), row));
-        }
-
+        // Enrich with job details via Feign client
         return rawRecommendations.stream().map(rec -> {
-            Object[] details = jobDetailsMap.get(rec.getJobId());
-            String jobTitle = (details != null && details[1] != null) ? details[1].toString() : "Unknown Job";
-            String jobCategory = (details != null && details[2] != null) ? details[2].toString() : "OTHER";
+            String jobTitle = "Unknown Job";
+            String jobCategory = "OTHER";
+            
+            try {
+                var job = jobServiceClient.getJob(rec.getJobId());
+                if (job != null) {
+                    jobTitle = job.getTitle();
+                    jobCategory = job.getCategory();
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to fetch job details via Feign for jobId={}", rec.getJobId(), e);
+            }
+            
             return new JobRecommendationDTO(rec.getJobId(), jobTitle, jobCategory, rec.getScore());
         }).toList();
+    }
+
+    // ── M3: Feign Client Try-Catch Wrappers ─────────────────────────────────
+
+    public UserDTO getUser(Long userId) {
+        try {
+            return userServiceClient.getUser(userId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch user " + userId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public JobDTO getJob(Long jobId) {
+        try {
+            return jobServiceClient.getJob(jobId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch job " + jobId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public ContractDTO getContract(Long contractId) {
+        try {
+            return contractServiceClient.getContract(contractId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch contract " + contractId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public ContractDTO getActiveContractForProposal(Long proposalId) {
+        try {
+            return contractServiceClient.getActiveContractForProposal(proposalId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch active contract for proposal " + proposalId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+// ── M3: Job Proposal Summary Endpoint Logic ─────────────────────────────
+
+    public com.team26.freelance.contracts.dto.JobProposalSummaryDTO getJobProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+
+        List<Object[]> results = proposalRepository.getJobProposalSummaryAggregations(jobId, start, end);
+
+        // Return zeros using the contracts DTO constructor
+        if (results == null || results.isEmpty() || results.get(0)[0] == null || ((Number) results.get(0)[0]).longValue() == 0) {
+            return new com.team26.freelance.contracts.dto.JobProposalSummaryDTO(
+                    0L, 0L, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
+        }
+
+        Object[] row = results.get(0);
+        long totalProposals = row[0] != null ? ((Number) row[0]).longValue() : 0L;
+        long acceptedProposals = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        double averageBid = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
+        double lowestBid = row[3] != null ? ((Number) row[3]).doubleValue() : 0.0;
+        double highestBid = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
+
+        // Return populated DTO, converting doubles to BigDecimals
+        return new com.team26.freelance.contracts.dto.JobProposalSummaryDTO(
+                totalProposals,
+                acceptedProposals,
+                java.math.BigDecimal.valueOf(averageBid),
+                java.math.BigDecimal.valueOf(lowestBid),
+                java.math.BigDecimal.valueOf(highestBid)
+        );
+    }
+    /**
+     * Saga abandonment reaper: detects proposals stuck in PAYMENT_PENDING beyond
+     * saga.payout.abandon-after (default PT72H, configurable in application.yml).
+     * Publishes payment.failed compensation event with reason="payout_abandoned".
+     * 
+     * Runs every 15 minutes (@Scheduled).
+     */
+    @Scheduled(fixedDelayString = "PT15M")
+    @Transactional
+    public void reapAbandonedSagaPayouts() {
+        try {
+            logger.info("Saga abandonment reaper: checking for abandoned payouts...");
+            
+            String abandonAfterStr = System.getProperty("saga.payout.abandon-after", "PT72H");
+            Duration abandonAfter = Duration.parse(abandonAfterStr);
+            LocalDateTime abandonThreshold = LocalDateTime.now().minus(abandonAfter);
+            
+            // Find all proposals in PAYMENT_PENDING status submitted before abandonThreshold
+            List<Proposal> abandonedProposals = proposalRepository.findAll().stream()
+                .filter(p -> p.getStatus() == ProposalStatus.PAYMENT_PENDING)
+                .filter(p -> p.getSubmittedAt() != null && p.getSubmittedAt().isBefore(abandonThreshold))
+                .toList();
+            
+            for (Proposal proposal : abandonedProposals) {
+                MDC.put("proposalId", proposal.getId().toString());
+                logger.warn("Proposal {} stuck in PAYMENT_PENDING since {} (threshold: {}). Publishing compensation event.",
+                    proposal.getId(), proposal.getSubmittedAt(), abandonThreshold);
+                
+                try {
+                    // Publish payment.failed compensation event
+                    proposalEventPublisher.publishProposalCancelled(
+                        proposal.getId(),
+                        proposal.getJobId(),
+                        proposal.getFreelancerId(),
+                        "payout_abandoned"
+                    );
+                } catch (Exception e) {
+                    logger.error("Failed to publish compensation event for abandoned proposal {}", proposal.getId(), e);
+                }
+                
+                MDC.remove("proposalId");
+            }
+            
+            if (abandonedProposals.isEmpty()) {
+                logger.debug("No abandoned proposals detected");
+            } else {
+                logger.info("Saga abandonment reaper: {} proposals processed", abandonedProposals.size());
+            }
+        } catch (Exception e) {
+            logger.error("Error in saga abandonment reaper", e);
+        }
     }
 
 }
