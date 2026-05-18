@@ -65,14 +65,16 @@ public class ProposalEventConsumer {
                 default -> throw new IllegalArgumentException("Unsupported proposal routing key: " + routingKey);
             }
             log.info(
-                    "Processed proposal event routingKey={} proposalId={} userId={}",
+                    "Processed proposal event routingKey={} correlationId={} proposalId={} userId={}",
                     routingKey,
+                    MDC.get(CORRELATION_ID_HEADER),
                     MDC.get(PROPOSAL_ID_MDC),
                     MDC.get(USER_ID_MDC));
         } catch (Exception ex) {
             log.error(
-                    "Failed to process proposal event routingKey={} proposalId={} userId={} error={}",
+                    "Failed to process proposal event; message will be routed to DLQ routingKey={} correlationId={} proposalId={} userId={} error={}",
                     routingKey,
+                    MDC.get(CORRELATION_ID_HEADER),
                     MDC.get(PROPOSAL_ID_MDC),
                     MDC.get(USER_ID_MDC),
                     ex.getMessage(),
