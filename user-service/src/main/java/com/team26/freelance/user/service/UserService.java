@@ -1,6 +1,7 @@
 package com.team26.freelance.user.service;
 
 import com.team26.freelance.contracts.dto.UserDTO;
+import com.team26.freelance.contracts.events.UserDeactivatedEvent;
 import com.team26.freelance.contracts.feign.ContractServiceClient;
 import com.team26.freelance.contracts.feign.WalletServiceClient;
 import com.team26.freelance.user.dto.TopFreelancerDTO;
@@ -10,16 +11,15 @@ import com.team26.freelance.user.dto.UserProfileSkillDTO;
 import com.team26.freelance.user.dto.UserSkillResponseDTO;
 import com.team26.freelance.user.dto.UserResponseDTO;
 import com.team26.freelance.user.config.CacheConfig;
+import com.team26.freelance.user.messaging.publishers.UserEventPublisher;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.model.UserSkill;
 import com.team26.freelance.user.logging.MdcUserScope;
-import com.team26.freelance.user.messaging.publishers.UserEventPublisher;
 import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
 import com.team26.freelance.user.repository.UserSkillRepository;
-import com.team26.freelance.contracts.events.UserDeactivatedEvent;
 
 import feign.FeignException;
 import org.slf4j.Logger;
@@ -30,6 +30,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -222,8 +224,7 @@ public class UserService {
         try (MdcUserScope ignored = MdcUserScope.put(id)) {
             User user = userRepository.findById(id)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-            int activeContracts = getActiveContractCount(user.getId());
+            int activeContracts = getActiveContractCount(id);
             if (activeContracts > 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "User has active contracts and cannot be deactivated");
@@ -233,12 +234,18 @@ public class UserService {
                 return UserResponseDTO.fromUser(user);
             }
 
+            Status oldStatus = user.getStatus();
             user.setStatus(Status.DEACTIVATED);
             User savedUser = userRepository.save(user);
+
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("oldStatus", oldStatus == null ? null : oldStatus.name());
+            details.put("newStatus", Status.DEACTIVATED.name());
+
             log.info("User {} saved with status={}", savedUser.getId(), savedUser.getStatus());
-            recordUserEvent(savedUser, USER_DEACTIVATED, userDetails(savedUser));
+            recordUserEvent(savedUser, USER_DEACTIVATED, details);
             userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-            userEventPublisher.publishUserDeactivated(new UserDeactivatedEvent(savedUser.getId()));
+            publishUserDeactivatedAfterCommit(savedUser.getId());
             return UserResponseDTO.fromUser(savedUser);
         }
     }
@@ -570,6 +577,20 @@ public class UserService {
         payload.put("userId", userId);
         payload.put("details", details == null ? Map.of() : details);
         authEventSubject.notifyObservers(action, payload);
+    }
+
+    private void publishUserDeactivatedAfterCommit(Long userId) {
+        UserDeactivatedEvent event = new UserDeactivatedEvent(userId);
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    userEventPublisher.publishUserDeactivated(event);
+                }
+            });
+        } else {
+            userEventPublisher.publishUserDeactivated(event);
+        }
     }
 
     private Map<String, Object> userDetails(User user) {

@@ -83,4 +83,5 @@ public class UserEventConfig {
                 .to(userDeadLetterExchange)
                 .with(USER_PROPOSAL_SAGA_DLQ);
     }
+
 }
