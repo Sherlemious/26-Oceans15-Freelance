@@ -1,14 +1,11 @@
 package com.team26.freelance.job.config;
 
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -65,46 +62,51 @@ public class JobEventConfig {
 
     @Bean
     public Binding proposalAcceptedBinding(
-            @Qualifier("jobProposalSagaQueue") Queue jobProposalSagaQueue,
-            @Qualifier("proposalEventsExchange") TopicExchange proposalEventsExchange) {
-        return BindingBuilder.bind(jobProposalSagaQueue)
-                .to(proposalEventsExchange)
+            @Qualifier("jobProposalSagaQueue") Queue queue,
+            @Qualifier("proposalEventsExchange") TopicExchange exchange) {
+
+        return BindingBuilder.bind(queue)
+                .to(exchange)
                 .with(PROPOSAL_ACCEPTED_KEY);
     }
 
     @Bean
     public Binding proposalCompletedBinding(
-            @Qualifier("jobProposalSagaQueue") Queue jobProposalSagaQueue,
-            @Qualifier("proposalEventsExchange") TopicExchange proposalEventsExchange) {
-        return BindingBuilder.bind(jobProposalSagaQueue)
-                .to(proposalEventsExchange)
+            @Qualifier("jobProposalSagaQueue") Queue queue,
+            @Qualifier("proposalEventsExchange") TopicExchange exchange) {
+
+        return BindingBuilder.bind(queue)
+                .to(exchange)
                 .with(PROPOSAL_COMPLETED_KEY);
     }
 
     @Bean
     public Binding proposalCancelledBinding(
-            @Qualifier("jobProposalSagaQueue") Queue jobProposalSagaQueue,
-            @Qualifier("proposalEventsExchange") TopicExchange proposalEventsExchange) {
-        return BindingBuilder.bind(jobProposalSagaQueue)
-                .to(proposalEventsExchange)
+            @Qualifier("jobProposalSagaQueue") Queue queue,
+            @Qualifier("proposalEventsExchange") TopicExchange exchange) {
+
+        return BindingBuilder.bind(queue)
+                .to(exchange)
                 .with(PROPOSAL_CANCELLED_KEY);
     }
 
     @Bean
     public Binding proposalWithdrawnBinding(
-            @Qualifier("jobProposalSagaQueue") Queue jobProposalSagaQueue,
-            @Qualifier("proposalEventsExchange") TopicExchange proposalEventsExchange) {
-        return BindingBuilder.bind(jobProposalSagaQueue)
-                .to(proposalEventsExchange)
+            @Qualifier("jobProposalSagaQueue") Queue queue,
+            @Qualifier("proposalEventsExchange") TopicExchange exchange) {
+
+        return BindingBuilder.bind(queue)
+                .to(exchange)
                 .with(PROPOSAL_WITHDRAWN_KEY);
     }
 
     @Bean
     public Binding jobProposalSagaDeadLetterBinding(
-            @Qualifier("jobProposalSagaDeadLetterQueue") Queue jobProposalSagaDeadLetterQueue,
-            @Qualifier("jobDeadLetterExchange") TopicExchange jobDeadLetterExchange) {
-        return BindingBuilder.bind(jobProposalSagaDeadLetterQueue)
-                .to(jobDeadLetterExchange)
+            @Qualifier("jobProposalSagaDeadLetterQueue") Queue dlq,
+            @Qualifier("jobDeadLetterExchange") TopicExchange dlx) {
+
+        return BindingBuilder.bind(dlq)
+                .to(dlx)
                 .with(JOB_PROPOSAL_SAGA_DLQ);
     }
 
@@ -114,7 +116,10 @@ public class JobEventConfig {
     }
 
     @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter) {
+    public RabbitTemplate rabbitTemplate(
+            ConnectionFactory connectionFactory,
+            MessageConverter messageConverter) {
+
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(messageConverter);
         return template;
@@ -124,9 +129,13 @@ public class JobEventConfig {
     public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
             ConnectionFactory connectionFactory,
             MessageConverter messageConverter) {
+
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(messageConverter);
+        factory.setAcknowledgeMode(org.springframework.amqp.core.AcknowledgeMode.AUTO);
+        factory.setDefaultRequeueRejected(false);
+
         return factory;
     }
 }
