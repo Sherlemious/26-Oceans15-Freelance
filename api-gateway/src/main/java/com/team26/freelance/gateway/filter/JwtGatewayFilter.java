@@ -18,6 +18,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -28,6 +29,15 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
     private static final String USER_ID_HEADER = "X-User-Id";
     private static final String USER_ROLE_HEADER = "X-User-Role";
     private static final String CORRELATION_ID_HEADER = "X-Correlation-ID";
+    private static final Set<String> PUBLIC_PATHS = Set.of(
+            "/api/auth",
+            "/api/users/health",
+            "/api/jobs/health",
+            "/api/proposals/health",
+            "/api/contracts/health",
+            "/api/payouts/health",
+            "/actuator"
+    );
 
     private final SecretKey signingKey;
 
@@ -101,9 +111,8 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublicPath(String path) {
-        return "/api/auth".equals(path)
+        return PUBLIC_PATHS.contains(path)
                 || path.startsWith("/api/auth/")
-                || "/actuator".equals(path)
                 || path.startsWith("/actuator/");
     }
 
