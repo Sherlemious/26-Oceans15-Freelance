@@ -40,6 +40,11 @@ public class UserEventConfig {
     }
 
     @Bean
+    public MessageConverter rabbitMessageConverter() {
+        return new Jackson2JsonMessageConverter();
+    }
+
+    @Bean
     public Queue userProposalSagaQueue() {
         return QueueBuilder.durable(USER_PROPOSAL_SAGA_QUEUE)
                 .withArgument("x-dead-letter-exchange", USER_DLX_EXCHANGE)

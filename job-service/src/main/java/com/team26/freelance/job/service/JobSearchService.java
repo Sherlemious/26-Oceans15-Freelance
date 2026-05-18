@@ -15,6 +15,9 @@ import co.elastic.clients.elasticsearch._types.query_dsl.Query;
 
 import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
@@ -33,20 +36,22 @@ import java.util.stream.Collectors;
 @Service
 public class JobSearchService implements JobEventSubject {
 
-    private final JobSearchRepository jobSearchRepository;
+    private static final Logger log = LoggerFactory.getLogger(JobSearchService.class);
+
+    private final ObjectProvider<JobSearchRepository> jobSearchRepositoryProvider;
     private final JobRepository jobRepository;
     private final List<EntityObserver> observers = new ArrayList<>();
-    private final ElasticsearchOperations elasticsearchOperations;
+    private final ObjectProvider<ElasticsearchOperations> elasticsearchOperationsProvider;
     private final ElasticsearchHitAdapter elasticsearchHitAdapter;
 
-    public JobSearchService(JobSearchRepository jobSearchRepository,
+    public JobSearchService(ObjectProvider<JobSearchRepository> jobSearchRepositoryProvider,
                             JobRepository jobRepository,
                             JobEventRepository jobEventRepository,
-                            ElasticsearchOperations elasticsearchOperations,
+                            ObjectProvider<ElasticsearchOperations> elasticsearchOperationsProvider,
                             ElasticsearchHitAdapter elasticsearchHitAdapter) {
-        this.jobSearchRepository = jobSearchRepository;
+        this.jobSearchRepositoryProvider = jobSearchRepositoryProvider;
         this.jobRepository = jobRepository;
-        this.elasticsearchOperations = elasticsearchOperations; 
+        this.elasticsearchOperationsProvider = elasticsearchOperationsProvider;
         this.elasticsearchHitAdapter = elasticsearchHitAdapter;
         // register the per-service MongoEventLogger instance
         register(new MongoEventLogger(jobEventRepository));
@@ -73,7 +78,17 @@ public class JobSearchService implements JobEventSubject {
         Job job = jobRepository.findById(id).orElse(null);
         if (job == null) return false;
 
-        jobSearchRepository.save(toDocument(job));
+        JobSearchRepository repo = jobSearchRepositoryProvider.getIfAvailable();
+        if (repo == null) {
+            log.warn("Elasticsearch disabled, skipping index for jobId={} source={}", id, source);
+            return false;
+        }
+        try {
+            repo.save(toDocument(job));
+        } catch (Exception ex) {
+            log.warn("Elasticsearch index failed for jobId={} source={}: {}", id, source, ex.getMessage());
+            return false;
+        }
 
         List<String> indexedFields = List.of(
                 "id", "title", "description",
@@ -89,7 +104,17 @@ public class JobSearchService implements JobEventSubject {
     }
 
     public void removeFromIndex(Long id) {
-        jobSearchRepository.deleteById(id);
+        JobSearchRepository repo = jobSearchRepositoryProvider.getIfAvailable();
+        if (repo == null) {
+            log.warn("Elasticsearch disabled, skipping removeFromIndex for jobId={}", id);
+            return;
+        }
+        try {
+            repo.deleteById(id);
+        } catch (Exception ex) {
+            log.warn("Elasticsearch deleteById failed for jobId={}: {}", id, ex.getMessage());
+            return;
+        }
 
         notifyObservers("JOB_DELETED", Map.of(
                 "jobId", id,
@@ -167,8 +192,20 @@ public class JobSearchService implements JobEventSubject {
             .withQuery(boolQuery)
             .build();
 
-        SearchHits<JobSearchDocument> hits =
-            elasticsearchOperations.search(nativeQuery, JobSearchDocument.class);
+        ElasticsearchOperations operations = elasticsearchOperationsProvider.getIfAvailable();
+        if (operations == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "Full-text search is currently unavailable");
+        }
+
+        SearchHits<JobSearchDocument> hits;
+        try {
+            hits = operations.search(nativeQuery, JobSearchDocument.class);
+        } catch (Exception ex) {
+            log.warn("Elasticsearch search failed: {}", ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "Full-text search is currently unavailable");
+        }
 
         if (hits.isEmpty()) return Collections.emptyList();
 

@@ -187,4 +187,14 @@ public class ProposalController {
         proposalService.recordInteraction(proposalId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
+    // ── M3: Job Summary Read Endpoint ───────────────────────────────────────
+
+    @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
+    @GetMapping("/job/{jobId}/summary")
+    public ResponseEntity<com.team26.freelance.contracts.dto.JobProposalSummaryDTO> getJobProposalSummary(
+            @PathVariable Long jobId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(proposalService.getJobProposalSummary(jobId, startDate, endDate));
+    }
 }

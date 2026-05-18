@@ -230,6 +230,10 @@ public class UserService {
                         "User has active contracts and cannot be deactivated");
             }
 
+            if (user.getStatus() == Status.DEACTIVATED) {
+                return UserResponseDTO.fromUser(user);
+            }
+
             Status oldStatus = user.getStatus();
             user.setStatus(Status.DEACTIVATED);
             User savedUser = userRepository.save(user);
@@ -242,7 +246,6 @@ public class UserService {
             recordUserEvent(savedUser, USER_DEACTIVATED, details);
             userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
             publishUserDeactivatedAfterCommit(savedUser.getId());
-
             return UserResponseDTO.fromUser(savedUser);
         }
     }

@@ -5,11 +5,13 @@ import com.team26.freelance.user.dto.LoginResponseDTO;
 import com.team26.freelance.user.dto.LoginRequestDTO;
 import com.team26.freelance.user.dto.RegisterRequestDTO;
 import com.team26.freelance.user.logging.MdcUserScope;
+import com.team26.freelance.user.messaging.publishers.UserEventPublisher;
 import com.team26.freelance.user.model.Role;
 import com.team26.freelance.user.model.Status;
 import com.team26.freelance.user.model.User;
 import com.team26.freelance.user.observer.AuthEventSubject;
 import com.team26.freelance.user.repository.UserRepository;
+import com.team26.freelance.contracts.events.UserRegisteredEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -29,15 +31,18 @@ public class AuthService {
     private final AuthEventSubject authEventSubject;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final UserEventPublisher userEventPublisher;
 
     public AuthService(UserRepository userRepository,
             AuthEventSubject authEventSubject,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService) {
+            JwtService jwtService,
+            UserEventPublisher userEventPublisher) {
         this.userRepository = userRepository;
         this.authEventSubject = authEventSubject;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.userEventPublisher = userEventPublisher;
     }
 
     @Transactional
@@ -67,6 +72,10 @@ public class AuthService {
         try (MdcUserScope ignored = MdcUserScope.put(savedUser.getId())) {
             log.info("User {} registered", savedUser.getId());
             logAuthEvent(savedUser.getId(), "REGISTERED", Map.of("email", savedUser.getEmail()));
+            userEventPublisher.publishUserRegistered(new UserRegisteredEvent(
+                    savedUser.getId(),
+                    savedUser.getEmail(),
+                    savedUser.getRole() == null ? null : savedUser.getRole().name()));
         }
 
         String token = jwtService.generateToken(savedUser);

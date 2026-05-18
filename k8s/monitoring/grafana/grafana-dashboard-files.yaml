@@ -930,7 +930,7 @@ data:
         { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
       ],
       "annotations": { "list": [] },
-      "description": "Logs and metrics for the proposal-service — panels pending service owner implementation",
+      "description": "Metrics and logs for proposal-service",
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
@@ -938,16 +938,271 @@ data:
       "links": [],
       "panels": [
         {
+          "title": "Error Rate (Loki)",
+          "type": "timeseries",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "targets": [
+            { "expr": "sum(rate({app=\"freelance\", service=\"proposal-service\", level=\"ERROR\"}[5m]))" }
+          ]
+        },
+        {
+          "title": "Saga State Transitions",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+          "targets": [
+            { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"routingKey\"" }
+          ]
+        },
+        {
+          "title": "Correlation ID Traces",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+          "targets": [
+            { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"correlationId\"" }
+          ]
+        },
+        {
           "id": 1,
-          "type": "text",
-          "title": "Dashboard Pending",
-          "datasource": null,
-          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+          "type": "stat",
+          "title": "HTTP Request Rate (req/sec)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{job=\"proposal-service\"}[1m])",
+              "refId": "A",
+              "legendFormat": "requests/sec"
+            }
+          ],
           "options": {
-            "content": "## Proposal Service Dashboard\n\nThis dashboard is a provisioning placeholder.\n\nFinal LogQL and PromQL panels will be added by the **proposal-service** owner as part of their M3 slice work.",
-            "mode": "markdown"
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "decimals": 2
           },
-          "targets": []
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 2,
+          "type": "graph",
+          "title": "HTTP Response Latency Percentiles",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
+              "refId": "A",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
+              "refId": "B",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
+              "refId": "C",
+              "legendFormat": "p99"
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "s",
+              "label": "Latency"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "type": "graph",
+          "title": "RabbitMQ Throughput",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+          "targets": [
+            {
+              "expr": "rate(rabbitmq_channel_messages_published_total{vhost=\"/\"}[1m])",
+              "refId": "A",
+              "legendFormat": "published/sec"
+            },
+            {
+              "expr": "rate(rabbitmq_channel_messages_delivered_total{vhost=\"/\"}[1m])",
+              "refId": "B",
+              "legendFormat": "delivered/sec"
+            },
+            {
+              "expr": "rate(rabbitmq_channel_messages_acknowledged_total{vhost=\"/\"}[1m])",
+              "refId": "C",
+              "legendFormat": "ack'd/sec"
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "msgps",
+              "label": "Messages/sec"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "type": "logs",
+          "title": "Saga State Transitions (proposalId MDC)",
+          "datasource": "Loki",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "{job=\"proposal-service\"} | json | proposalId != \"\"",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showLabels": "auto",
+            "showTime": true,
+            "wrapLogMessage": false,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true
+          }
+        },
+        {
+          "id": 5,
+          "type": "logs",
+          "title": "RabbitMQ Consumer Errors (proposal.saga-feedback)",
+          "datasource": "Loki",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            {
+              "expr": "{job=\"proposal-service\"} |= \"SagaFeedbackConsumer\" |= \"error\"",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showLabels": "auto",
+            "showTime": true,
+            "wrapLogMessage": false,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true
+          }
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "HTTP 5xx Rate (errors/sec)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{job=\"proposal-service\",status=~\"5..\"}[1m])",
+              "refId": "A",
+              "legendFormat": "5xx/sec"
+            }
+          ],
+          "options": {
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "decimals": 2
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "type": "stat",
+          "title": "Service Up",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 24 },
+          "targets": [
+            {
+              "expr": "up{job=\"proposal-service\"}",
+              "refId": "A",
+              "legendFormat": "up"
+            }
+          ],
+          "options": {
+            "orientation": "auto",
+            "textMode": "value",
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "decimals": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "mappings": [
+                { "type": "value", "from": "0", "to": "0", "text": "DOWN", "color": "#BF1B1B" },
+                { "type": "value", "from": "1", "to": "1", "text": "UP", "color": "#299C46" }
+              ]
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 8,
+          "type": "graph",
+          "title": "JVM Heap Memory Used",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{job=\"proposal-service\",area=\"heap\"}",
+              "refId": "A",
+              "legendFormat": "heap used"
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": "Bytes"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
         }
       ],
       "refresh": "30s",
@@ -959,7 +1214,7 @@ data:
       "timezone": "browser",
       "title": "Proposal Service",
       "uid": "proposal-service",
-      "version": 1
+      "version": 2
     }
   user-dashboard.json: |
     {
