@@ -35,8 +35,7 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         List<Proposal> findByStatusOrderBySubmittedAtDesc(
                         com.team26.freelance.proposal.model.ProposalStatus status);
 
-        @Query(value = "SELECT role FROM users WHERE id = :freelancerId", nativeQuery = true)
-        String findFreelancerRole(@Param("freelancerId") Long freelancerId);
+        // User and Job enrichment are performed via Feign clients (no direct cross-service SQL queries)
 
         // ── Authorization helpers (Postgres is shared across services) ─────
 
@@ -161,21 +160,8 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         @Param("startDate") LocalDateTime startDate,
                         @Param("endDate") LocalDateTime endDate);
 
-        // Native lookups for Neo4j synchronization
-        @Query(value = "SELECT name FROM users WHERE id = :freelancerId", nativeQuery = true)
-        String findFreelancerNameByIdNative(@Param("freelancerId") Long freelancerId);
-
-        @Query(value = "SELECT COUNT(*) > 0 FROM users WHERE id = :userId", nativeQuery = true)
-        boolean existsUserByIdNative(@Param("userId") Long userId);
-
-        @Query(value = "SELECT id, title, category FROM jobs WHERE id IN :jobIds", nativeQuery = true)
-        List<Object[]> findJobDetailsByIdsNative(@Param("jobIds") List<Long> jobIds);
-
-        @Query(value = "SELECT title, category FROM jobs WHERE id = :jobId", nativeQuery = true)
-        List<Object[]> findJobDetailsByIdNative(@Param("jobId") Long jobId);
-
-        @Query(value = "SELECT id, title, category FROM jobs WHERE id IN (:jobIds)", nativeQuery = true)
-        List<Object[]> findJobDetailsByIdsNative(@Param("jobIds") Collection<Long> jobIds);
+        // Removed native SQL methods that queried other services' Postgres schemas.
+        // Enrichment and existence checks must go through Feign clients to respect service boundaries.
 
         @Query(value = "SELECT COUNT(id), " +
                 "SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END), " +

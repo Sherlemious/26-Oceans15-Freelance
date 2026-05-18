@@ -48,17 +48,22 @@ data:
           "id": 2,
           "targets": [
             {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\"[5m]))",
-              "legendFormat": "feign success",
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"UserServiceClient.getUser returned successfully\"[5m]))",
+              "legendFormat": "user read success",
               "refId": "A"
             },
             {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign call to\"[5m]))",
-              "legendFormat": "feign failure",
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"JobServiceClient.getJob returned successfully\"[5m]))",
+              "legendFormat": "job read success",
               "refId": "B"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign call to\"[5m]))",
+              "legendFormat": "read feign failure",
+              "refId": "C"
             }
           ],
-          "title": "Contract Feign Call Outcomes",
+          "title": "S4 Read Feign Outcomes",
           "type": "timeseries"
         },
         {
@@ -80,7 +85,208 @@ data:
               "refId": "A"
             }
           ],
-          "title": "Contract Slow Operations",
+          "title": "S4 Read Slow Operations",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 8
+          },
+          "id": 4,
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"saved with status\"[5m]))",
+              "legendFormat": "contract writes",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"milestones/track\"[5m]))",
+              "legendFormat": "milestone track requests",
+              "refId": "B"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Failed to log contract event to MongoDB\"[5m]))",
+              "legendFormat": "event log failures",
+              "refId": "C"
+            }
+          ],
+          "title": "S4 Events And Milestones",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 8
+          },
+          "id": 5,
+          "targets": [
+            {
+              "expr": "sum by (uri, method) (rate(http_server_requests_seconds_count{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))",
+              "legendFormat": "{{method}} {{uri}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Contract HTTP Request Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 8
+          },
+          "id": 6,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+              "legendFormat": "P50 {{uri}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+              "legendFormat": "P95 {{uri}}",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
+              "legendFormat": "P99 {{uri}}",
+              "refId": "C"
+            }
+          ],
+          "title": "Contract HTTP Latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 16
+          },
+          "id": 7,
+          "targets": [
+            {
+              "expr": "sum(jvm_memory_used_bytes{job=\"contract-service\",area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"contract-service\",area=\"heap\"})",
+              "legendFormat": "heap used",
+              "refId": "A"
+            }
+          ],
+          "title": "Contract JVM Heap Usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 16
+          },
+          "id": 8,
+          "targets": [
+            {
+              "expr": "hikaricp_connections_active{job=\"contract-service\"}",
+              "legendFormat": "active",
+              "refId": "A"
+            },
+            {
+              "expr": "hikaricp_connections_max{job=\"contract-service\"}",
+              "legendFormat": "max",
+              "refId": "B"
+            }
+          ],
+          "title": "Contract DB Connections",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 8
+          },
+          "id": 4,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"contract-service\"}[5m])) by (le))",
+              "legendFormat": "p95 latency",
+              "refId": "A"
+            }
+          ],
+          "title": "Contract HTTP p95 Latency",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 8
+          },
+          "id": 5,
+          "targets": [
+            {
+              "expr": "hikaricp_connections{application=\"contract-service\", pool=\"HikariPool-1\"}",
+              "legendFormat": "{{state}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Contract DB Connection Pool",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 8
+          },
+          "id": 6,
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{application=\"contract-service\", area=\"heap\"}",
+              "legendFormat": "heap used",
+              "refId": "A"
+            }
+          ],
+          "title": "Contract JVM Health",
           "type": "timeseries"
         }
       ],
@@ -239,8 +445,14 @@ data:
           "id": 3,
           "targets": [
             {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Feign call to\" |= \"failed\"[1m])) as failures,\nsum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\"[1m])) as successes",
+              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Feign call to\" |= \"failed\" [1m]))",
+              "legendFormat": "Feign Failures",
               "refId": "A"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\" [1m]))",
+              "legendFormat": "Feign Successes",
+              "refId": "B"
             }
           ],
           "title": "Feign Call Outcomes (Success vs Failures)",
@@ -341,7 +553,8 @@ data:
           "id": 5,
           "targets": [
             {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Published\" OR |= \"Consuming\" OR |= \"Processed\"[5m])) by (routingKey)",
+              "expr": "sum by (routingKey) (count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |~ \"Published|Consuming|Processed\" [5m]))",
+              "legendFormat": "{{routingKey}}",
               "refId": "A"
             }
           ],
@@ -648,6 +861,34 @@ data:
           ],
           "title": "RabbitMQ Throughput (Published vs Consumed)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 40
+          },
+          "id": 10,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "showLabels": true,
+            "showTime": true,
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "expr": "{app=\"freelance\", service=\"job-service\"} | json | correlationId=~\"$correlationId\"",
+              "refId": "A"
+            }
+          ],
+          "title": "Correlation ID Trace (paste ID in variable above)",
+          "type": "logs"
         }
       ],
       "refresh": "10s",
@@ -658,7 +899,18 @@ data:
         "production"
       ],
       "templating": {
-        "list": []
+        "list": [
+          {
+            "current": {},
+            "description": "Paste an X-Correlation-ID to trace a single request through job-service logs",
+            "hide": 0,
+            "label": "Correlation ID",
+            "name": "correlationId",
+            "options": [],
+            "query": "",
+            "type": "textbox"
+          }
+        ]
       },
       "time": {
         "from": "now-1h",
@@ -671,60 +923,300 @@ data:
       "version": 1,
       "weekStart": ""
     }
-  proposal-dashboard.json: |-
+  proposal-dashboard.json: |
     {
-    "__requires": [
-      { "type": "datasource", "id": "loki",       "name": "Loki",       "version": "1.0.0" },
-      { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
-    ],
-    "annotations": { "list": [] },
-    "description": "Logs and metrics for the proposal-service",
-    "editable": true,
-    "fiscalYearStartMonth": 0,
-    "graphTooltip": 1,
-    "id": null,
-    "links": [],
-    "panels": [
-      {
-        "title": "Error Rate (Loki)",
-        "type": "timeseries",
-        "datasource": { "type": "loki", "uid": "loki" },
-        "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
-        "targets": [
-          { "expr": "sum(rate({app=\"freelance\", service=\"proposal-service\", level=\"ERROR\"}[5m]))" }
-        ]
-      },
-      {
-        "title": "Saga State Transitions",
-        "type": "logs",
-        "datasource": { "type": "loki", "uid": "loki" },
-        "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
-        "targets": [
-          { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"routingKey\"" }
-        ]
-      },
-      {
-        "title": "Correlation ID Traces",
-        "type": "logs",
-        "datasource": { "type": "loki", "uid": "loki" },
-        "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
-        "targets": [
-          { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"correlationId\"" }
-        ]
-      }
-    ],
-    "refresh": "30s",
-    "schemaVersion": 38,
-    "tags": ["proposal", "freelance"],
-    "templating": { "list": [] },
-    "time": { "from": "now-1h", "to": "now" },
-    "timepicker": {},
-    "timezone": "browser",
-    "title": "Proposal Service",
-    "uid": "proposal-service",
-    "version": 2
+      "__requires": [
+        { "type": "datasource", "id": "loki",       "name": "Loki",       "version": "1.0.0" },
+        { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+      ],
+      "annotations": { "list": [] },
+      "description": "Metrics and logs for proposal-service",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "title": "Error Rate (Loki)",
+          "type": "timeseries",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "targets": [
+            { "expr": "sum(rate({app=\"freelance\", service=\"proposal-service\", level=\"ERROR\"}[5m]))" }
+          ]
+        },
+        {
+          "title": "Saga State Transitions",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+          "targets": [
+            { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"routingKey\"" }
+          ]
+        },
+        {
+          "title": "Correlation ID Traces",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+          "targets": [
+            { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"correlationId\"" }
+          ]
+        },
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "HTTP Request Rate (req/sec)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{job=\"proposal-service\"}[1m])",
+              "refId": "A",
+              "legendFormat": "requests/sec"
+            }
+          ],
+          "options": {
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "decimals": 2
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 2,
+          "type": "graph",
+          "title": "HTTP Response Latency Percentiles",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
+              "refId": "A",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
+              "refId": "B",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
+              "refId": "C",
+              "legendFormat": "p99"
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "s",
+              "label": "Latency"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "id": 3,
+          "type": "graph",
+          "title": "RabbitMQ Throughput",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+          "targets": [
+            {
+              "expr": "rate(rabbitmq_channel_messages_published_total{vhost=\"/\"}[1m])",
+              "refId": "A",
+              "legendFormat": "published/sec"
+            },
+            {
+              "expr": "rate(rabbitmq_channel_messages_delivered_total{vhost=\"/\"}[1m])",
+              "refId": "B",
+              "legendFormat": "delivered/sec"
+            },
+            {
+              "expr": "rate(rabbitmq_channel_messages_acknowledged_total{vhost=\"/\"}[1m])",
+              "refId": "C",
+              "legendFormat": "ack'd/sec"
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "msgps",
+              "label": "Messages/sec"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        },
+        {
+          "id": 4,
+          "type": "logs",
+          "title": "Saga State Transitions (proposalId MDC)",
+          "datasource": "Loki",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "{job=\"proposal-service\"} | json | proposalId != \"\"",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showLabels": "auto",
+            "showTime": true,
+            "wrapLogMessage": false,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true
+          }
+        },
+        {
+          "id": 5,
+          "type": "logs",
+          "title": "RabbitMQ Consumer Errors (proposal.saga-feedback)",
+          "datasource": "Loki",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            {
+              "expr": "{job=\"proposal-service\"} |= \"SagaFeedbackConsumer\" |= \"error\"",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "showLabels": "auto",
+            "showTime": true,
+            "wrapLogMessage": false,
+            "prettifyLogMessage": false,
+            "enableLogDetails": true
+          }
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "HTTP 5xx Rate (errors/sec)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
+          "targets": [
+            {
+              "expr": "rate(http_server_requests_seconds_count{job=\"proposal-service\",status=~\"5..\"}[1m])",
+              "refId": "A",
+              "legendFormat": "5xx/sec"
+            }
+          ],
+          "options": {
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "decimals": 2
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "unit": "reqps"
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 7,
+          "type": "stat",
+          "title": "Service Up",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 24 },
+          "targets": [
+            {
+              "expr": "up{job=\"proposal-service\"}",
+              "refId": "A",
+              "legendFormat": "up"
+            }
+          ],
+          "options": {
+            "orientation": "auto",
+            "textMode": "value",
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "decimals": 0
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "mappings": [
+                { "type": "value", "from": "0", "to": "0", "text": "DOWN", "color": "#BF1B1B" },
+                { "type": "value", "from": "1", "to": "1", "text": "UP", "color": "#299C46" }
+              ]
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 8,
+          "type": "graph",
+          "title": "JVM Heap Memory Used",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "targets": [
+            {
+              "expr": "jvm_memory_used_bytes{job=\"proposal-service\",area=\"heap\"}",
+              "refId": "A",
+              "legendFormat": "heap used"
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "bytes",
+              "label": "Bytes"
+            }
+          ],
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          }
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["proposal", "freelance"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Proposal Service",
+      "uid": "proposal-service",
+      "version": 2
     }
-  user-dashboard.json: |-
+  user-dashboard.json: |
     {
       "__requires": [
         { "type": "datasource", "id": "loki",       "name": "Loki",       "version": "1.0.0" },
@@ -1503,5 +1995,6 @@ data:
     }
 kind: ConfigMap
 metadata:
+  creationTimestamp: null
   name: grafana-dashboard-files
   namespace: monitoring

@@ -59,6 +59,10 @@ feign:
   contract-service:
     url: ${FEIGN_CONTRACT_SERVICE_URL:http://contract-service:8080}
 
+saga:
+  payout:
+    abandon-after: ${SAGA_PAYOUT_ABANDON_AFTER:PT72H}
+
 management:
   endpoints:
     web:
@@ -68,3 +72,6 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+  endpoint:
+    health:
+      show-details: always
