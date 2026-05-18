@@ -24,7 +24,19 @@
             env=k8s
         </labels>
         <structuredMetadata>off</structuredMetadata>
-        <message class="com.team26.freelance.user.logging.UserServiceJsonLogLayout"/>
+        <message>
+            <pattern>
+                {
+                  "timestamp": "%d{ISO8601}",
+                  "level": "%level",
+                  "thread": "%thread",
+                  "correlationId": "%X{correlationId:-}",
+                  "userId": "%X{userId:-}",
+                  "logger": "%logger{36}",
+                  "message": "%replace(%msg){'\"','\\\"'}"
+                }
+            </pattern>
+        </message>
     </appender>
 
     <springProfile name="k8s">
