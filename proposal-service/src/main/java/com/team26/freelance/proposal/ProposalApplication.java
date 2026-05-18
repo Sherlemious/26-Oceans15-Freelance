@@ -6,7 +6,6 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication(scanBasePackages = "com.team26.freelance")
 @EnableFeignClients(basePackages = "com.team26.freelance.contracts.feign")
 public class ProposalApplication {
-public class ProposalApplication {
     public static void main(String[] args) {
         SpringApplication.run(ProposalApplication.class, args);
     }
