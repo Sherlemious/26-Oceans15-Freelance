@@ -21,6 +21,7 @@ public class CacheEvictionService {
 
     public void evictJobDetail(Long id) {
         evictByPattern(PREFIX + "job::" + id);
+        evictByPattern("job::" + PREFIX + "job::" + id);
     }
 
     public void evictAllJobFeatureCaches() {
