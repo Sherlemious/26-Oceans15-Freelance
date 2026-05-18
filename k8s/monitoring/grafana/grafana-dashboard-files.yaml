@@ -923,14 +923,14 @@ data:
       "version": 1,
       "weekStart": ""
     }
-  proposal-dashboard.json: |
+  proposal-dashboard.json: |-
     {
       "__requires": [
         { "type": "datasource", "id": "loki",       "name": "Loki",       "version": "1.0.0" },
         { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
       ],
       "annotations": { "list": [] },
-      "description": "Metrics and logs for proposal-service",
+      "description": "Metrics and logs for proposal-service — HTTP requests, latency, logs, and RabbitMQ throughput",
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 1,
@@ -1397,7 +1397,7 @@ data:
           "id": 6,
           "targets": [
             {
-              "expr": "sum by (uri, method, status) (rate(http_server_requests_seconds_count{job=\"user-service\"}[5m]))",
+              "expr": "sum by (uri, method, status) (rate(http_server_requests_seconds_count{job=\"user-service\"}[10m]))",
               "legendFormat": "{{method}} {{uri}} {{status}}",
               "refId": "A"
             }
@@ -1807,7 +1807,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum by (uri) (rate(http_server_requests_seconds_count{job=\"wallet-service\"}[1m]))",
+              "expr": "sum by (uri) (rate(http_server_requests_seconds_count{job=\"wallet-service\"}[10m]))",
               "legendFormat": "{{uri}}",
               "refId": "A"
             }
@@ -1893,8 +1893,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m])))",
-              "legendFormat": "P50",
+              "expr": "histogram_quantile(0.50, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m]))) * 1000",
+              "legendFormat": "P50 {{method}} {{uri}}",
               "refId": "A"
             },
             {
@@ -1902,8 +1902,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m])))",
-              "legendFormat": "P95",
+              "expr": "histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m]))) * 1000",
+              "legendFormat": "P95 {{method}} {{uri}}",
               "refId": "B"
             },
             {
@@ -1911,8 +1911,8 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m])))",
-              "legendFormat": "P99",
+              "expr": "histogram_quantile(0.99, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m]))) * 1000",
+              "legendFormat": "P99 {{method}} {{uri}}",
               "refId": "C"
             }
           ],
@@ -1926,7 +1926,7 @@ data:
           },
           "fieldConfig": {
             "defaults": {
-              "unit": "bytes"
+              "unit": "percent"
             },
             "overrides": []
           },
@@ -1954,18 +1954,9 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(jvm_memory_used_bytes{job=\"wallet-service\",area=\"heap\"})",
-              "legendFormat": "heap used",
+              "expr": "sum(jvm_memory_used_bytes{job=\"wallet-service\", area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"wallet-service\", area=\"heap\"}) * 100",
+              "legendFormat": "Heap used",
               "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(jvm_memory_max_bytes{job=\"wallet-service\",area=\"heap\"})",
-              "legendFormat": "heap max",
-              "refId": "B"
             }
           ],
           "title": "Wallet JVM Heap Usage",
@@ -1995,6 +1986,5 @@ data:
     }
 kind: ConfigMap
 metadata:
-  creationTimestamp: null
   name: grafana-dashboard-files
   namespace: monitoring
