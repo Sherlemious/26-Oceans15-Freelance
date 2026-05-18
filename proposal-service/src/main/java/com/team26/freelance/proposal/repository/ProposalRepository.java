@@ -177,4 +177,14 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
         @Query(value = "SELECT id, title, category FROM jobs WHERE id IN (:jobIds)", nativeQuery = true)
         List<Object[]> findJobDetailsByIdsNative(@Param("jobIds") Collection<Long> jobIds);
 
+        @Query(value = "SELECT COUNT(id), " +
+                "SUM(CASE WHEN status = 'ACCEPTED' THEN 1 ELSE 0 END), " +
+                "AVG(bid_amount), MIN(bid_amount), MAX(bid_amount) " +
+                "FROM proposals WHERE job_id = :jobId " +
+                "AND submitted_at >= :start AND submitted_at <= :end", nativeQuery = true)
+        List<Object[]> getJobProposalSummaryAggregations(
+                @Param("jobId") Long jobId,
+                @Param("start") LocalDateTime start,
+                @Param("end") LocalDateTime end);
+
 }
