@@ -365,8 +365,10 @@ public class JobService {
 
                     Long totalProposals = 0L;
                     try {
-                        // Method not yet available in shared contracts module
-                        log.info("Proposal count endpoint not available for job {}", jobId);
+                        var summary = proposalServiceClient.getJobProposalSummary(jobId, null, null);
+                        if (summary != null && summary.getTotalProposals() != null) {
+                            totalProposals = summary.getTotalProposals();
+                        }
                     } catch (FeignException.NotFound e) {
                         log.warn("Proposal service returned 404 for job {}, assuming 0 proposals", jobId);
                     } catch (FeignException e) {
