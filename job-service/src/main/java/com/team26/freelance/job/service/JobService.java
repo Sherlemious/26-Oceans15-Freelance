@@ -41,7 +41,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-public class    JobService {
+public class JobService {
 
     private final JobRepository jobRepository;
     private final JobSearchService jobSearchService;
@@ -144,8 +144,6 @@ public class    JobService {
     public void closeJob(Long id) {
         MDC.put("jobId", id.toString());
         try {
-
-
             Job job = jobRepository.findById(id)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
             JobStatus oldStatus = job.getStatus();
