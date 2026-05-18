@@ -48,7 +48,7 @@ public class UserProposalEventService {
             User user = userRepository.findById(freelancerId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-            BigDecimal amount = safeAmount(event.agreedAmount());
+            BigDecimal amount = event.agreedAmount();
             long completedContracts = safeCount(user.getCompletedContracts()) + 1L;
             BigDecimal totalEarnings = safeTotal(user.getTotalEarnings()).add(amount);
 
@@ -105,8 +105,15 @@ public class UserProposalEventService {
     }
 
     private void validateCompletedEvent(ProposalCompletedEvent event) {
-        if (event == null || event.proposalId() == null || event.freelancerId() == null) {
+        if (event == null
+                || event.proposalId() == null
+                || event.freelancerId() == null
+                || event.contractId() == null
+                || event.agreedAmount() == null) {
             throw new IllegalArgumentException("proposal.completed event is missing required fields");
+        }
+        if (event.agreedAmount().signum() < 0) {
+            throw new IllegalArgumentException("proposal.completed event agreedAmount must be non-negative");
         }
     }
 
