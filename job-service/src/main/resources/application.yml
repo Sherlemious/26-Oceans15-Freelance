@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8082}
+  port: ${SERVER_PORT:8080}
 
 spring:
   main:
@@ -37,7 +37,7 @@ spring:
     uris: ${SPRING_ELASTICSEARCH_URIS:http://localhost:9200}
 
   rabbitmq:
-    host: ${SPRING_RABBITMQ_HOST:localhost}
+    host: ${SPRING_RABBITMQ_HOST:rabbitmq}
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
@@ -65,9 +65,9 @@ cache:
 
 feign:
   contract-service:
-    url: ${FEIGN_CONTRACT_SERVICE_URL:http://localhost:8084}
+    url: ${FEIGN_CONTRACT_SERVICE_URL:http://contract-service:8080}
   proposal-service:
-    url: ${FEIGN_PROPOSAL_SERVICE_URL:http://localhost:8083}
+    url: ${FEIGN_PROPOSAL_SERVICE_URL:http://proposal-service:8080}
   client:
     config:
       default:
