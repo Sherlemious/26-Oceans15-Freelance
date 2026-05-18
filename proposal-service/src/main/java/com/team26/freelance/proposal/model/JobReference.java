@@ -3,9 +3,10 @@ package com.team26.freelance.proposal.model;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Column;
 
 /**
- * Read-only reference to the shared jobs catalog table for FK constraint on proposals.job_id.
+ * Local job snapshot used for proposal ownership checks and saga status updates.
  */
 @Entity
 @Table(name = "jobs")
@@ -14,11 +15,25 @@ public class JobReference {
     @Id
     private Long id;
 
+    @Column(name = "client_id")
+    private Long clientId;
+
+    private String title;
+
+    private String status;
+
     public JobReference() {
     }
 
     public JobReference(Long id) {
         this.id = id;
+    }
+
+    public JobReference(Long id, Long clientId, String title, String status) {
+        this.id = id;
+        this.clientId = clientId;
+        this.title = title;
+        this.status = status;
     }
 
     public Long getId() {
@@ -27,5 +42,29 @@ public class JobReference {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(Long clientId) {
+        this.clientId = clientId;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }
