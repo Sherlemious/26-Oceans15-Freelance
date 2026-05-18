@@ -29,6 +29,9 @@ import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.contracts.dto.JobDTO;
 import com.team26.freelance.contracts.dto.ContractDTO;
 import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
+import com.team26.freelance.contracts.feign.ContractServiceClient;
+import com.team26.freelance.contracts.feign.JobServiceClient;
+import com.team26.freelance.contracts.feign.UserServiceClient;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
@@ -77,6 +80,9 @@ public class ProposalService {
     private final Neo4jClient neo4jClient;
     private final Neo4jRecordAdapter neo4jRecordAdapter;
     private final ProposalEventPublisher proposalEventPublisher;
+    private final UserServiceClient userServiceClient;
+    private final JobServiceClient jobServiceClient;
+    private final ContractServiceClient contractServiceClient;
 
     // MERGED CONSTRUCTOR
     public ProposalService(ProposalRepository proposalRepository,
