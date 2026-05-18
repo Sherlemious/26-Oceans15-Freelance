@@ -25,13 +25,13 @@ import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 import org.springframework.data.neo4j.core.Neo4jClient;
-import com.team26.freelance.contracts.feign.UserServiceClient;
-import com.team26.freelance.contracts.feign.JobServiceClient;
-import com.team26.freelance.contracts.feign.ContractServiceClient;
 import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.contracts.dto.JobDTO;
 import com.team26.freelance.contracts.dto.ContractDTO;
 import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
+import com.team26.freelance.contracts.feign.ContractServiceClient;
+import com.team26.freelance.contracts.feign.JobServiceClient;
+import com.team26.freelance.contracts.feign.UserServiceClient;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
@@ -834,7 +834,6 @@ public class ProposalService {
                 java.math.BigDecimal.valueOf(highestBid)
         );
     }
-
     /**
      * Saga abandonment reaper: detects proposals stuck in PAYMENT_PENDING beyond
      * saga.payout.abandon-after (default PT72H, configurable in application.yml).

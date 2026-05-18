@@ -166,6 +166,14 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     """, nativeQuery = true)
     java.util.List<Object[]> findContractsByBudgetRangeWithFreelancerInfo(@Param("minAmount") Double minAmount,
                                                                            @Param("maxAmount") Double maxAmount);
-    java.util.List<Contract> findStalledContractCandidates(@Param("maxProgress") double maxProgress,
-                                                           @Param("stalledDays") double stalledDays);
+
+    @Query(value = """
+        SELECT *
+        FROM contracts c
+        WHERE CAST(c.status AS VARCHAR) = 'ACTIVE'
+          AND COALESCE(CAST(c.metadata->>'progressPercentage' AS numeric), 0) <= :maxProgress
+          AND (EXTRACT(EPOCH FROM (NOW() - COALESCE(CAST(c.metadata->>'lastActivityDate' AS timestamp), c.created_at)))/86400) > :stalledDays
+        """, nativeQuery = true)
+    List<Contract> findStalledContractCandidates(@Param("maxProgress") double maxProgress,
+                                                 @Param("stalledDays") double stalledDays);
 }
