@@ -25,6 +25,13 @@ import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
 import org.springframework.data.neo4j.core.Neo4jClient;
+import com.team26.freelance.contracts.feign.UserServiceClient;
+import com.team26.freelance.contracts.feign.JobServiceClient;
+import com.team26.freelance.contracts.feign.ContractServiceClient;
+import com.team26.freelance.contracts.dto.UserDTO;
+import com.team26.freelance.contracts.dto.JobDTO;
+import com.team26.freelance.contracts.dto.ContractDTO;
+import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
@@ -57,6 +64,9 @@ public class ProposalService {
     private final ProposalCacheEvictionService cacheEvictionService;
     private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
     private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
+    private final UserServiceClient userServiceClient;
+    private final JobServiceClient jobServiceClient;
+    private final ContractServiceClient contractServiceClient;
 
     @Value("${cache.ttl.analytics:600}")
     private long cacheTtlSeconds;
@@ -76,7 +86,10 @@ public class ProposalService {
             ProposalEventSubject eventSubject,
             Neo4jInteractionRepository neo4jInteractionRepository,
             Neo4jClient neo4jClient,
-            Neo4jRecordAdapter neo4jRecordAdapter) {
+            Neo4jRecordAdapter neo4jRecordAdapter,
+            UserServiceClient userServiceClient,
+            JobServiceClient jobServiceClient,
+            ContractServiceClient contractServiceClient) {
         this.proposalRepository = proposalRepository;
         this.milestoneRepository = milestoneRepository;
         this.cacheEvictionService = cacheEvictionService;
@@ -87,6 +100,9 @@ public class ProposalService {
         this.neo4jInteractionRepository = neo4jInteractionRepository;
         this.neo4jClient = neo4jClient;
         this.neo4jRecordAdapter = neo4jRecordAdapter;
+        this.userServiceClient = userServiceClient;
+        this.jobServiceClient = jobServiceClient;
+        this.contractServiceClient = contractServiceClient;
     }
 
     // ── CRUD (Reads Cached, Writes Evict) ──────────────────────────────────
@@ -637,6 +653,75 @@ public class ProposalService {
             String jobCategory = (details != null && details[2] != null) ? details[2].toString() : "OTHER";
             return new JobRecommendationDTO(rec.getJobId(), jobTitle, jobCategory, rec.getScore());
         }).toList();
+    }
+
+    // ── M3: Feign Client Try-Catch Wrappers ─────────────────────────────────
+
+    public UserDTO getUser(Long userId) {
+        try {
+            return userServiceClient.getUser(userId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch user " + userId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public JobDTO getJob(Long jobId) {
+        try {
+            return jobServiceClient.getJob(jobId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch job " + jobId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public ContractDTO getContract(Long contractId) {
+        try {
+            return contractServiceClient.getContract(contractId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch contract " + contractId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public ContractDTO getActiveContractForProposal(Long proposalId) {
+        try {
+            return contractServiceClient.getActiveContractForProposal(proposalId);
+        } catch (Exception e) {
+            System.err.println("WARN: Failed to fetch active contract for proposal " + proposalId + " via Feign: " + e.getMessage());
+            return null;
+        }
+    }
+
+// ── M3: Job Proposal Summary Endpoint Logic ─────────────────────────────
+
+    public com.team26.freelance.contracts.dto.JobProposalSummaryDTO getJobProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
+        LocalDateTime start = startDate.atStartOfDay();
+        LocalDateTime end = endDate.atTime(LocalTime.MAX);
+
+        List<Object[]> results = proposalRepository.getJobProposalSummaryAggregations(jobId, start, end);
+
+        // Return zeros using the contracts DTO constructor
+        if (results == null || results.isEmpty() || results.get(0)[0] == null || ((Number) results.get(0)[0]).longValue() == 0) {
+            return new com.team26.freelance.contracts.dto.JobProposalSummaryDTO(
+                    0L, 0L, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO, java.math.BigDecimal.ZERO);
+        }
+
+        Object[] row = results.get(0);
+        long totalProposals = row[0] != null ? ((Number) row[0]).longValue() : 0L;
+        long acceptedProposals = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+        double averageBid = row[2] != null ? ((Number) row[2]).doubleValue() : 0.0;
+        double lowestBid = row[3] != null ? ((Number) row[3]).doubleValue() : 0.0;
+        double highestBid = row[4] != null ? ((Number) row[4]).doubleValue() : 0.0;
+
+        // Return populated DTO, converting doubles to BigDecimals
+        return new com.team26.freelance.contracts.dto.JobProposalSummaryDTO(
+                totalProposals,
+                acceptedProposals,
+                java.math.BigDecimal.valueOf(averageBid),
+                java.math.BigDecimal.valueOf(lowestBid),
+                java.math.BigDecimal.valueOf(highestBid)
+        );
     }
 
 }
