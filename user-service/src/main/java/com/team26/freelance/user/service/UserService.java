@@ -30,6 +30,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -239,7 +241,7 @@ public class UserService {
             log.info("User {} saved with status={}", savedUser.getId(), savedUser.getStatus());
             recordUserEvent(savedUser, USER_DEACTIVATED, details);
             userCacheEvictionService.evictUserMutationCaches(savedUser.getId());
-            userEventPublisher.publishUserDeactivated(new UserDeactivatedEvent(savedUser.getId()));
+            publishUserDeactivatedAfterCommit(savedUser.getId());
 
             return UserResponseDTO.fromUser(savedUser);
         }
@@ -572,6 +574,20 @@ public class UserService {
         payload.put("userId", userId);
         payload.put("details", details == null ? Map.of() : details);
         authEventSubject.notifyObservers(action, payload);
+    }
+
+    private void publishUserDeactivatedAfterCommit(Long userId) {
+        UserDeactivatedEvent event = new UserDeactivatedEvent(userId);
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    userEventPublisher.publishUserDeactivated(event);
+                }
+            });
+        } else {
+            userEventPublisher.publishUserDeactivated(event);
+        }
     }
 
     private Map<String, Object> userDetails(User user) {
