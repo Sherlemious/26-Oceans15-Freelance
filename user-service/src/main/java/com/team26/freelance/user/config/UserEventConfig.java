@@ -84,8 +84,4 @@ public class UserEventConfig {
                 .with(USER_PROPOSAL_SAGA_DLQ);
     }
 
-    @Bean
-    public MessageConverter rabbitMessageConverter() {
-        return new Jackson2JsonMessageConverter();
-    }
 }
