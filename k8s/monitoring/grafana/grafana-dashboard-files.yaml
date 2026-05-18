@@ -1,1989 +1,774 @@
 apiVersion: v1
 data:
-  contract-dashboard.json: |
-    {
-      "annotations": {
-        "list": []
-      },
-      "editable": true,
-      "fiscalYearStartMonth": 0,
-      "graphTooltip": 0,
-      "id": null,
-      "links": [],
-      "liveNow": false,
-      "panels": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 0,
-            "y": 0
-          },
-          "id": 1,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"ERROR\"}[1m]))",
-              "legendFormat": "errors/min",
-              "refId": "A"
-            }
-          ],
-          "title": "Contract Error Rate",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 8,
-            "y": 0
-          },
-          "id": 2,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"UserServiceClient.getUser returned successfully\"[5m]))",
-              "legendFormat": "user read success",
-              "refId": "A"
-            },
-            {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"JobServiceClient.getJob returned successfully\"[5m]))",
-              "legendFormat": "job read success",
-              "refId": "B"
-            },
-            {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign call to\"[5m]))",
-              "legendFormat": "read feign failure",
-              "refId": "C"
-            }
-          ],
-          "title": "S4 Read Feign Outcomes",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 16,
-            "y": 0
-          },
-          "id": 3,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Slow \"[5m]))",
-              "legendFormat": "slow warnings",
-              "refId": "A"
-            }
-          ],
-          "title": "S4 Read Slow Operations",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 0,
-            "y": 8
-          },
-          "id": 4,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"saved with status\"[5m]))",
-              "legendFormat": "contract writes",
-              "refId": "A"
-            },
-            {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\"} | json | line_format \"{{.message}}\" |= \"milestones/track\"[5m]))",
-              "legendFormat": "milestone track requests",
-              "refId": "B"
-            },
-            {
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"contract-service\",level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Failed to log contract event to MongoDB\"[5m]))",
-              "legendFormat": "event log failures",
-              "refId": "C"
-            }
-          ],
-          "title": "S4 Events And Milestones",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 8,
-            "y": 8
-          },
-          "id": 5,
-          "targets": [
-            {
-              "expr": "sum by (uri, method) (rate(http_server_requests_seconds_count{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))",
-              "legendFormat": "{{method}} {{uri}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Contract HTTP Request Rate",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 16,
-            "y": 8
-          },
-          "id": 6,
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
-              "legendFormat": "P50 {{uri}}",
-              "refId": "A"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
-              "legendFormat": "P95 {{uri}}",
-              "refId": "B"
-            },
-            {
-              "expr": "histogram_quantile(0.99, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"contract-service\",uri=~\"/api/contracts.*\"}[5m]))) * 1000",
-              "legendFormat": "P99 {{uri}}",
-              "refId": "C"
-            }
-          ],
-          "title": "Contract HTTP Latency",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 0,
-            "y": 16
-          },
-          "id": 7,
-          "targets": [
-            {
-              "expr": "sum(jvm_memory_used_bytes{job=\"contract-service\",area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"contract-service\",area=\"heap\"})",
-              "legendFormat": "heap used",
-              "refId": "A"
-            }
-          ],
-          "title": "Contract JVM Heap Usage",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 8,
-            "y": 16
-          },
-          "id": 8,
-          "targets": [
-            {
-              "expr": "hikaricp_connections_active{job=\"contract-service\"}",
-              "legendFormat": "active",
-              "refId": "A"
-            },
-            {
-              "expr": "hikaricp_connections_max{job=\"contract-service\"}",
-              "legendFormat": "max",
-              "refId": "B"
-            }
-          ],
-          "title": "Contract DB Connections",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 0,
-            "y": 8
-          },
-          "id": 4,
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"contract-service\"}[5m])) by (le))",
-              "legendFormat": "p95 latency",
-              "refId": "A"
-            }
-          ],
-          "title": "Contract HTTP p95 Latency",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 8,
-            "y": 8
-          },
-          "id": 5,
-          "targets": [
-            {
-              "expr": "hikaricp_connections{application=\"contract-service\", pool=\"HikariPool-1\"}",
-              "legendFormat": "{{state}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Contract DB Connection Pool",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 16,
-            "y": 8
-          },
-          "id": 6,
-          "targets": [
-            {
-              "expr": "jvm_memory_used_bytes{application=\"contract-service\", area=\"heap\"}",
-              "legendFormat": "heap used",
-              "refId": "A"
-            }
-          ],
-          "title": "Contract JVM Health",
-          "type": "timeseries"
-        }
-      ],
-      "refresh": "15s",
-      "schemaVersion": 39,
-      "tags": [
-        "freelance",
-        "contract-service",
-        "m3"
-      ],
-      "templating": {
-        "list": []
-      },
-      "time": {
-        "from": "now-1h",
-        "to": "now"
-      },
-      "timepicker": {},
-      "timezone": "browser",
-      "title": "Contract Service",
-      "uid": "contract-service",
-      "version": 1,
-      "weekStart": ""
-    }
-  job-dashboard.json: |
-    {
-      "annotations": {
-        "list": [
-          {
-            "builtIn": 1,
-            "datasource": {
-              "type": "grafana",
-              "uid": "-- Grafana --"
-            },
-            "enable": true,
-            "hide": true,
-            "iconColor": "rgba(0, 211, 255, 1)",
-            "name": "Annotations & Alerts",
-            "type": "dashboard"
-          }
-        ]
-      },
-      "editable": true,
-      "fiscalYearStartMonth": 0,
-      "graphTooltip": 0,
-      "id": null,
-      "links": [],
-      "liveNow": false,
-      "panels": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 0
-          },
-          "id": 1,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\", level=\"ERROR\"}[1m])) by (level)",
-              "refId": "A"
-            }
-          ],
-          "title": "Error Rate (Errors per Minute)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 0
-          },
-          "id": 2,
-          "targets": [
-            {
-              "expr": "rate(http_server_requests_seconds_count{job=\"job-service\"}[5m])",
-              "legendFormat": "{{uri}} {{method}}",
-              "refId": "A"
-            }
-          ],
-          "title": "HTTP Request Rate (Requests/sec)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 8
-          },
-          "id": 3,
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"Feign call to\" |= \"failed\" [1m]))",
-              "legendFormat": "Feign Failures",
-              "refId": "A"
-            },
-            {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |= \"returned successfully\" [1m]))",
-              "legendFormat": "Feign Successes",
-              "refId": "B"
-            }
-          ],
-          "title": "Feign Call Outcomes (Success vs Failures)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Latency (ms)",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": true,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 8
-          },
-          "id": 4,
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
-              "legendFormat": "P50 {{uri}}",
-              "refId": "A"
-            },
-            {
-              "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
-              "legendFormat": "P95 {{uri}}",
-              "refId": "B"
-            },
-            {
-              "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\"job-service\"}[5m])) * 1000",
-              "legendFormat": "P99 {{uri}}",
-              "refId": "C"
-            }
-          ],
-          "title": "HTTP Latency Percentiles (P50/P95/P99)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 16
-          },
-          "id": 5,
-          "targets": [
-            {
-              "expr": "sum by (routingKey) (count_over_time({app=\"freelance\", service=\"job-service\"} | json | line_format \"{{.message}}\" |~ \"Published|Consuming|Processed\" [5m]))",
-              "legendFormat": "{{routingKey}}",
-              "refId": "A"
-            }
-          ],
-          "title": "RabbitMQ Event Audit (by Routing Key)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Hit/Miss Ratio",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "percentunit"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 16
-          },
-          "id": 6,
-          "targets": [
-            {
-              "expr": "sum(rate(cache_gets_total{job=\"job-service\", result=\"hit\"}[5m])) / (sum(rate(cache_gets_total{job=\"job-service\", result=\"hit\"}[5m])) + sum(rate(cache_gets_total{job=\"job-service\", result=\"miss\"}[5m])))",
-              "legendFormat": "Cache Hit Ratio",
-              "refId": "A"
-            }
-          ],
-          "title": "Redis Cache Hit/Miss Ratio",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Value",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 24
-          },
-          "id": 7,
-          "targets": [
-            {
-              "expr": "jvm_memory_used_bytes{job=\"job-service\", area=\"heap\"} / jvm_memory_max_bytes{job=\"job-service\", area=\"heap\"}",
-              "legendFormat": "Heap Usage %",
-              "refId": "A"
-            },
-            {
-              "expr": "rate(jvm_gc_pause_seconds_sum{job=\"job-service\"}[5m])",
-              "legendFormat": "GC Pause/sec",
-              "refId": "B"
-            },
-            {
-              "expr": "jvm_threads_live_threads{job=\"job-service\"}",
-              "legendFormat": "Live Threads",
-              "refId": "C"
-            }
-          ],
-          "title": "JVM Health (Heap, GC, Threads)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Connections",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 24
-          },
-          "id": 8,
-          "targets": [
-            {
-              "expr": "hikaricp_connections_active{job=\"job-service\"}",
-              "legendFormat": "Active Connections",
-              "refId": "A"
-            },
-            {
-              "expr": "hikaricp_connections_max{job=\"job-service\"}",
-              "legendFormat": "Max Pool Size",
-              "refId": "B"
-            }
-          ],
-          "title": "Database Connection Pool (HikariCP)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Messages/sec",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 24,
-            "x": 0,
-            "y": 32
-          },
-          "id": 9,
-          "targets": [
-            {
-              "expr": "rate(rabbitmq_queue_messages_published_total{queue=\"job.proposal.saga-listener\"}[5m])",
-              "legendFormat": "Published job.proposal.saga-listener",
-              "refId": "A"
-            },
-            {
-              "expr": "rate(rabbitmq_queue_messages_delivered_total{queue=\"job.proposal.saga-listener\"}[5m])",
-              "legendFormat": "Consumed job.proposal.saga-listener",
-              "refId": "B"
-            }
-          ],
-          "title": "RabbitMQ Throughput (Published vs Consumed)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": {
-            "h": 10,
-            "w": 24,
-            "x": 0,
-            "y": 40
-          },
-          "id": 10,
-          "options": {
-            "dedupStrategy": "none",
-            "enableLogDetails": true,
-            "showLabels": true,
-            "showTime": true,
-            "wrapLogMessage": true
-          },
-          "targets": [
-            {
-              "expr": "{app=\"freelance\", service=\"job-service\"} | json | correlationId=~\"$correlationId\"",
-              "refId": "A"
-            }
-          ],
-          "title": "Correlation ID Trace (paste ID in variable above)",
-          "type": "logs"
-        }
-      ],
-      "refresh": "10s",
-      "schemaVersion": 38,
-      "style": "dark",
-      "tags": [
-        "job-service",
-        "production"
-      ],
-      "templating": {
-        "list": [
-          {
-            "current": {},
-            "description": "Paste an X-Correlation-ID to trace a single request through job-service logs",
-            "hide": 0,
-            "label": "Correlation ID",
-            "name": "correlationId",
-            "options": [],
-            "query": "",
-            "type": "textbox"
-          }
-        ]
-      },
-      "time": {
-        "from": "now-1h",
-        "to": "now"
-      },
-      "timepicker": {},
-      "timezone": "",
-      "title": "Job Service Observability Dashboard",
-      "uid": "job-service-dashboard",
-      "version": 1,
-      "weekStart": ""
-    }
-  proposal-dashboard.json: |-
-    {
-      "__requires": [
-        { "type": "datasource", "id": "loki",       "name": "Loki",       "version": "1.0.0" },
-        { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
-      ],
-      "annotations": { "list": [] },
-      "description": "Metrics and logs for proposal-service — HTTP requests, latency, logs, and RabbitMQ throughput",
-      "editable": true,
-      "fiscalYearStartMonth": 0,
-      "graphTooltip": 1,
-      "id": null,
-      "links": [],
-      "panels": [
-        {
-          "title": "Error Rate (Loki)",
-          "type": "timeseries",
-          "datasource": { "type": "loki", "uid": "loki" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
-          "targets": [
-            { "expr": "sum(rate({app=\"freelance\", service=\"proposal-service\", level=\"ERROR\"}[5m]))" }
-          ]
-        },
-        {
-          "title": "Saga State Transitions",
-          "type": "logs",
-          "datasource": { "type": "loki", "uid": "loki" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
-          "targets": [
-            { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"routingKey\"" }
-          ]
-        },
-        {
-          "title": "Correlation ID Traces",
-          "type": "logs",
-          "datasource": { "type": "loki", "uid": "loki" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
-          "targets": [
-            { "expr": "{app=\"freelance\", service=\"proposal-service\"} |= \"correlationId\"" }
-          ]
-        },
-        {
-          "id": 1,
-          "type": "stat",
-          "title": "HTTP Request Rate (req/sec)",
-          "datasource": "Prometheus",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
-          "targets": [
-            {
-              "expr": "rate(http_server_requests_seconds_count{job=\"proposal-service\"}[1m])",
-              "refId": "A",
-              "legendFormat": "requests/sec"
-            }
-          ],
-          "options": {
-            "orientation": "auto",
-            "textMode": "auto",
-            "colorMode": "background",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "decimals": 2
-          },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "unit": "reqps"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 2,
-          "type": "graph",
-          "title": "HTTP Response Latency Percentiles",
-          "datasource": "Prometheus",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
-              "refId": "A",
-              "legendFormat": "p50"
-            },
-            {
-              "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
-              "refId": "B",
-              "legendFormat": "p95"
-            },
-            {
-              "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\"proposal-service\"}[5m]))",
-              "refId": "C",
-              "legendFormat": "p99"
-            }
-          ],
-          "yaxes": [
-            {
-              "format": "s",
-              "label": "Latency"
-            }
-          ],
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "single"
-            }
-          }
-        },
-        {
-          "id": 3,
-          "type": "graph",
-          "title": "RabbitMQ Throughput",
-          "datasource": "Prometheus",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
-          "targets": [
-            {
-              "expr": "rate(rabbitmq_channel_messages_published_total{vhost=\"/\"}[1m])",
-              "refId": "A",
-              "legendFormat": "published/sec"
-            },
-            {
-              "expr": "rate(rabbitmq_channel_messages_delivered_total{vhost=\"/\"}[1m])",
-              "refId": "B",
-              "legendFormat": "delivered/sec"
-            },
-            {
-              "expr": "rate(rabbitmq_channel_messages_acknowledged_total{vhost=\"/\"}[1m])",
-              "refId": "C",
-              "legendFormat": "ack'd/sec"
-            }
-          ],
-          "yaxes": [
-            {
-              "format": "msgps",
-              "label": "Messages/sec"
-            }
-          ],
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "single"
-            }
-          }
-        },
-        {
-          "id": 4,
-          "type": "logs",
-          "title": "Saga State Transitions (proposalId MDC)",
-          "datasource": "Loki",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-          "targets": [
-            {
-              "expr": "{job=\"proposal-service\"} | json | proposalId != \"\"",
-              "refId": "A"
-            }
-          ],
-          "options": {
-            "showLabels": "auto",
-            "showTime": true,
-            "wrapLogMessage": false,
-            "prettifyLogMessage": false,
-            "enableLogDetails": true
-          }
-        },
-        {
-          "id": 5,
-          "type": "logs",
-          "title": "RabbitMQ Consumer Errors (proposal.saga-feedback)",
-          "datasource": "Loki",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-          "targets": [
-            {
-              "expr": "{job=\"proposal-service\"} |= \"SagaFeedbackConsumer\" |= \"error\"",
-              "refId": "A"
-            }
-          ],
-          "options": {
-            "showLabels": "auto",
-            "showTime": true,
-            "wrapLogMessage": false,
-            "prettifyLogMessage": false,
-            "enableLogDetails": true
-          }
-        },
-        {
-          "id": 6,
-          "type": "stat",
-          "title": "HTTP 5xx Rate (errors/sec)",
-          "datasource": "Prometheus",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
-          "targets": [
-            {
-              "expr": "rate(http_server_requests_seconds_count{job=\"proposal-service\",status=~\"5..\"}[1m])",
-              "refId": "A",
-              "legendFormat": "5xx/sec"
-            }
-          ],
-          "options": {
-            "orientation": "auto",
-            "textMode": "auto",
-            "colorMode": "background",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "decimals": 2
-          },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "unit": "reqps"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 7,
-          "type": "stat",
-          "title": "Service Up",
-          "datasource": "Prometheus",
-          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 24 },
-          "targets": [
-            {
-              "expr": "up{job=\"proposal-service\"}",
-              "refId": "A",
-              "legendFormat": "up"
-            }
-          ],
-          "options": {
-            "orientation": "auto",
-            "textMode": "value",
-            "colorMode": "value",
-            "graphMode": "none",
-            "justifyMode": "auto",
-            "decimals": 0
-          },
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "mappings": [
-                { "type": "value", "from": "0", "to": "0", "text": "DOWN", "color": "#BF1B1B" },
-                { "type": "value", "from": "1", "to": "1", "text": "UP", "color": "#299C46" }
-              ]
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 8,
-          "type": "graph",
-          "title": "JVM Heap Memory Used",
-          "datasource": "Prometheus",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
-          "targets": [
-            {
-              "expr": "jvm_memory_used_bytes{job=\"proposal-service\",area=\"heap\"}",
-              "refId": "A",
-              "legendFormat": "heap used"
-            }
-          ],
-          "yaxes": [
-            {
-              "format": "bytes",
-              "label": "Bytes"
-            }
-          ],
-          "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "single"
-            }
-          }
-        }
-      ],
-      "refresh": "30s",
-      "schemaVersion": 38,
-      "tags": ["proposal", "freelance"],
-      "templating": { "list": [] },
-      "time": { "from": "now-1h", "to": "now" },
-      "timepicker": {},
-      "timezone": "browser",
-      "title": "Proposal Service",
-      "uid": "proposal-service",
-      "version": 2
-    }
-  user-dashboard.json: |
-    {
-      "__requires": [
-        { "type": "datasource", "id": "loki",       "name": "Loki",       "version": "1.0.0" },
-        { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
-      ],
-      "annotations": { "list": [] },
-      "description": "Final user-service dashboard assembly with Loki log correlation and Prometheus service metrics.",
-      "editable": true,
-      "fiscalYearStartMonth": 0,
-      "graphTooltip": 1,
-      "id": null,
-      "links": [],
-      "liveNow": false,
-      "panels": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
-          "id": 1,
-          "title": "User Service Error Rate",
-          "type": "timeseries",
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"ERROR\"}[1m]))",
-              "legendFormat": "errors/min",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
-          "id": 2,
-          "title": "Correlation ID Trace",
-          "description": "Filter all user-service logs by a specific X-Correlation-ID. Set var_correlationId in the URL or use the variable below.",
-          "type": "logs",
-          "options": {
-            "dedupStrategy": "none",
-            "enableLogDetails": true,
-            "prettifyLogMessage": false,
-            "showCommonLabels": false,
-            "showLabels": false,
-            "showTime": true,
-            "sortOrder": "Descending",
-            "wrapLogMessage": true
-          },
-          "targets": [
-            {
-              "expr": "{app=\"freelance\", service=\"user-service\"} | json | correlationId=~\"${correlationId:pipe}\"",
-              "legendFormat": "",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
-          "id": 3,
-          "title": "Feign Failure Rate",
-          "type": "timeseries",
-          "targets": [
-            {
-              "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign\"[5m]))",
-              "legendFormat": "feign failures/5m",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
-          "id": 4,
-          "title": "User Operations by userId",
-          "description": "Log volume per userId for user-scoped requests.",
-          "type": "timeseries",
-          "targets": [
-            {
-              "expr": "sum by (userId) (count_over_time({app=\"freelance\", service=\"user-service\"} | json | userId != \"\" [5m]))",
-              "legendFormat": "userId={{userId}}",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
-          "id": 5,
-          "title": "Auth Event Audit Log",
-          "description": "All auth-related events: USER_CREATED, USER_UPDATED, ROLE_CHANGED, USER_DELETED.",
-          "type": "logs",
-          "options": {
-            "dedupStrategy": "none",
-            "enableLogDetails": true,
-            "prettifyLogMessage": false,
-            "showCommonLabels": false,
-            "showLabels": false,
-            "showTime": true,
-            "sortOrder": "Descending",
-            "wrapLogMessage": true
-          },
-          "targets": [
-            {
-              "expr": "{app=\"freelance\", service=\"user-service\"} | json | message =~ \"USER_CREATED|USER_UPDATED|ROLE_CHANGED|USER_DELETED|PREFERENCES_UPDATED|PRIMARY_SKILL_SET\"",
-              "legendFormat": "",
-              "refId": "A"
-            }
-          ]
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Requests/sec",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-          "id": 6,
-          "targets": [
-            {
-              "expr": "sum by (uri, method, status) (rate(http_server_requests_seconds_count{job=\"user-service\"}[10m]))",
-              "legendFormat": "{{method}} {{uri}} {{status}}",
-              "refId": "A"
-            }
-          ],
-          "title": "HTTP Request Rate",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "Milliseconds",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "tooltip": false,
-                  "viz": false,
-                  "legend": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  }
-                ]
-              },
-              "unit": "ms"
-            },
-            "overrides": []
-          },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-          "id": 7,
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"user-service\"}[5m]))) * 1000",
-              "legendFormat": "p50 {{method}} {{uri}}",
-              "refId": "A"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"user-service\"}[5m]))) * 1000",
-              "legendFormat": "p95 {{method}} {{uri}}",
-              "refId": "B"
-            },
-            {
-              "expr": "histogram_quantile(0.99, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"user-service\"}[5m]))) * 1000",
-              "legendFormat": "p99 {{method}} {{uri}}",
-              "refId": "C"
-            }
-          ],
-          "title": "HTTP Latency Percentiles",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "max": 100,
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 70
-                  },
-                  {
-                    "color": "red",
-                    "value": 90
-                  }
-                ]
-              },
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
-          "id": 8,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "targets": [
-            {
-              "expr": "sum(jvm_memory_used_bytes{job=\"user-service\", area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"user-service\", area=\"heap\"}) * 100",
-              "legendFormat": "Heap used",
-              "refId": "A"
-            }
-          ],
-          "title": "JVM Heap Usage",
-          "type": "stat"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "thresholds"
-              },
-              "mappings": [],
-              "max": 100,
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": null
-                  },
-                  {
-                    "color": "yellow",
-                    "value": 70
-                  },
-                  {
-                    "color": "red",
-                    "value": 90
-                  }
-                ]
-              },
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
-          "id": 9,
-          "options": {
-            "colorMode": "value",
-            "graphMode": "area",
-            "justifyMode": "auto",
-            "orientation": "auto",
-            "reduceOptions": {
-              "calcs": ["lastNotNull"],
-              "fields": "",
-              "values": false
-            },
-            "textMode": "auto"
-          },
-          "targets": [
-            {
-              "expr": "hikaricp_connections_active{job=\"user-service\"} / hikaricp_connections_max{job=\"user-service\"} * 100",
-              "legendFormat": "{{pool}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Hikari Connection Pool Usage",
-          "type": "stat"
-        }
-      ],
-      "refresh": "30s",
-      "schemaVersion": 39,
-      "tags": ["user-service", "freelance", "m3", "observability"],
-      "templating": {
-        "list": [
-          {
-            "name": "correlationId",
-            "label": "Correlation ID",
-            "type": "textbox",
-            "current": { "value": ".*" },
-            "hide": 0,
-            "options": [],
-            "query": ".*"
-          }
-        ]
-      },
-      "time": { "from": "now-1h", "to": "now" },
-      "timepicker": {},
-      "timezone": "browser",
-      "title": "User Service",
-      "uid": "user-service",
-      "version": 4,
-      "weekStart": ""
-    }
-  wallet-dashboard.json: |
-    {
-      "annotations": {
-        "list": []
-      },
-      "editable": true,
-      "fiscalYearStartMonth": 0,
-      "graphTooltip": 0,
-      "id": null,
-      "links": [],
-      "liveNow": false,
-      "panels": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 0,
-            "y": 0
-          },
-          "id": 1,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "loki"
-              },
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"ERROR\"}[1m]))",
-              "legendFormat": "errors/min",
-              "refId": "A"
-            }
-          ],
-          "title": "Wallet Error Rate",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 8,
-            "y": 0
-          },
-          "id": 2,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "loki"
-              },
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Slow \" [5m]))",
-              "legendFormat": "slow warnings",
-              "refId": "A"
-            }
-          ],
-          "title": "Wallet Slow Operations",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 16,
-            "y": 0
-          },
-          "id": 3,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "loki"
-              },
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\"} |= \"returned successfully\" [5m]))",
-              "legendFormat": "feign success",
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "loki",
-                "uid": "loki"
-              },
-              "expr": "sum(count_over_time({app=\"freelance\",service=\"wallet-service\",level=\"WARN\"} |= \"Feign call to\" [5m]))",
-              "legendFormat": "feign failure",
-              "refId": "B"
-            }
-          ],
-          "title": "Wallet Feign Call Outcomes",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 0,
-            "y": 8
-          },
-          "id": 4,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum by (uri) (rate(http_server_requests_seconds_count{job=\"wallet-service\"}[10m]))",
-              "legendFormat": "{{uri}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Wallet HTTP Request Rate",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percentunit"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 8,
-            "y": 8
-          },
-          "id": 5,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(rate(http_server_requests_seconds_count{job=\"wallet-service\",status=~\"5..\"}[5m])) / sum(rate(http_server_requests_seconds_count{job=\"wallet-service\"}[5m]))",
-              "legendFormat": "5xx ratio",
-              "refId": "A"
-            }
-          ],
-          "title": "Wallet HTTP 5xx Error Ratio",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "s"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 8,
-            "x": 16,
-            "y": 8
-          },
-          "id": 6,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "histogram_quantile(0.50, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m]))) * 1000",
-              "legendFormat": "P50 {{method}} {{uri}}",
-              "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m]))) * 1000",
-              "legendFormat": "P95 {{method}} {{uri}}",
-              "refId": "B"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "histogram_quantile(0.99, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"wallet-service\"}[5m]))) * 1000",
-              "legendFormat": "P99 {{method}} {{uri}}",
-              "refId": "C"
-            }
-          ],
-          "title": "Wallet HTTP Latency Percentiles",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percent"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 16
-          },
-          "id": 7,
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "expr": "sum(jvm_memory_used_bytes{job=\"wallet-service\", area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"wallet-service\", area=\"heap\"}) * 100",
-              "legendFormat": "Heap used",
-              "refId": "A"
-            }
-          ],
-          "title": "Wallet JVM Heap Usage",
-          "type": "timeseries"
-        }
-      ],
-      "refresh": "15s",
-      "schemaVersion": 39,
-      "tags": [
-        "freelance",
-        "wallet-service",
-        "m3"
-      ],
-      "templating": {
-        "list": []
-      },
-      "time": {
-        "from": "now-1h",
-        "to": "now"
-      },
-      "timepicker": {},
-      "timezone": "browser",
-      "title": "Wallet Service",
-      "uid": "wallet-service",
-      "version": 1,
-      "weekStart": ""
-    }
+  contract-dashboard.json: "{\r\n  \"__requires\": [\r\n    { \"type\": \"datasource\",
+    \"id\": \"loki\", \"name\": \"Loki\", \"version\": \"1.0.0\" },\r\n    { \"type\":
+    \"datasource\", \"id\": \"prometheus\", \"name\": \"Prometheus\", \"version\":
+    \"1.0.0\" }\r\n  ],\r\n  \"annotations\": { \"list\": [] },\r\n  \"description\":
+    \"Contract-service observability — S4 read Feign enrichment, saga consumers, HTTP
+    metrics, JVM and pool health.\",\r\n  \"editable\": true,\r\n  \"fiscalYearStartMonth\":
+    0,\r\n  \"graphTooltip\": 1,\r\n  \"id\": null,\r\n  \"links\": [],\r\n  \"liveNow\":
+    false,\r\n  \"panels\": [\r\n    {\r\n      \"datasource\": { \"type\": \"loki\",
+    \"uid\": \"loki\" },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 0, \"y\":
+    0 },\r\n      \"id\": 1,\r\n      \"title\": \"Contract Error Rate\",\r\n      \"description\":
+    \"ERROR-level log lines per minute (§11.3 panel 1).\",\r\n      \"type\": \"timeseries\",\r\n
+    \     \"targets\": [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
+    service=\\\"contract-service\\\", level=\\\"ERROR\\\"}[1m]))\",\r\n          \"legendFormat\":
+    \"errors/min\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n
+    \   {\r\n      \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\r\n
+    \     \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 8, \"y\": 0 },\r\n      \"id\":
+    2,\r\n      \"title\": \"S4 Feign Call Outcomes\",\r\n      \"description\": \"Successful
+    user/job Feign reads vs degradation warnings (§11.3 panel 4).\",\r\n      \"type\":
+    \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
+    service=\\\"contract-service\\\"} | json | message |= \\\"UserServiceClient.getUser
+    returned successfully\\\"[5m]))\",\r\n          \"legendFormat\": \"user read
+    ok\",\r\n          \"refId\": \"A\"\r\n        },\r\n        {\r\n          \"expr\":
+    \"sum(count_over_time({app=\\\"freelance\\\", service=\\\"contract-service\\\"}
+    | json | message |= \\\"JobServiceClient.getJob returned successfully\\\"[5m]))\",\r\n
+    \         \"legendFormat\": \"job read ok\",\r\n          \"refId\": \"B\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
+    service=\\\"contract-service\\\", level=\\\"WARN\\\"} | json | message |= \\\"Feign
+    call to\\\"[5m]))\",\r\n          \"legendFormat\": \"feign failure\",\r\n          \"refId\":
+    \"C\"\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"datasource\": { \"type\":
+    \"loki\", \"uid\": \"loki\" },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\":
+    16, \"y\": 0 },\r\n      \"id\": 3,\r\n      \"title\": \"Contract Saga Event
+    Audit\",\r\n      \"description\": \"RabbitMQ publish/consume audit for contract
+    saga (§11.3 panel 3).\",\r\n      \"type\": \"timeseries\",\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
+    service=\\\"contract-service\\\"} | json | message |= \\\"Publishing contract\\\"[5m]))\",\r\n
+    \         \"legendFormat\": \"published\",\r\n          \"refId\": \"A\"\r\n        },\r\n
+    \       {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
+    service=\\\"contract-service\\\"} | json | message |= \\\"Received event on\\\"[5m]))\",\r\n
+    \         \"legendFormat\": \"consumed\",\r\n          \"refId\": \"B\"\r\n        },\r\n
+    \       {\r\n          \"expr\": \"sum by (routingKey) (count_over_time({app=\\\"freelance\\\",
+    service=\\\"contract-service\\\"} | json | routingKey != \\\"\\\" [5m]))\",\r\n
+    \         \"legendFormat\": \"{{routingKey}}\",\r\n          \"refId\": \"C\"\r\n
+    \       }\r\n      ]\r\n    },\r\n    {\r\n      \"datasource\": { \"type\": \"loki\",
+    \"uid\": \"loki\" },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 0, \"y\":
+    8 },\r\n      \"id\": 4,\r\n      \"title\": \"S4 Slow Operations\",\r\n      \"description\":
+    \"S4-F3 enrichment and other ops exceeding the slow threshold (§11.3 panel 6).\",\r\n
+    \     \"type\": \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
+    \"sum(count_over_time({app=\\\"freelance\\\", service=\\\"contract-service\\\",
+    level=\\\"WARN\\\"} | json | message |= \\\"Slow \\\"[5m]))\",\r\n          \"legendFormat\":
+    \"slow warnings\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n
+    \   {\r\n      \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\r\n
+    \     \"gridPos\": { \"h\": 8, \"w\": 16, \"x\": 8, \"y\": 8 },\r\n      \"id\":
+    5,\r\n      \"title\": \"Correlation ID Trace\",\r\n      \"description\": \"Cross-request
+    trace via X-Correlation-ID MDC (§11.3 panel 2).\",\r\n      \"type\": \"logs\",\r\n
+    \     \"options\": {\r\n        \"dedupStrategy\": \"none\",\r\n        \"enableLogDetails\":
+    true,\r\n        \"prettifyLogMessage\": false,\r\n        \"showCommonLabels\":
+    false,\r\n        \"showLabels\": false,\r\n        \"showTime\": true,\r\n        \"sortOrder\":
+    \"Descending\",\r\n        \"wrapLogMessage\": true\r\n      },\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"{app=\\\"freelance\\\", service=\\\"contract-service\\\"}
+    | json | correlationId=~\\\"${correlationId:pipe}\\\"\",\r\n          \"refId\":
+    \"A\"\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"datasource\": { \"type\":
+    \"loki\", \"uid\": \"loki\" },\r\n      \"gridPos\": { \"h\": 8, \"w\": 24, \"x\":
+    0, \"y\": 16 },\r\n      \"id\": 6,\r\n      \"title\": \"Contract Writes by proposalId\",\r\n
+    \     \"description\": \"DB saves and saga-side contract mutations filtered by
+    proposalId MDC.\",\r\n      \"type\": \"logs\",\r\n      \"options\": {\r\n        \"dedupStrategy\":
+    \"none\",\r\n        \"enableLogDetails\": true,\r\n        \"prettifyLogMessage\":
+    false,\r\n        \"showCommonLabels\": false,\r\n        \"showLabels\": false,\r\n
+    \       \"showTime\": true,\r\n        \"sortOrder\": \"Descending\",\r\n        \"wrapLogMessage\":
+    true\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"{app=\\\"freelance\\\",
+    service=\\\"contract-service\\\"} | json | proposalId != \\\"\\\" | message |=
+    \\\"saved with status\\\"\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n
+    \   },\r\n    {\r\n      \"datasource\": { \"type\": \"prometheus\", \"uid\":
+    \"prometheus\" },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\":
+    \"reqps\",\r\n          \"custom\": { \"drawStyle\": \"line\", \"fillOpacity\":
+    10 }\r\n        },\r\n        \"overrides\": []\r\n      },\r\n      \"gridPos\":
+    { \"h\": 8, \"w\": 12, \"x\": 0, \"y\": 24 },\r\n      \"id\": 7,\r\n      \"title\":
+    \"HTTP Request Rate\",\r\n      \"description\": \"Requests per second per contract
+    endpoint (§11.4 panel 1).\",\r\n      \"type\": \"timeseries\",\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"sum by (uri, method, status) (rate(http_server_requests_seconds_count{job=\\\"contract-service\\\",
+    uri=~\\\"/api/contracts.*\\\"}[5m]))\",\r\n          \"legendFormat\": \"{{method}}
+    {{uri}} {{status}}\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n
+    \   },\r\n    {\r\n      \"datasource\": { \"type\": \"prometheus\", \"uid\":
+    \"prometheus\" },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\":
+    \"ms\",\r\n          \"custom\": { \"drawStyle\": \"line\", \"fillOpacity\": 10
+    }\r\n        },\r\n        \"overrides\": []\r\n      },\r\n      \"gridPos\":
+    { \"h\": 8, \"w\": 12, \"x\": 12, \"y\": 24 },\r\n      \"id\": 8,\r\n      \"title\":
+    \"HTTP Latency Percentiles\",\r\n      \"description\": \"P50/P95/P99 latency
+    for contract APIs — S4-F3 enrichment signal (§11.4 panel 2).\",\r\n      \"type\":
+    \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"histogram_quantile(0.50,
+    sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"contract-service\\\",
+    uri=~\\\"/api/contracts.*\\\"}[5m]))) * 1000\",\r\n          \"legendFormat\":
+    \"p50 {{method}} {{uri}}\",\r\n          \"refId\": \"A\"\r\n        },\r\n        {\r\n
+    \         \"expr\": \"histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"contract-service\\\",
+    uri=~\\\"/api/contracts.*\\\"}[5m]))) * 1000\",\r\n          \"legendFormat\":
+    \"p95 {{method}} {{uri}}\",\r\n          \"refId\": \"B\"\r\n        },\r\n        {\r\n
+    \         \"expr\": \"histogram_quantile(0.99, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"contract-service\\\",
+    uri=~\\\"/api/contracts.*\\\"}[5m]))) * 1000\",\r\n          \"legendFormat\":
+    \"p99 {{method}} {{uri}}\",\r\n          \"refId\": \"C\"\r\n        }\r\n      ]\r\n
+    \   },\r\n    {\r\n      \"datasource\": { \"type\": \"prometheus\", \"uid\":
+    \"prometheus\" },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\":
+    \"percent\",\r\n          \"min\": 0,\r\n          \"max\": 100,\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {
+    \"color\": \"green\", \"value\": null },\r\n              { \"color\": \"yellow\",
+    \"value\": 70 },\r\n              { \"color\": \"red\", \"value\": 90 }\r\n            ]\r\n
+    \         }\r\n        },\r\n        \"overrides\": []\r\n      },\r\n      \"gridPos\":
+    { \"h\": 8, \"w\": 8, \"x\": 0, \"y\": 32 },\r\n      \"id\": 9,\r\n      \"title\":
+    \"JVM Heap Usage\",\r\n      \"description\": \"Heap pressure before OOM during
+    saga fan-out (§11.4 panel 3).\",\r\n      \"type\": \"stat\",\r\n      \"options\":
+    {\r\n        \"colorMode\": \"value\",\r\n        \"graphMode\": \"area\",\r\n
+    \       \"reduceOptions\": { \"calcs\": [\"lastNotNull\"] }\r\n      },\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"sum(jvm_memory_used_bytes{job=\\\"contract-service\\\",
+    area=\\\"heap\\\"}) / sum(jvm_memory_max_bytes{job=\\\"contract-service\\\", area=\\\"heap\\\"})
+    * 100\",\r\n          \"legendFormat\": \"heap %\",\r\n          \"refId\": \"A\"\r\n
+    \       }\r\n      ]\r\n    },\r\n    {\r\n      \"datasource\": { \"type\": \"prometheus\",
+    \"uid\": \"prometheus\" },\r\n      \"fieldConfig\": {\r\n        \"defaults\":
+    {\r\n          \"unit\": \"percent\",\r\n          \"min\": 0,\r\n          \"max\":
+    100,\r\n          \"thresholds\": {\r\n            \"mode\": \"absolute\",\r\n
+    \           \"steps\": [\r\n              { \"color\": \"green\", \"value\": null
+    },\r\n              { \"color\": \"yellow\", \"value\": 70 },\r\n              {
+    \"color\": \"red\", \"value\": 90 }\r\n            ]\r\n          }\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\":
+    8, \"x\": 8, \"y\": 32 },\r\n      \"id\": 10,\r\n      \"title\": \"Hikari Connection
+    Pool Usage\",\r\n      \"description\": \"Active vs max DB connections during
+    enrichment (§11.4 panel 4).\",\r\n      \"type\": \"stat\",\r\n      \"options\":
+    {\r\n        \"colorMode\": \"value\",\r\n        \"graphMode\": \"area\",\r\n
+    \       \"reduceOptions\": { \"calcs\": [\"lastNotNull\"] }\r\n      },\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"hikaricp_connections_active{job=\\\"contract-service\\\"}
+    / hikaricp_connections_max{job=\\\"contract-service\\\"} * 100\",\r\n          \"legendFormat\":
+    \"{{pool}}\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n
+    \   {\r\n      \"datasource\": { \"type\": \"prometheus\", \"uid\": \"prometheus\"
+    },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\":
+    \"percentunit\",\r\n          \"min\": 0,\r\n          \"max\": 1\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\":
+    8, \"x\": 16, \"y\": 32 },\r\n      \"id\": 11,\r\n      \"title\": \"Redis Cache
+    Hit Ratio\",\r\n      \"description\": \"S4 cached GET effectiveness (§11.4 panel
+    5).\",\r\n      \"type\": \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n
+    \         \"expr\": \"sum(rate(cache_gets_total{job=\\\"contract-service\\\",
+    result=\\\"hit\\\"}[5m])) / (sum(rate(cache_gets_total{job=\\\"contract-service\\\",
+    result=\\\"hit\\\"}[5m])) + sum(rate(cache_gets_total{job=\\\"contract-service\\\",
+    result=\\\"miss\\\"}[5m])))\",\r\n          \"legendFormat\": \"hit ratio\",\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"datasource\":
+    { \"type\": \"prometheus\", \"uid\": \"prometheus\" },\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"ops\",\r\n          \"custom\":
+    { \"drawStyle\": \"line\", \"fillOpacity\": 10 }\r\n        },\r\n        \"overrides\":
+    []\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 0, \"y\": 40
+    },\r\n      \"id\": 12,\r\n      \"title\": \"RabbitMQ contract.saga-listener
+    Throughput\",\r\n      \"description\": \"Consumer lag signal for contract saga
+    queue (§11.4 panel 6).\",\r\n      \"type\": \"timeseries\",\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"rate(rabbitmq_queue_messages_delivered_total{queue=\\\"contract.saga-listener\\\"}[5m])\",\r\n
+    \         \"legendFormat\": \"delivered/s\",\r\n          \"refId\": \"A\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"rate(rabbitmq_queue_messages_published_total{queue=\\\"contract.saga-listener\\\"}[5m])\",\r\n
+    \         \"legendFormat\": \"published/s\",\r\n          \"refId\": \"B\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"rabbitmq_queue_messages{queue=\\\"contract.saga-listener\\\"}\",\r\n
+    \         \"legendFormat\": \"depth\",\r\n          \"refId\": \"C\"\r\n        }\r\n
+    \     ]\r\n    },\r\n    {\r\n      \"datasource\": { \"type\": \"prometheus\",
+    \"uid\": \"prometheus\" },\r\n      \"fieldConfig\": {\r\n        \"defaults\":
+    {\r\n          \"unit\": \"reqps\",\r\n          \"custom\": { \"drawStyle\":
+    \"line\", \"fillOpacity\": 10 }\r\n        },\r\n        \"overrides\": []\r\n
+    \     },\r\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 12, \"y\": 40 },\r\n
+    \     \"id\": 13,\r\n      \"title\": \"HTTP 5xx Error Rate\",\r\n      \"type\":
+    \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"sum(rate(http_server_requests_seconds_count{job=\\\"contract-service\\\",
+    status=~\\\"5..\\\"}[5m]))\",\r\n          \"legendFormat\": \"5xx/s\",\r\n          \"refId\":
+    \"A\"\r\n        }\r\n      ]\r\n    }\r\n  ],\r\n  \"refresh\": \"30s\",\r\n
+    \ \"schemaVersion\": 39,\r\n  \"tags\": [\"freelance\", \"contract-service\",
+    \"m3\", \"observability\"],\r\n  \"templating\": {\r\n    \"list\": [\r\n      {\r\n
+    \       \"name\": \"correlationId\",\r\n        \"label\": \"Correlation ID\",\r\n
+    \       \"type\": \"textbox\",\r\n        \"current\": { \"value\": \".*\" },\r\n
+    \       \"hide\": 0,\r\n        \"options\": [],\r\n        \"query\": \".*\"\r\n
+    \     }\r\n    ]\r\n  },\r\n  \"time\": { \"from\": \"now-1h\", \"to\": \"now\"
+    },\r\n  \"timepicker\": {},\r\n  \"timezone\": \"browser\",\r\n  \"title\": \"Contract
+    Service\",\r\n  \"uid\": \"contract-service\",\r\n  \"version\": 2,\r\n  \"weekStart\":
+    \"\"\r\n}\r\n"
+  job-dashboard.json: "{\r\n  \"annotations\": {\r\n    \"list\": [\r\n      {\r\n
+    \       \"builtIn\": 1,\r\n        \"datasource\": {\r\n          \"type\": \"grafana\",\r\n
+    \         \"uid\": \"-- Grafana --\"\r\n        },\r\n        \"enable\": true,\r\n
+    \       \"hide\": true,\r\n        \"iconColor\": \"rgba(0, 211, 255, 1)\",\r\n
+    \       \"name\": \"Annotations & Alerts\",\r\n        \"type\": \"dashboard\"\r\n
+    \     }\r\n    ]\r\n  },\r\n  \"editable\": true,\r\n  \"fiscalYearStartMonth\":
+    0,\r\n  \"graphTooltip\": 0,\r\n  \"id\": null,\r\n  \"links\": [],\r\n  \"liveNow\":
+    false,\r\n  \"panels\": [\r\n    {\r\n      \"datasource\": {\r\n        \"type\":
+    \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n      \"gridPos\": {\r\n
+    \       \"h\": 8,\r\n        \"w\": 12,\r\n        \"x\": 0,\r\n        \"y\":
+    0\r\n      },\r\n      \"id\": 1,\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
+    \"sum(count_over_time({app=\\\"freelance\\\", service=\\\"job-service\\\", level=\\\"ERROR\\\"}[1m]))
+    by (level)\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"title\":
+    \"Error Rate (Errors per Minute)\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n
+    \   {\r\n      \"datasource\": {\r\n        \"type\": \"prometheus\",\r\n        \"uid\":
+    \"prometheus\"\r\n      },\r\n      \"fieldConfig\": {\r\n        \"defaults\":
+    {\r\n          \"color\": {\r\n            \"mode\": \"palette-classic\"\r\n          },\r\n
+    \         \"custom\": {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
+    \"text\",\r\n            \"axisLabel\": \"\",\r\n            \"axisPlacement\":
+    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
+    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
+    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
+    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
+    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
+    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
+    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
+    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
+    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
+    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              },\r\n
+    \             {\r\n                \"color\": \"red\",\r\n                \"value\":
+    80\r\n              }\r\n            ]\r\n          }\r\n        },\r\n        \"overrides\":
+    []\r\n      },\r\n      \"gridPos\": {\r\n        \"h\": 8,\r\n        \"w\":
+    12,\r\n        \"x\": 12,\r\n        \"y\": 0\r\n      },\r\n      \"id\": 2,\r\n
+    \     \"targets\": [\r\n        {\r\n          \"expr\": \"rate(http_server_requests_seconds_count{job=\\\"job-service\\\"}[5m])\",\r\n
+    \         \"legendFormat\": \"{{uri}} {{method}}\",\r\n          \"refId\": \"A\"\r\n
+    \       }\r\n      ],\r\n      \"title\": \"HTTP Request Rate (Requests/sec)\",\r\n
+    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
+    \       \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n      \"gridPos\":
+    {\r\n        \"h\": 8,\r\n        \"w\": 12,\r\n        \"x\": 0,\r\n        \"y\":
+    8\r\n      },\r\n      \"id\": 3,\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
+    \"sum(count_over_time({app=\\\"freelance\\\", service=\\\"job-service\\\"} | json
+    | line_format \\\"{{.message}}\\\" |= \\\"Feign call to\\\" |= \\\"failed\\\"
+    [1m]))\",\r\n          \"legendFormat\": \"Feign Failures\",\r\n          \"refId\":
+    \"A\"\r\n        },\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
+    service=\\\"job-service\\\"} | json | line_format \\\"{{.message}}\\\" |= \\\"returned
+    successfully\\\" [1m]))\",\r\n          \"legendFormat\": \"Feign Successes\",\r\n
+    \         \"refId\": \"B\"\r\n        }\r\n      ],\r\n      \"title\": \"Feign
+    Call Outcomes (Success vs Failures)\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n
+    \   {\r\n      \"datasource\": {\r\n        \"type\": \"prometheus\",\r\n        \"uid\":
+    \"prometheus\"\r\n      },\r\n      \"fieldConfig\": {\r\n        \"defaults\":
+    {\r\n          \"color\": {\r\n            \"mode\": \"palette-classic\"\r\n          },\r\n
+    \         \"custom\": {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
+    \"text\",\r\n            \"axisLabel\": \"Latency (ms)\",\r\n            \"axisPlacement\":
+    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
+    \           \"fillOpacity\": 0,\r\n            \"gradientMode\": \"none\",\r\n
+    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
+    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
+    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
+    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
+    \           },\r\n            \"showPoints\": \"never\",\r\n            \"spanNulls\":
+    true,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
+    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
+    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
+    \           ]\r\n          },\r\n          \"unit\": \"ms\"\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": {\r\n        \"h\":
+    8,\r\n        \"w\": 12,\r\n        \"x\": 12,\r\n        \"y\": 8\r\n      },\r\n
+    \     \"id\": 4,\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"histogram_quantile(0.50,
+    rate(http_server_requests_seconds_bucket{job=\\\"job-service\\\"}[5m])) * 1000\",\r\n
+    \         \"legendFormat\": \"P50 {{uri}}\",\r\n          \"refId\": \"A\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\\\"job-service\\\"}[5m]))
+    * 1000\",\r\n          \"legendFormat\": \"P95 {{uri}}\",\r\n          \"refId\":
+    \"B\"\r\n        },\r\n        {\r\n          \"expr\": \"histogram_quantile(0.99,
+    rate(http_server_requests_seconds_bucket{job=\\\"job-service\\\"}[5m])) * 1000\",\r\n
+    \         \"legendFormat\": \"P99 {{uri}}\",\r\n          \"refId\": \"C\"\r\n
+    \       }\r\n      ],\r\n      \"title\": \"HTTP Latency Percentiles (P50/P95/P99)\",\r\n
+    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
+    \       \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n      \"gridPos\":
+    {\r\n        \"h\": 8,\r\n        \"w\": 12,\r\n        \"x\": 0,\r\n        \"y\":
+    16\r\n      },\r\n      \"id\": 5,\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
+    \"sum by (routingKey) (count_over_time({app=\\\"freelance\\\", service=\\\"job-service\\\"}
+    | json | line_format \\\"{{.message}}\\\" |~ \\\"Published|Consuming|Processed\\\"
+    [5m]))\",\r\n          \"legendFormat\": \"{{routingKey}}\",\r\n          \"refId\":
+    \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"RabbitMQ Event Audit (by
+    Routing Key)\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\":
+    {\r\n        \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n
+    \     },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\":
+    {\r\n            \"mode\": \"palette-classic\"\r\n          },\r\n          \"custom\":
+    {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
+    \"text\",\r\n            \"axisLabel\": \"Hit/Miss Ratio\",\r\n            \"axisPlacement\":
+    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
+    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
+    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
+    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
+    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
+    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
+    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
+    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
+    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
+    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
+    \           ]\r\n          },\r\n          \"unit\": \"percentunit\"\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": {\r\n        \"h\":
+    8,\r\n        \"w\": 12,\r\n        \"x\": 12,\r\n        \"y\": 16\r\n      },\r\n
+    \     \"id\": 6,\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"sum(rate(cache_gets_total{job=\\\"job-service\\\",
+    result=\\\"hit\\\"}[5m])) / (sum(rate(cache_gets_total{job=\\\"job-service\\\",
+    result=\\\"hit\\\"}[5m])) + sum(rate(cache_gets_total{job=\\\"job-service\\\",
+    result=\\\"miss\\\"}[5m])))\",\r\n          \"legendFormat\": \"Cache Hit Ratio\",\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"Redis
+    Cache Hit/Miss Ratio\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n    {\r\n
+    \     \"datasource\": {\r\n        \"type\": \"prometheus\",\r\n        \"uid\":
+    \"prometheus\"\r\n      },\r\n      \"fieldConfig\": {\r\n        \"defaults\":
+    {\r\n          \"color\": {\r\n            \"mode\": \"palette-classic\"\r\n          },\r\n
+    \         \"custom\": {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
+    \"text\",\r\n            \"axisLabel\": \"Value\",\r\n            \"axisPlacement\":
+    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
+    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
+    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
+    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
+    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
+    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
+    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
+    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
+    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
+    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
+    \           ]\r\n          }\r\n        },\r\n        \"overrides\": []\r\n      },\r\n
+    \     \"gridPos\": {\r\n        \"h\": 8,\r\n        \"w\": 12,\r\n        \"x\":
+    0,\r\n        \"y\": 24\r\n      },\r\n      \"id\": 7,\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"jvm_memory_used_bytes{job=\\\"job-service\\\",
+    area=\\\"heap\\\"} / jvm_memory_max_bytes{job=\\\"job-service\\\", area=\\\"heap\\\"}\",\r\n
+    \         \"legendFormat\": \"Heap Usage %\",\r\n          \"refId\": \"A\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"rate(jvm_gc_pause_seconds_sum{job=\\\"job-service\\\"}[5m])\",\r\n
+    \         \"legendFormat\": \"GC Pause/sec\",\r\n          \"refId\": \"B\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"jvm_threads_live_threads{job=\\\"job-service\\\"}\",\r\n
+    \         \"legendFormat\": \"Live Threads\",\r\n          \"refId\": \"C\"\r\n
+    \       }\r\n      ],\r\n      \"title\": \"JVM Health (Heap, GC, Threads)\",\r\n
+    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
+    \       \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n
+    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\": {\r\n
+    \           \"mode\": \"palette-classic\"\r\n          },\r\n          \"custom\":
+    {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
+    \"text\",\r\n            \"axisLabel\": \"Connections\",\r\n            \"axisPlacement\":
+    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
+    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
+    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
+    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
+    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
+    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
+    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
+    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
+    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
+    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
+    \           ]\r\n          }\r\n        },\r\n        \"overrides\": []\r\n      },\r\n
+    \     \"gridPos\": {\r\n        \"h\": 8,\r\n        \"w\": 12,\r\n        \"x\":
+    12,\r\n        \"y\": 24\r\n      },\r\n      \"id\": 8,\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"hikaricp_connections_active{job=\\\"job-service\\\"}\",\r\n
+    \         \"legendFormat\": \"Active Connections\",\r\n          \"refId\": \"A\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"hikaricp_connections_max{job=\\\"job-service\\\"}\",\r\n
+    \         \"legendFormat\": \"Max Pool Size\",\r\n          \"refId\": \"B\"\r\n
+    \       }\r\n      ],\r\n      \"title\": \"Database Connection Pool (HikariCP)\",\r\n
+    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
+    \       \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n
+    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\": {\r\n
+    \           \"mode\": \"palette-classic\"\r\n          },\r\n          \"custom\":
+    {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
+    \"text\",\r\n            \"axisLabel\": \"Messages/sec\",\r\n            \"axisPlacement\":
+    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
+    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
+    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
+    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
+    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
+    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
+    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
+    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
+    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
+    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
+    \           ]\r\n          }\r\n        },\r\n        \"overrides\": []\r\n      },\r\n
+    \     \"gridPos\": {\r\n        \"h\": 8,\r\n        \"w\": 24,\r\n        \"x\":
+    0,\r\n        \"y\": 32\r\n      },\r\n      \"id\": 9,\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"rate(rabbitmq_queue_messages_published_total{queue=\\\"job.proposal.saga-listener\\\"}[5m])\",\r\n
+    \         \"legendFormat\": \"Published job.proposal.saga-listener\",\r\n          \"refId\":
+    \"A\"\r\n        },\r\n        {\r\n          \"expr\": \"rate(rabbitmq_queue_messages_delivered_total{queue=\\\"job.proposal.saga-listener\\\"}[5m])\",\r\n
+    \         \"legendFormat\": \"Consumed job.proposal.saga-listener\",\r\n          \"refId\":
+    \"B\"\r\n        }\r\n      ],\r\n      \"title\": \"RabbitMQ Throughput (Published
+    vs Consumed)\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\":
+    {\r\n        \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n
+    \     \"gridPos\": {\r\n        \"h\": 10,\r\n        \"w\": 24,\r\n        \"x\":
+    0,\r\n        \"y\": 40\r\n      },\r\n      \"id\": 10,\r\n      \"options\":
+    {\r\n        \"dedupStrategy\": \"none\",\r\n        \"enableLogDetails\": true,\r\n
+    \       \"showLabels\": true,\r\n        \"showTime\": true,\r\n        \"wrapLogMessage\":
+    true\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"{app=\\\"freelance\\\",
+    service=\\\"job-service\\\"} | json | correlationId=~\\\"$correlationId\\\"\",\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"Correlation
+    ID Trace (paste ID in variable above)\",\r\n      \"type\": \"logs\"\r\n    }\r\n
+    \ ],\r\n  \"refresh\": \"10s\",\r\n  \"schemaVersion\": 38,\r\n  \"style\": \"dark\",\r\n
+    \ \"tags\": [\r\n    \"job-service\",\r\n    \"production\"\r\n  ],\r\n  \"templating\":
+    {\r\n    \"list\": [\r\n      {\r\n        \"current\": {},\r\n        \"description\":
+    \"Paste an X-Correlation-ID to trace a single request through job-service logs\",\r\n
+    \       \"hide\": 0,\r\n        \"label\": \"Correlation ID\",\r\n        \"name\":
+    \"correlationId\",\r\n        \"options\": [],\r\n        \"query\": \"\",\r\n
+    \       \"type\": \"textbox\"\r\n      }\r\n    ]\r\n  },\r\n  \"time\": {\r\n
+    \   \"from\": \"now-1h\",\r\n    \"to\": \"now\"\r\n  },\r\n  \"timepicker\":
+    {},\r\n  \"timezone\": \"\",\r\n  \"title\": \"Job Service Observability Dashboard\",\r\n
+    \ \"uid\": \"job-service-dashboard\",\r\n  \"version\": 1,\r\n  \"weekStart\":
+    \"\"\r\n}\r\n"
+  proposal-dashboard.json: "{\r\n  \"__requires\": [\r\n    { \"type\": \"datasource\",
+    \"id\": \"loki\",       \"name\": \"Loki\",       \"version\": \"1.0.0\" },\r\n
+    \   { \"type\": \"datasource\", \"id\": \"prometheus\", \"name\": \"Prometheus\",
+    \"version\": \"1.0.0\" }\r\n  ],\r\n  \"annotations\": { \"list\": [] },\r\n  \"description\":
+    \"Metrics and logs for proposal-service — HTTP requests, latency, logs, and RabbitMQ
+    throughput\",\r\n  \"editable\": true,\r\n  \"fiscalYearStartMonth\": 0,\r\n  \"graphTooltip\":
+    1,\r\n  \"id\": null,\r\n  \"links\": [],\r\n  \"panels\": [\r\n    {\r\n      \"title\":
+    \"Error Rate (Loki)\",\r\n      \"type\": \"timeseries\",\r\n      \"datasource\":
+    { \"type\": \"loki\", \"uid\": \"loki\" },\r\n      \"gridPos\": { \"h\": 8, \"w\":
+    8, \"x\": 0, \"y\": 0 },\r\n      \"targets\": [\r\n        { \"expr\": \"sum(rate({app=\\\"freelance\\\",
+    service=\\\"proposal-service\\\", level=\\\"ERROR\\\"}[5m]))\" }\r\n      ]\r\n
+    \   },\r\n    {\r\n      \"title\": \"Saga State Transitions\",\r\n      \"type\":
+    \"logs\",\r\n      \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\r\n
+    \     \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 8, \"y\": 0 },\r\n      \"targets\":
+    [\r\n        { \"expr\": \"{app=\\\"freelance\\\", service=\\\"proposal-service\\\"}
+    |= \\\"routingKey\\\"\" }\r\n      ]\r\n    },\r\n    {\r\n      \"title\": \"Correlation
+    ID Traces\",\r\n      \"type\": \"logs\",\r\n      \"datasource\": { \"type\":
+    \"loki\", \"uid\": \"loki\" },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\":
+    16, \"y\": 0 },\r\n      \"targets\": [\r\n        { \"expr\": \"{app=\\\"freelance\\\",
+    service=\\\"proposal-service\\\"} |= \\\"correlationId\\\"\" }\r\n      ]\r\n
+    \   },\r\n    {\r\n      \"id\": 1,\r\n      \"type\": \"stat\",\r\n      \"title\":
+    \"HTTP Request Rate (req/sec)\",\r\n      \"datasource\": \"Prometheus\",\r\n
+    \     \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 0, \"y\": 8 },\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"rate(http_server_requests_seconds_count{job=\\\"proposal-service\\\"}[1m])\",\r\n
+    \         \"refId\": \"A\",\r\n          \"legendFormat\": \"requests/sec\"\r\n
+    \       }\r\n      ],\r\n      \"options\": {\r\n        \"orientation\": \"auto\",\r\n
+    \       \"textMode\": \"auto\",\r\n        \"colorMode\": \"background\",\r\n
+    \       \"graphMode\": \"area\",\r\n        \"justifyMode\": \"auto\",\r\n        \"decimals\":
+    2\r\n      },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"custom\":
+    {},\r\n          \"unit\": \"reqps\"\r\n        },\r\n        \"overrides\": []\r\n
+    \     }\r\n    },\r\n    {\r\n      \"id\": 2,\r\n      \"type\": \"graph\",\r\n
+    \     \"title\": \"HTTP Response Latency Percentiles\",\r\n      \"datasource\":
+    \"Prometheus\",\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 8, \"y\": 8
+    },\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"histogram_quantile(0.50,
+    rate(http_server_requests_seconds_bucket{job=\\\"proposal-service\\\"}[5m]))\",\r\n
+    \         \"refId\": \"A\",\r\n          \"legendFormat\": \"p50\"\r\n        },\r\n
+    \       {\r\n          \"expr\": \"histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{job=\\\"proposal-service\\\"}[5m]))\",\r\n
+    \         \"refId\": \"B\",\r\n          \"legendFormat\": \"p95\"\r\n        },\r\n
+    \       {\r\n          \"expr\": \"histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{job=\\\"proposal-service\\\"}[5m]))\",\r\n
+    \         \"refId\": \"C\",\r\n          \"legendFormat\": \"p99\"\r\n        }\r\n
+    \     ],\r\n      \"yaxes\": [\r\n        {\r\n          \"format\": \"s\",\r\n
+    \         \"label\": \"Latency\"\r\n        }\r\n      ],\r\n      \"options\":
+    {\r\n        \"legend\": {\r\n          \"calcs\": [],\r\n          \"displayMode\":
+    \"list\",\r\n          \"placement\": \"bottom\"\r\n        },\r\n        \"tooltip\":
+    {\r\n          \"mode\": \"single\"\r\n        }\r\n      }\r\n    },\r\n    {\r\n
+    \     \"id\": 3,\r\n      \"type\": \"graph\",\r\n      \"title\": \"RabbitMQ
+    Throughput\",\r\n      \"datasource\": \"Prometheus\",\r\n      \"gridPos\": {
+    \"h\": 8, \"w\": 8, \"x\": 16, \"y\": 8 },\r\n      \"targets\": [\r\n        {\r\n
+    \         \"expr\": \"rate(rabbitmq_channel_messages_published_total{vhost=\\\"/\\\"}[1m])\",\r\n
+    \         \"refId\": \"A\",\r\n          \"legendFormat\": \"published/sec\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"rate(rabbitmq_channel_messages_delivered_total{vhost=\\\"/\\\"}[1m])\",\r\n
+    \         \"refId\": \"B\",\r\n          \"legendFormat\": \"delivered/sec\"\r\n
+    \       },\r\n        {\r\n          \"expr\": \"rate(rabbitmq_channel_messages_acknowledged_total{vhost=\\\"/\\\"}[1m])\",\r\n
+    \         \"refId\": \"C\",\r\n          \"legendFormat\": \"ack'd/sec\"\r\n        }\r\n
+    \     ],\r\n      \"yaxes\": [\r\n        {\r\n          \"format\": \"msgps\",\r\n
+    \         \"label\": \"Messages/sec\"\r\n        }\r\n      ],\r\n      \"options\":
+    {\r\n        \"legend\": {\r\n          \"calcs\": [],\r\n          \"displayMode\":
+    \"list\",\r\n          \"placement\": \"bottom\"\r\n        },\r\n        \"tooltip\":
+    {\r\n          \"mode\": \"single\"\r\n        }\r\n      }\r\n    },\r\n    {\r\n
+    \     \"id\": 4,\r\n      \"type\": \"logs\",\r\n      \"title\": \"Saga State
+    Transitions (proposalId MDC)\",\r\n      \"datasource\": \"Loki\",\r\n      \"gridPos\":
+    { \"h\": 8, \"w\": 12, \"x\": 0, \"y\": 16 },\r\n      \"targets\": [\r\n        {\r\n
+    \         \"expr\": \"{job=\\\"proposal-service\\\"} | json | proposalId != \\\"\\\"\",\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"options\": {\r\n
+    \       \"showLabels\": \"auto\",\r\n        \"showTime\": true,\r\n        \"wrapLogMessage\":
+    false,\r\n        \"prettifyLogMessage\": false,\r\n        \"enableLogDetails\":
+    true\r\n      }\r\n    },\r\n    {\r\n      \"id\": 5,\r\n      \"type\": \"logs\",\r\n
+    \     \"title\": \"RabbitMQ Consumer Errors (proposal.saga-feedback)\",\r\n      \"datasource\":
+    \"Loki\",\r\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 12, \"y\": 16 },\r\n
+    \     \"targets\": [\r\n        {\r\n          \"expr\": \"{job=\\\"proposal-service\\\"}
+    |= \\\"SagaFeedbackConsumer\\\" |= \\\"error\\\"\",\r\n          \"refId\": \"A\"\r\n
+    \       }\r\n      ],\r\n      \"options\": {\r\n        \"showLabels\": \"auto\",\r\n
+    \       \"showTime\": true,\r\n        \"wrapLogMessage\": false,\r\n        \"prettifyLogMessage\":
+    false,\r\n        \"enableLogDetails\": true\r\n      }\r\n    },\r\n    {\r\n
+    \     \"id\": 6,\r\n      \"type\": \"stat\",\r\n      \"title\": \"HTTP 5xx Rate
+    (errors/sec)\",\r\n      \"datasource\": \"Prometheus\",\r\n      \"gridPos\":
+    { \"h\": 8, \"w\": 8, \"x\": 0, \"y\": 24 },\r\n      \"targets\": [\r\n        {\r\n
+    \         \"expr\": \"rate(http_server_requests_seconds_count{job=\\\"proposal-service\\\",status=~\\\"5..\\\"}[1m])\",\r\n
+    \         \"refId\": \"A\",\r\n          \"legendFormat\": \"5xx/sec\"\r\n        }\r\n
+    \     ],\r\n      \"options\": {\r\n        \"orientation\": \"auto\",\r\n        \"textMode\":
+    \"auto\",\r\n        \"colorMode\": \"background\",\r\n        \"graphMode\":
+    \"area\",\r\n        \"justifyMode\": \"auto\",\r\n        \"decimals\": 2\r\n
+    \     },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"custom\":
+    {},\r\n          \"unit\": \"reqps\"\r\n        },\r\n        \"overrides\": []\r\n
+    \     }\r\n    },\r\n    {\r\n      \"id\": 7,\r\n      \"type\": \"stat\",\r\n
+    \     \"title\": \"Service Up\",\r\n      \"datasource\": \"Prometheus\",\r\n
+    \     \"gridPos\": { \"h\": 4, \"w\": 4, \"x\": 8, \"y\": 24 },\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"up{job=\\\"proposal-service\\\"}\",\r\n
+    \         \"refId\": \"A\",\r\n          \"legendFormat\": \"up\"\r\n        }\r\n
+    \     ],\r\n      \"options\": {\r\n        \"orientation\": \"auto\",\r\n        \"textMode\":
+    \"value\",\r\n        \"colorMode\": \"value\",\r\n        \"graphMode\": \"none\",\r\n
+    \       \"justifyMode\": \"auto\",\r\n        \"decimals\": 0\r\n      },\r\n
+    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"custom\": {},\r\n
+    \         \"mappings\": [\r\n            { \"type\": \"value\", \"from\": \"0\",
+    \"to\": \"0\", \"text\": \"DOWN\", \"color\": \"#BF1B1B\" },\r\n            {
+    \"type\": \"value\", \"from\": \"1\", \"to\": \"1\", \"text\": \"UP\", \"color\":
+    \"#299C46\" }\r\n          ]\r\n        },\r\n        \"overrides\": []\r\n      }\r\n
+    \   },\r\n    {\r\n      \"id\": 8,\r\n      \"type\": \"graph\",\r\n      \"title\":
+    \"JVM Heap Memory Used\",\r\n      \"datasource\": \"Prometheus\",\r\n      \"gridPos\":
+    { \"h\": 8, \"w\": 12, \"x\": 12, \"y\": 24 },\r\n      \"targets\": [\r\n        {\r\n
+    \         \"expr\": \"jvm_memory_used_bytes{job=\\\"proposal-service\\\",area=\\\"heap\\\"}\",\r\n
+    \         \"refId\": \"A\",\r\n          \"legendFormat\": \"heap used\"\r\n        }\r\n
+    \     ],\r\n      \"yaxes\": [\r\n        {\r\n          \"format\": \"bytes\",\r\n
+    \         \"label\": \"Bytes\"\r\n        }\r\n      ],\r\n      \"options\":
+    {\r\n        \"legend\": {\r\n          \"calcs\": [],\r\n          \"displayMode\":
+    \"list\",\r\n          \"placement\": \"bottom\"\r\n        },\r\n        \"tooltip\":
+    {\r\n          \"mode\": \"single\"\r\n        }\r\n      }\r\n    }\r\n  ],\r\n
+    \ \"refresh\": \"30s\",\r\n  \"schemaVersion\": 38,\r\n  \"tags\": [\"proposal\",
+    \"freelance\"],\r\n  \"templating\": { \"list\": [] },\r\n  \"time\": { \"from\":
+    \"now-1h\", \"to\": \"now\" },\r\n  \"timepicker\": {},\r\n  \"timezone\": \"browser\",\r\n
+    \ \"title\": \"Proposal Service\",\r\n  \"uid\": \"proposal-service\",\r\n  \"version\":
+    2\r\n}"
+  user-dashboard.json: "{\r\n  \"__requires\": [\r\n    { \"type\": \"datasource\",
+    \"id\": \"loki\",       \"name\": \"Loki\",       \"version\": \"1.0.0\" },\r\n
+    \   { \"type\": \"datasource\", \"id\": \"prometheus\", \"name\": \"Prometheus\",
+    \"version\": \"1.0.0\" }\r\n  ],\r\n  \"annotations\": { \"list\": [] },\r\n  \"description\":
+    \"Final user-service dashboard assembly with Loki log correlation and Prometheus
+    service metrics.\",\r\n  \"editable\": true,\r\n  \"fiscalYearStartMonth\": 0,\r\n
+    \ \"graphTooltip\": 1,\r\n  \"id\": null,\r\n  \"links\": [],\r\n  \"liveNow\":
+    false,\r\n  \"panels\": [\r\n    {\r\n      \"datasource\": {\r\n        \"type\":
+    \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n      \"gridPos\": { \"h\":
+    8, \"w\": 8, \"x\": 0, \"y\": 0 },\r\n      \"id\": 1,\r\n      \"title\": \"User
+    Service Error Rate\",\r\n      \"type\": \"timeseries\",\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
+    service=\\\"user-service\\\", level=\\\"ERROR\\\"}[1m]))\",\r\n          \"legendFormat\":
+    \"errors/min\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n
+    \   {\r\n      \"datasource\": {\r\n        \"type\": \"loki\",\r\n        \"uid\":
+    \"loki\"\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 8, \"y\":
+    0 },\r\n      \"id\": 2,\r\n      \"title\": \"Correlation ID Trace\",\r\n      \"description\":
+    \"Filter all user-service logs by a specific X-Correlation-ID. Set var_correlationId
+    in the URL or use the variable below.\",\r\n      \"type\": \"logs\",\r\n      \"options\":
+    {\r\n        \"dedupStrategy\": \"none\",\r\n        \"enableLogDetails\": true,\r\n
+    \       \"prettifyLogMessage\": false,\r\n        \"showCommonLabels\": false,\r\n
+    \       \"showLabels\": false,\r\n        \"showTime\": true,\r\n        \"sortOrder\":
+    \"Descending\",\r\n        \"wrapLogMessage\": true\r\n      },\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"{app=\\\"freelance\\\", service=\\\"user-service\\\"}
+    | json | correlationId=~\\\"${correlationId:pipe}\\\"\",\r\n          \"legendFormat\":
+    \"\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n    {\r\n
+    \     \"datasource\": {\r\n        \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n
+    \     },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 16, \"y\": 0 },\r\n
+    \     \"id\": 3,\r\n      \"title\": \"Feign Failure Rate\",\r\n      \"type\":
+    \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
+    service=\\\"user-service\\\", level=\\\"WARN\\\"} | json | line_format \\\"{{.message}}\\\"
+    |= \\\"Feign\\\"[5m]))\",\r\n          \"legendFormat\": \"feign failures/5m\",\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"datasource\":
+    {\r\n        \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n
+    \     \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 0, \"y\": 8 },\r\n      \"id\":
+    4,\r\n      \"title\": \"User Operations by userId\",\r\n      \"description\":
+    \"Log volume per userId for user-scoped requests.\",\r\n      \"type\": \"timeseries\",\r\n
+    \     \"targets\": [\r\n        {\r\n          \"expr\": \"sum by (userId) (count_over_time({app=\\\"freelance\\\",
+    service=\\\"user-service\\\"} | json | userId != \\\"\\\" [5m]))\",\r\n          \"legendFormat\":
+    \"userId={{userId}}\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n
+    \   },\r\n    {\r\n      \"datasource\": {\r\n        \"type\": \"loki\",\r\n
+    \       \"uid\": \"loki\"\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\":
+    16, \"x\": 8, \"y\": 8 },\r\n      \"id\": 5,\r\n      \"title\": \"Auth Event
+    Audit Log\",\r\n      \"description\": \"All auth-related events: USER_CREATED,
+    USER_UPDATED, ROLE_CHANGED, USER_DELETED.\",\r\n      \"type\": \"logs\",\r\n
+    \     \"options\": {\r\n        \"dedupStrategy\": \"none\",\r\n        \"enableLogDetails\":
+    true,\r\n        \"prettifyLogMessage\": false,\r\n        \"showCommonLabels\":
+    false,\r\n        \"showLabels\": false,\r\n        \"showTime\": true,\r\n        \"sortOrder\":
+    \"Descending\",\r\n        \"wrapLogMessage\": true\r\n      },\r\n      \"targets\":
+    [\r\n        {\r\n          \"expr\": \"{app=\\\"freelance\\\", service=\\\"user-service\\\"}
+    | json | message =~ \\\"USER_CREATED|USER_UPDATED|ROLE_CHANGED|USER_DELETED|PREFERENCES_UPDATED|PRIMARY_SKILL_SET\\\"\",\r\n
+    \         \"legendFormat\": \"\",\r\n          \"refId\": \"A\"\r\n        }\r\n
+    \     ]\r\n    },\r\n    {\r\n      \"datasource\": {\r\n        \"type\": \"prometheus\",\r\n
+    \       \"uid\": \"prometheus\"\r\n      },\r\n      \"fieldConfig\": {\r\n        \"defaults\":
+    {\r\n          \"color\": {\r\n            \"mode\": \"palette-classic\"\r\n          },\r\n
+    \         \"custom\": {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
+    \"text\",\r\n            \"axisLabel\": \"Requests/sec\",\r\n            \"axisPlacement\":
+    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
+    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
+    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
+    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
+    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
+    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
+    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
+    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
+    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
+    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
+    \           ]\r\n          },\r\n          \"unit\": \"reqps\"\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\":
+    12, \"x\": 0, \"y\": 16 },\r\n      \"id\": 6,\r\n      \"targets\": [\r\n        {\r\n
+    \         \"expr\": \"sum by (uri, method, status) (rate(http_server_requests_seconds_count{job=\\\"user-service\\\"}[10m]))\",\r\n
+    \         \"legendFormat\": \"{{method}} {{uri}} {{status}}\",\r\n          \"refId\":
+    \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"HTTP Request Rate\",\r\n
+    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
+    \       \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n
+    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\": {\r\n
+    \           \"mode\": \"palette-classic\"\r\n          },\r\n          \"custom\":
+    {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
+    \"text\",\r\n            \"axisLabel\": \"Milliseconds\",\r\n            \"axisPlacement\":
+    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
+    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
+    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
+    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
+    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
+    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
+    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
+    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
+    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
+    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
+    \           ]\r\n          },\r\n          \"unit\": \"ms\"\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\":
+    12, \"x\": 12, \"y\": 16 },\r\n      \"id\": 7,\r\n      \"targets\": [\r\n        {\r\n
+    \         \"expr\": \"histogram_quantile(0.50, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"user-service\\\"}[5m])))
+    * 1000\",\r\n          \"legendFormat\": \"p50 {{method}} {{uri}}\",\r\n          \"refId\":
+    \"A\"\r\n        },\r\n        {\r\n          \"expr\": \"histogram_quantile(0.95,
+    sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"user-service\\\"}[5m])))
+    * 1000\",\r\n          \"legendFormat\": \"p95 {{method}} {{uri}}\",\r\n          \"refId\":
+    \"B\"\r\n        },\r\n        {\r\n          \"expr\": \"histogram_quantile(0.99,
+    sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"user-service\\\"}[5m])))
+    * 1000\",\r\n          \"legendFormat\": \"p99 {{method}} {{uri}}\",\r\n          \"refId\":
+    \"C\"\r\n        }\r\n      ],\r\n      \"title\": \"HTTP Latency Percentiles\",\r\n
+    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
+    \       \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n
+    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\": {\r\n
+    \           \"mode\": \"thresholds\"\r\n          },\r\n          \"mappings\":
+    [],\r\n          \"max\": 100,\r\n          \"min\": 0,\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              },\r\n
+    \             {\r\n                \"color\": \"yellow\",\r\n                \"value\":
+    70\r\n              },\r\n              {\r\n                \"color\": \"red\",\r\n
+    \               \"value\": 90\r\n              }\r\n            ]\r\n          },\r\n
+    \         \"unit\": \"percent\"\r\n        },\r\n        \"overrides\": []\r\n
+    \     },\r\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 0, \"y\": 24 },\r\n
+    \     \"id\": 8,\r\n      \"options\": {\r\n        \"colorMode\": \"value\",\r\n
+    \       \"graphMode\": \"area\",\r\n        \"justifyMode\": \"auto\",\r\n        \"orientation\":
+    \"auto\",\r\n        \"reduceOptions\": {\r\n          \"calcs\": [\"lastNotNull\"],\r\n
+    \         \"fields\": \"\",\r\n          \"values\": false\r\n        },\r\n        \"textMode\":
+    \"auto\"\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
+    \"sum(jvm_memory_used_bytes{job=\\\"user-service\\\", area=\\\"heap\\\"}) / sum(jvm_memory_max_bytes{job=\\\"user-service\\\",
+    area=\\\"heap\\\"}) * 100\",\r\n          \"legendFormat\": \"Heap used\",\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"JVM
+    Heap Usage\",\r\n      \"type\": \"stat\"\r\n    },\r\n    {\r\n      \"datasource\":
+    {\r\n        \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n
+    \     },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\":
+    {\r\n            \"mode\": \"thresholds\"\r\n          },\r\n          \"mappings\":
+    [],\r\n          \"max\": 100,\r\n          \"min\": 0,\r\n          \"thresholds\":
+    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
+    \               \"color\": \"green\",\r\n                \"value\": null\r\n              },\r\n
+    \             {\r\n                \"color\": \"yellow\",\r\n                \"value\":
+    70\r\n              },\r\n              {\r\n                \"color\": \"red\",\r\n
+    \               \"value\": 90\r\n              }\r\n            ]\r\n          },\r\n
+    \         \"unit\": \"percent\"\r\n        },\r\n        \"overrides\": []\r\n
+    \     },\r\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 12, \"y\": 24 },\r\n
+    \     \"id\": 9,\r\n      \"options\": {\r\n        \"colorMode\": \"value\",\r\n
+    \       \"graphMode\": \"area\",\r\n        \"justifyMode\": \"auto\",\r\n        \"orientation\":
+    \"auto\",\r\n        \"reduceOptions\": {\r\n          \"calcs\": [\"lastNotNull\"],\r\n
+    \         \"fields\": \"\",\r\n          \"values\": false\r\n        },\r\n        \"textMode\":
+    \"auto\"\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
+    \"hikaricp_connections_active{job=\\\"user-service\\\"} / hikaricp_connections_max{job=\\\"user-service\\\"}
+    * 100\",\r\n          \"legendFormat\": \"{{pool}}\",\r\n          \"refId\":
+    \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"Hikari Connection Pool Usage\",\r\n
+    \     \"type\": \"stat\"\r\n    }\r\n  ],\r\n  \"refresh\": \"30s\",\r\n  \"schemaVersion\":
+    39,\r\n  \"tags\": [\"user-service\", \"freelance\", \"m3\", \"observability\"],\r\n
+    \ \"templating\": {\r\n    \"list\": [\r\n      {\r\n        \"name\": \"correlationId\",\r\n
+    \       \"label\": \"Correlation ID\",\r\n        \"type\": \"textbox\",\r\n        \"current\":
+    { \"value\": \".*\" },\r\n        \"hide\": 0,\r\n        \"options\": [],\r\n
+    \       \"query\": \".*\"\r\n      }\r\n    ]\r\n  },\r\n  \"time\": { \"from\":
+    \"now-1h\", \"to\": \"now\" },\r\n  \"timepicker\": {},\r\n  \"timezone\": \"browser\",\r\n
+    \ \"title\": \"User Service\",\r\n  \"uid\": \"user-service\",\r\n  \"version\":
+    4,\r\n  \"weekStart\": \"\"\r\n}\r\n"
+  wallet-dashboard.json: "{\r\n  \"annotations\": {\r\n    \"list\": []\r\n  },\r\n
+    \ \"editable\": true,\r\n  \"fiscalYearStartMonth\": 0,\r\n  \"graphTooltip\":
+    0,\r\n  \"id\": null,\r\n  \"links\": [],\r\n  \"liveNow\": false,\r\n  \"panels\":
+    [\r\n    {\r\n      \"datasource\": {\r\n        \"type\": \"loki\",\r\n        \"uid\":
+    \"loki\"\r\n      },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n
+    \         \"unit\": \"short\"\r\n        },\r\n        \"overrides\": []\r\n      },\r\n
+    \     \"gridPos\": {\r\n        \"h\": 8,\r\n        \"w\": 8,\r\n        \"x\":
+    0,\r\n        \"y\": 0\r\n      },\r\n      \"id\": 1,\r\n      \"options\": {\r\n
+    \       \"legend\": {\r\n          \"displayMode\": \"list\",\r\n          \"placement\":
+    \"bottom\",\r\n          \"showLegend\": true\r\n        },\r\n        \"tooltip\":
+    {\r\n          \"mode\": \"single\",\r\n          \"sort\": \"none\"\r\n        }\r\n
+    \     },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\": {\r\n
+    \           \"type\": \"loki\",\r\n            \"uid\": \"loki\"\r\n          },\r\n
+    \         \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",service=\\\"wallet-service\\\",level=\\\"ERROR\\\"}[1m]))\",\r\n
+    \         \"legendFormat\": \"errors/min\",\r\n          \"refId\": \"A\"\r\n
+    \       }\r\n      ],\r\n      \"title\": \"Wallet Error Rate\",\r\n      \"type\":
+    \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n        \"type\":
+    \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n      \"fieldConfig\": {\r\n
+    \       \"defaults\": {\r\n          \"unit\": \"short\"\r\n        },\r\n        \"overrides\":
+    []\r\n      },\r\n      \"gridPos\": {\r\n        \"h\": 8,\r\n        \"w\":
+    8,\r\n        \"x\": 8,\r\n        \"y\": 0\r\n      },\r\n      \"id\": 2,\r\n
+    \     \"options\": {\r\n        \"legend\": {\r\n          \"displayMode\": \"list\",\r\n
+    \         \"placement\": \"bottom\",\r\n          \"showLegend\": true\r\n        },\r\n
+    \       \"tooltip\": {\r\n          \"mode\": \"single\",\r\n          \"sort\":
+    \"none\"\r\n        }\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"loki\",\r\n            \"uid\": \"loki\"\r\n          },\r\n
+    \         \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",service=\\\"wallet-service\\\",level=\\\"WARN\\\"}
+    |= \\\"Slow \\\" [5m]))\",\r\n          \"legendFormat\": \"slow warnings\",\r\n
+    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"Wallet
+    Slow Operations\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\":
+    {\r\n        \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n
+    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\": \"short\"\r\n
+    \       },\r\n        \"overrides\": []\r\n      },\r\n      \"gridPos\": {\r\n
+    \       \"h\": 8,\r\n        \"w\": 8,\r\n        \"x\": 16,\r\n        \"y\":
+    0\r\n      },\r\n      \"id\": 3,\r\n      \"options\": {\r\n        \"legend\":
+    {\r\n          \"displayMode\": \"list\",\r\n          \"placement\": \"bottom\",\r\n
+    \         \"showLegend\": true\r\n        },\r\n        \"tooltip\": {\r\n          \"mode\":
+    \"single\",\r\n          \"sort\": \"none\"\r\n        }\r\n      },\r\n      \"targets\":
+    [\r\n        {\r\n          \"datasource\": {\r\n            \"type\": \"loki\",\r\n
+    \           \"uid\": \"loki\"\r\n          },\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",service=\\\"wallet-service\\\"}
+    |= \\\"returned successfully\\\" [5m]))\",\r\n          \"legendFormat\": \"feign
+    success\",\r\n          \"refId\": \"A\"\r\n        },\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"loki\",\r\n            \"uid\": \"loki\"\r\n          },\r\n
+    \         \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",service=\\\"wallet-service\\\",level=\\\"WARN\\\"}
+    |= \\\"Feign call to\\\" [5m]))\",\r\n          \"legendFormat\": \"feign failure\",\r\n
+    \         \"refId\": \"B\"\r\n        }\r\n      ],\r\n      \"title\": \"Wallet
+    Feign Call Outcomes\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n    {\r\n
+    \     \"datasource\": {\r\n        \"type\": \"prometheus\",\r\n        \"uid\":
+    \"prometheus\"\r\n      },\r\n      \"fieldConfig\": {\r\n        \"defaults\":
+    {\r\n          \"unit\": \"reqps\"\r\n        },\r\n        \"overrides\": []\r\n
+    \     },\r\n      \"gridPos\": {\r\n        \"h\": 8,\r\n        \"w\": 8,\r\n
+    \       \"x\": 0,\r\n        \"y\": 8\r\n      },\r\n      \"id\": 4,\r\n      \"options\":
+    {\r\n        \"legend\": {\r\n          \"displayMode\": \"list\",\r\n          \"placement\":
+    \"bottom\",\r\n          \"showLegend\": true\r\n        },\r\n        \"tooltip\":
+    {\r\n          \"mode\": \"multi\",\r\n          \"sort\": \"none\"\r\n        }\r\n
+    \     },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\": {\r\n
+    \           \"type\": \"prometheus\",\r\n            \"uid\": \"prometheus\"\r\n
+    \         },\r\n          \"expr\": \"sum by (uri) (rate(http_server_requests_seconds_count{job=\\\"wallet-service\\\"}[10m]))\",\r\n
+    \         \"legendFormat\": \"{{uri}}\",\r\n          \"refId\": \"A\"\r\n        }\r\n
+    \     ],\r\n      \"title\": \"Wallet HTTP Request Rate\",\r\n      \"type\":
+    \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n        \"type\":
+    \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"percentunit\"\r\n        },\r\n
+    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": {\r\n        \"h\":
+    8,\r\n        \"w\": 8,\r\n        \"x\": 8,\r\n        \"y\": 8\r\n      },\r\n
+    \     \"id\": 5,\r\n      \"options\": {\r\n        \"legend\": {\r\n          \"displayMode\":
+    \"list\",\r\n          \"placement\": \"bottom\",\r\n          \"showLegend\":
+    true\r\n        },\r\n        \"tooltip\": {\r\n          \"mode\": \"single\",\r\n
+    \         \"sort\": \"none\"\r\n        }\r\n      },\r\n      \"targets\": [\r\n
+    \       {\r\n          \"datasource\": {\r\n            \"type\": \"prometheus\",\r\n
+    \           \"uid\": \"prometheus\"\r\n          },\r\n          \"expr\": \"sum(rate(http_server_requests_seconds_count{job=\\\"wallet-service\\\",status=~\\\"5..\\\"}[5m]))
+    / sum(rate(http_server_requests_seconds_count{job=\\\"wallet-service\\\"}[5m]))\",\r\n
+    \         \"legendFormat\": \"5xx ratio\",\r\n          \"refId\": \"A\"\r\n        }\r\n
+    \     ],\r\n      \"title\": \"Wallet HTTP 5xx Error Ratio\",\r\n      \"type\":
+    \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n        \"type\":
+    \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n      \"fieldConfig\":
+    {\r\n        \"defaults\": {\r\n          \"unit\": \"s\"\r\n        },\r\n        \"overrides\":
+    []\r\n      },\r\n      \"gridPos\": {\r\n        \"h\": 8,\r\n        \"w\":
+    8,\r\n        \"x\": 16,\r\n        \"y\": 8\r\n      },\r\n      \"id\": 6,\r\n
+    \     \"options\": {\r\n        \"legend\": {\r\n          \"displayMode\": \"list\",\r\n
+    \         \"placement\": \"bottom\",\r\n          \"showLegend\": true\r\n        },\r\n
+    \       \"tooltip\": {\r\n          \"mode\": \"multi\",\r\n          \"sort\":
+    \"none\"\r\n        }\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
+    {\r\n            \"type\": \"prometheus\",\r\n            \"uid\": \"prometheus\"\r\n
+    \         },\r\n          \"expr\": \"histogram_quantile(0.50, sum by (le, uri,
+    method) (rate(http_server_requests_seconds_bucket{job=\\\"wallet-service\\\"}[5m])))
+    * 1000\",\r\n          \"legendFormat\": \"P50 {{method}} {{uri}}\",\r\n          \"refId\":
+    \"A\"\r\n        },\r\n        {\r\n          \"datasource\": {\r\n            \"type\":
+    \"prometheus\",\r\n            \"uid\": \"prometheus\"\r\n          },\r\n          \"expr\":
+    \"histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"wallet-service\\\"}[5m])))
+    * 1000\",\r\n          \"legendFormat\": \"P95 {{method}} {{uri}}\",\r\n          \"refId\":
+    \"B\"\r\n        },\r\n        {\r\n          \"datasource\": {\r\n            \"type\":
+    \"prometheus\",\r\n            \"uid\": \"prometheus\"\r\n          },\r\n          \"expr\":
+    \"histogram_quantile(0.99, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"wallet-service\\\"}[5m])))
+    * 1000\",\r\n          \"legendFormat\": \"P99 {{method}} {{uri}}\",\r\n          \"refId\":
+    \"C\"\r\n        }\r\n      ],\r\n      \"title\": \"Wallet HTTP Latency Percentiles\",\r\n
+    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
+    \       \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n
+    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\": \"percent\"\r\n
+    \       },\r\n        \"overrides\": []\r\n      },\r\n      \"gridPos\": {\r\n
+    \       \"h\": 8,\r\n        \"w\": 12,\r\n        \"x\": 0,\r\n        \"y\":
+    16\r\n      },\r\n      \"id\": 7,\r\n      \"options\": {\r\n        \"legend\":
+    {\r\n          \"displayMode\": \"list\",\r\n          \"placement\": \"bottom\",\r\n
+    \         \"showLegend\": true\r\n        },\r\n        \"tooltip\": {\r\n          \"mode\":
+    \"multi\",\r\n          \"sort\": \"none\"\r\n        }\r\n      },\r\n      \"targets\":
+    [\r\n        {\r\n          \"datasource\": {\r\n            \"type\": \"prometheus\",\r\n
+    \           \"uid\": \"prometheus\"\r\n          },\r\n          \"expr\": \"sum(jvm_memory_used_bytes{job=\\\"wallet-service\\\",
+    area=\\\"heap\\\"}) / sum(jvm_memory_max_bytes{job=\\\"wallet-service\\\", area=\\\"heap\\\"})
+    * 100\",\r\n          \"legendFormat\": \"Heap used\",\r\n          \"refId\":
+    \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"Wallet JVM Heap Usage\",\r\n
+    \     \"type\": \"timeseries\"\r\n    }\r\n  ],\r\n  \"refresh\": \"15s\",\r\n
+    \ \"schemaVersion\": 39,\r\n  \"tags\": [\r\n    \"freelance\",\r\n    \"wallet-service\",\r\n
+    \   \"m3\"\r\n  ],\r\n  \"templating\": {\r\n    \"list\": []\r\n  },\r\n  \"time\":
+    {\r\n    \"from\": \"now-1h\",\r\n    \"to\": \"now\"\r\n  },\r\n  \"timepicker\":
+    {},\r\n  \"timezone\": \"browser\",\r\n  \"title\": \"Wallet Service\",\r\n  \"uid\":
+    \"wallet-service\",\r\n  \"version\": 1,\r\n  \"weekStart\": \"\"\r\n}\r\n"
 kind: ConfigMap
 metadata:
   name: grafana-dashboard-files
