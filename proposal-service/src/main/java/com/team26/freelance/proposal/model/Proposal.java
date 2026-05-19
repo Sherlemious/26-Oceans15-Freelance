@@ -84,6 +84,10 @@ public class Proposal {
         this.job = jobId != null ? new JobReference(jobId) : null;
     }
 
+    public void setJob(JobReference job) {
+        this.job = job;
+    }
+
     public Long getFreelancerId() {
         return freelancerId;
     }

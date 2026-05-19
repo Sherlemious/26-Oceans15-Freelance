@@ -227,9 +227,6 @@ public class PayoutService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "proposal.completed agreedAmount must be positive");
     }
 
-    walletReadClientService.getUser(event.freelancerId());
-    walletReadClientService.getContract(event.contractId());
-
     Optional<Payout> existing = payoutRepository.findFirstByContractIdAndStatusInOrderByCreatedAtAsc(
         event.contractId(), List.of(PayoutStatus.PENDING, PayoutStatus.COMPLETED, PayoutStatus.REFUNDED));
     if (existing.isPresent()) {

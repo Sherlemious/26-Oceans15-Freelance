@@ -32,6 +32,8 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -48,19 +50,22 @@ public class JobService {
     private final ContractServiceClient contractServiceClient;
     private final ProposalServiceClient proposalServiceClient;
     private final JobSagaPublisher jobSagaPublisher;
+    private final CacheEvictionService cacheEvictionService;
 
     private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
     public JobService(JobRepository jobRepository,
-                      JobSearchService jobSearchService,
-                      ContractServiceClient contractServiceClient,
-                      ProposalServiceClient proposalServiceClient,
-                      JobSagaPublisher jobSagaPublisher) {
+                       JobSearchService jobSearchService,
+                       ContractServiceClient contractServiceClient,
+                       ProposalServiceClient proposalServiceClient,
+                       JobSagaPublisher jobSagaPublisher,
+                       CacheEvictionService cacheEvictionService) {
         this.jobRepository = jobRepository;
         this.jobSearchService = jobSearchService;
         this.contractServiceClient = contractServiceClient;
         this.proposalServiceClient = proposalServiceClient;
         this.jobSagaPublisher = jobSagaPublisher;
+        this.cacheEvictionService = cacheEvictionService;
     }
 
     public JobSearchResultDTO createJob(JobRequestDTO request) {
@@ -499,6 +504,7 @@ public class JobService {
 
         job.setStatus(newStatus);
         jobRepository.save(job);
+        evictJobCachesAfterCommit(jobId);
         jobSearchService.indexJob(jobId, source);
         jobSearchService.notifyObservers("JOB_STATUS_CHANGED", Map.of(
                 "jobId", jobId,
@@ -508,6 +514,23 @@ public class JobService {
         ));
         publishStatusChangedIfNeeded(jobId, oldStatus, newStatus);
         log.info("Updated jobId={} status from {} to {} via {}", jobId, oldStatus, newStatus, source);
+    }
+
+    private void evictJobCachesAfterCommit(Long jobId) {
+        Runnable eviction = () -> {
+            cacheEvictionService.evictJobDetail(jobId);
+            cacheEvictionService.evictAllJobFeatureCaches();
+        };
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            eviction.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                eviction.run();
+            }
+        });
     }
 
     private void publishStatusChangedIfNeeded(Long jobId, JobStatus oldStatus, JobStatus newStatus) {

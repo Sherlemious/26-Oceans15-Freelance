@@ -1,5 +1,6 @@
 package com.team26.freelance.proposal.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team26.freelance.contracts.events.ContractCreatedEvent;
 import com.team26.freelance.contracts.events.ContractStatusChangedEvent;
 import com.team26.freelance.contracts.events.PaymentCompletedEvent;
@@ -11,11 +12,11 @@ import com.team26.freelance.proposal.config.ProposalEventConfig;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalStatus;
 import com.team26.freelance.proposal.repository.ProposalRepository;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.amqp.support.AmqpHeaders;
-import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -36,25 +37,50 @@ public class SagaFeedbackConsumer {
     private final ProposalRepository proposalRepository;
     private final ProposalEventPublisher proposalEventPublisher;
     private final ProposalCacheEvictionService cacheEvictionService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public SagaFeedbackConsumer(ProposalRepository proposalRepository,
-                                ProposalEventPublisher proposalEventPublisher,
-                                ProposalCacheEvictionService cacheEvictionService) {
+                                 ProposalEventPublisher proposalEventPublisher,
+                                 ProposalCacheEvictionService cacheEvictionService,
+                                 ObjectMapper objectMapper) {
         this.proposalRepository = proposalRepository;
         this.proposalEventPublisher = proposalEventPublisher;
         this.cacheEvictionService = cacheEvictionService;
+        this.objectMapper = objectMapper;
+    }
+
+    @RabbitListener(queues = ProposalEventConfig.PROPOSAL_SAGA_FEEDBACK_QUEUE)
+    @Transactional
+    public void consumeSagaFeedback(Message message) throws IOException {
+        String routingKey = message.getMessageProperties().getReceivedRoutingKey();
+        Object correlationHeader = message.getMessageProperties().getHeaders().get("correlationId");
+        String correlationId = correlationHeader != null ? correlationHeader.toString() : null;
+
+        if (SagaTopics.CONTRACT_CREATED.equals(routingKey)) {
+            consumeContractCreated(objectMapper.readValue(message.getBody(), ContractCreatedEvent.class), correlationId, routingKey);
+        } else if (SagaTopics.CONTRACT_STATUS_CHANGED.equals(routingKey)) {
+            consumeContractStatusChanged(objectMapper.readValue(message.getBody(), ContractStatusChangedEvent.class), correlationId, routingKey);
+        } else if (SagaTopics.PAYMENT_INITIATED.equals(routingKey)) {
+            consumePaymentInitiated(objectMapper.readValue(message.getBody(), PaymentInitiatedEvent.class), correlationId, routingKey);
+        } else if (SagaTopics.PAYMENT_COMPLETED.equals(routingKey)) {
+            consumePaymentCompleted(objectMapper.readValue(message.getBody(), PaymentCompletedEvent.class), correlationId, routingKey);
+        } else if (SagaTopics.PAYMENT_FAILED.equals(routingKey)) {
+            consumePaymentFailed(objectMapper.readValue(message.getBody(), PaymentFailedEvent.class), correlationId, routingKey);
+        } else if (SagaTopics.PAYMENT_REFUNDED.equals(routingKey)) {
+            consumePaymentRefunded(objectMapper.readValue(message.getBody(), PaymentRefundedEvent.class), correlationId, routingKey);
+        } else {
+            throw new IllegalArgumentException("Unsupported saga feedback routing key: " + routingKey);
+        }
     }
 
     /**
      * Consumes contract.created event.
      * Links contractId into the Proposal record.
      */
-    @RabbitListener(queues = ProposalEventConfig.PROPOSAL_SAGA_FEEDBACK_QUEUE)
-    @Transactional
     public void consumeContractCreated(ContractCreatedEvent event,
-                                       @Header(value = "correlationId", required = false) String correlationId,
-                                       @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+                                       String correlationId,
+                                       String routingKey) {
         try {
             Long proposalId = event.proposalId();
             Long contractId = event.contractId();
@@ -85,10 +111,9 @@ public class SagaFeedbackConsumer {
      * Consumes contract.status-changed event.
      * Logs the contract status transition (informational only).
      */
-    @RabbitListener(queues = ProposalEventConfig.PROPOSAL_SAGA_FEEDBACK_QUEUE)
     public void consumeContractStatusChanged(ContractStatusChangedEvent event,
-                                             @Header(value = "correlationId", required = false) String correlationId,
-                                             @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+                                             String correlationId,
+                                             String routingKey) {
         try {
             Long contractId = event.contractId();
             String oldStatus = event.oldStatus();
@@ -107,11 +132,9 @@ public class SagaFeedbackConsumer {
      * Consumes payment.initiated event.
      * Marks proposal status = PAYMENT_PENDING.
      */
-    @RabbitListener(queues = ProposalEventConfig.PROPOSAL_SAGA_FEEDBACK_QUEUE)
-    @Transactional
     public void consumePaymentInitiated(PaymentInitiatedEvent event,
-                                        @Header(value = "correlationId", required = false) String correlationId,
-                                        @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+                                        String correlationId,
+                                        String routingKey) {
         try {
             Long proposalId = event.proposalId();
             Long payoutId = event.payoutId();
@@ -143,11 +166,9 @@ public class SagaFeedbackConsumer {
      * Consumes payment.completed event.
      * Marks proposal status = PAID.
      */
-    @RabbitListener(queues = ProposalEventConfig.PROPOSAL_SAGA_FEEDBACK_QUEUE)
-    @Transactional
     public void consumePaymentCompleted(PaymentCompletedEvent event,
-                                        @Header(value = "correlationId", required = false) String correlationId,
-                                        @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+                                        String correlationId,
+                                        String routingKey) {
         try {
             Long proposalId = event.proposalId();
             Long payoutId = event.payoutId();
@@ -179,11 +200,9 @@ public class SagaFeedbackConsumer {
      * Consumes payment.failed event.
      * Marks proposal status = PAYMENT_FAILED and triggers proposal.cancelled through the publisher.
      */
-    @RabbitListener(queues = ProposalEventConfig.PROPOSAL_SAGA_FEEDBACK_QUEUE)
-    @Transactional
     public void consumePaymentFailed(PaymentFailedEvent event,
-                                     @Header(value = "correlationId", required = false) String correlationId,
-                                     @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+                                     String correlationId,
+                                     String routingKey) {
         try {
             Long proposalId = event.proposalId();
             String reason = event.reason();
@@ -223,11 +242,9 @@ public class SagaFeedbackConsumer {
      * Consumes payment.refunded event.
      * Marks proposal status = REFUNDED.
      */
-    @RabbitListener(queues = ProposalEventConfig.PROPOSAL_SAGA_FEEDBACK_QUEUE)
-    @Transactional
     public void consumePaymentRefunded(PaymentRefundedEvent event,
-                                       @Header(value = "correlationId", required = false) String correlationId,
-                                       @Header(AmqpHeaders.RECEIVED_ROUTING_KEY) String routingKey) {
+                                       String correlationId,
+                                       String routingKey) {
         try {
             Long proposalId = event.proposalId();
             Long payoutId = event.payoutId();
