@@ -100,8 +100,8 @@ public class ProposalEventPublisher {
      * Publishes proposal.withdrawn event after proposal is withdrawn.
      * Payload: {proposalId, jobId, freelancerId}
      */
-    public void publishProposalWithdrawn(Long proposalId, Long jobId, Long freelancerId) {
-        ProposalWithdrawnEvent event = new ProposalWithdrawnEvent(proposalId, jobId, freelancerId);
+    public void publishProposalWithdrawn(Long proposalId, Long jobId, Long freelancerId, int remainingActiveProposals) {
+        ProposalWithdrawnEvent event = new ProposalWithdrawnEvent(proposalId, jobId, freelancerId, remainingActiveProposals);
         String correlationId = MDC.get("correlationId");
         
         logger.info("Publishing proposal.withdrawn event for proposalId={}", proposalId);

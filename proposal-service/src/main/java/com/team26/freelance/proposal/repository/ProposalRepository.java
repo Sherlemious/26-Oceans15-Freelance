@@ -114,6 +114,11 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 
         @Modifying
         @Transactional
+        @Query(value = "UPDATE proposals SET status = 'REJECTED' WHERE job_id = :jobId AND status IN ('SUBMITTED', 'SHORTLISTED')", nativeQuery = true)
+        void rejectActiveProposalsForJob(@Param("jobId") Long jobId);
+
+        @Modifying
+        @Transactional
         @Query(value = "UPDATE jobs SET status = 'OPEN' WHERE id = :jobId AND status = 'IN_PROGRESS'", nativeQuery = true)
         void reopenJob(@Param("jobId") Long jobId);
 

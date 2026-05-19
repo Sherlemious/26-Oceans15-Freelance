@@ -166,9 +166,9 @@ public class JobService {
             }
 
             try {
-                // Method not yet available in shared contracts module - blocked by S3 provider endpoints
-                // proposalServiceClient.rejectSubmittedProposalsForJob(id);
-                log.info("Skipped: Feature to reject submitted proposals not yet implemented");
+                log.info("Calling ProposalServiceClient.rejectSubmittedProposalsForJob with args={}", id);
+                proposalServiceClient.rejectSubmittedProposalsForJob(id);
+                log.info("ProposalServiceClient.rejectSubmittedProposalsForJob returned successfully");
             } catch (FeignException.NotFound e) {
                 log.warn("Proposal service returned 404 for job {}, no proposals to reject", id);
             } catch (FeignException e) {
@@ -302,18 +302,9 @@ public class JobService {
             return;
         }
 
-        try {
-            // Method not yet available in shared contracts module - blocked by S3 provider endpoints
-            Long proposalCount = 0L;
-            if (proposalCount == null || proposalCount > 0) {
-                log.info("Keeping jobId={} IN_PROGRESS because proposal count is {}", event.jobId(), proposalCount);
-                return;
-            }
-        } catch (FeignException.NotFound e) {
-            log.warn("Proposal count endpoint not available for jobId={}, skipping status reopen", event.jobId());
-            return;
-        } catch (FeignException e) {
-            log.warn("Unable to evaluate withdrawn proposal impact for jobId={}: {}", event.jobId(), e.getMessage());
+        if (event.remainingActiveProposals() > 0) {
+            log.info("Keeping jobId={} IN_PROGRESS because {} active proposals remain",
+                    event.jobId(), event.remainingActiveProposals());
             return;
         }
 
