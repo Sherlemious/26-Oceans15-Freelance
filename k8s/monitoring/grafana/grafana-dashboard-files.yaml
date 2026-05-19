@@ -923,7 +923,7 @@ data:
     {\r\n          \"mode\": \"single\",\r\n          \"sort\": \"none\"\r\n        }\r\n
     \     },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\": {\r\n
     \           \"type\": \"loki\",\r\n            \"uid\": \"loki\"\r\n          },\r\n
-    \         \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",service=\\\"wallet-service\\\",level=\\\"ERROR\\\"}[1m]))\",\r\n
+    \         \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",service=\\\"wallet-service\\\",level=\\\"ERROR\\\"}[1m])) or vector(0)\",\r\n
     \         \"legendFormat\": \"errors/min\",\r\n          \"refId\": \"A\"\r\n
     \       }\r\n      ],\r\n      \"title\": \"Wallet Error Rate\",\r\n      \"type\":
     \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n        \"type\":
@@ -937,7 +937,7 @@ data:
     \"none\"\r\n        }\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"datasource\":
     {\r\n            \"type\": \"loki\",\r\n            \"uid\": \"loki\"\r\n          },\r\n
     \         \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",service=\\\"wallet-service\\\",level=\\\"WARN\\\"}
-    |= \\\"Slow \\\" [5m]))\",\r\n          \"legendFormat\": \"slow warnings\",\r\n
+    |= \\\"Slow \\\" [5m])) or vector(0)\",\r\n          \"legendFormat\": \"slow warnings\",\r\n
     \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"Wallet
     Slow Operations\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\":
     {\r\n        \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n
