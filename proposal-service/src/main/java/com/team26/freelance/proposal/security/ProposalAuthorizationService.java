@@ -1,7 +1,10 @@
 package com.team26.freelance.proposal.security;
 
+import com.team26.freelance.contracts.feign.JobServiceClient;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
 import com.team26.freelance.proposal.repository.ProposalRepository;
+import feign.FeignException;
+import java.util.Optional;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -10,11 +13,14 @@ public class ProposalAuthorizationService {
 
     private final ProposalRepository proposalRepository;
     private final ProposalMilestoneRepository proposalMilestoneRepository;
+    private final JobServiceClient jobServiceClient;
 
     public ProposalAuthorizationService(ProposalRepository proposalRepository,
-                                        ProposalMilestoneRepository proposalMilestoneRepository) {
+                                        ProposalMilestoneRepository proposalMilestoneRepository,
+                                        JobServiceClient jobServiceClient) {
         this.proposalRepository = proposalRepository;
         this.proposalMilestoneRepository = proposalMilestoneRepository;
+        this.jobServiceClient = jobServiceClient;
     }
 
     public boolean canViewProposal(Long proposalId, Authentication authentication) {
@@ -30,7 +36,7 @@ public class ProposalAuthorizationService {
             return proposalRepository.isProposalOwnedByFreelancer(proposalId, uid);
         }
         if (hasRole(authentication, "ROLE_CLIENT")) {
-            return proposalRepository.isProposalOwnedByClient(proposalId, uid);
+            return isProposalOwnedByClientViaFeign(proposalId, uid);
         }
         return false;
     }
@@ -56,7 +62,23 @@ public class ProposalAuthorizationService {
             return false;
         }
         return hasRole(authentication, "ROLE_CLIENT")
-                && proposalRepository.isProposalOwnedByClient(proposalId, uid);
+                && isProposalOwnedByClientViaFeign(proposalId, uid);
+    }
+
+    private boolean isProposalOwnedByClientViaFeign(Long proposalId, Long clientId) {
+        try {
+            Optional<com.team26.freelance.proposal.model.Proposal> proposal = proposalRepository.findById(proposalId);
+            if (proposal.isEmpty() || proposal.get().getJobId() == null) {
+                return false;
+            }
+
+            var job = jobServiceClient.getJob(proposal.get().getJobId());
+            return job != null && clientId.equals(job.getClientId());
+        } catch (FeignException.NotFound nf) {
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public boolean canViewMilestone(Long milestoneId, Authentication authentication) {
