@@ -16,6 +16,11 @@ import com.team26.freelance.proposal.dto.UpdateProposalDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDashboardDTO;
 import com.team26.freelance.proposal.dto.JobRecommendationDTO;
+import com.team26.freelance.proposal.feign.ContractServiceClient;
+import com.team26.freelance.proposal.feign.JobServiceClient;
+import com.team26.freelance.proposal.feign.UserServiceClient;
+import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
+import com.team26.freelance.contracts.dto.ProposalDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
 import com.team26.freelance.proposal.model.JobReference;
 import com.team26.freelance.proposal.model.Proposal;
@@ -30,10 +35,6 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 import com.team26.freelance.contracts.dto.UserDTO;
 import com.team26.freelance.contracts.dto.JobDTO;
 import com.team26.freelance.contracts.dto.ContractDTO;
-import com.team26.freelance.contracts.dto.JobProposalSummaryDTO;
-import com.team26.freelance.contracts.feign.ContractServiceClient;
-import com.team26.freelance.contracts.feign.JobServiceClient;
-import com.team26.freelance.contracts.feign.UserServiceClient;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.bson.Document;
@@ -45,7 +46,6 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +56,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Duration;
 import java.time.LocalTime;
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -77,6 +78,8 @@ public class ProposalService {
     private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
     @Value("${cache.ttl.analytics:600}")
     private long cacheTtlSeconds;
+    @Value("${saga.payout.abandon-after:PT72H}")
+    private String payoutAbandonAfter;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ProposalEventRepository proposalEventRepository;
     private final MongoDocumentAdapter mongoDocumentAdapter;
@@ -129,6 +132,17 @@ public class ProposalService {
     public Proposal getProposalById(@NonNull Long id) {
         return proposalRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+    }
+
+    public ProposalDTO getProposalDtoById(@NonNull Long id) {
+        Proposal proposal = getProposalById(id);
+        return new ProposalDTO(
+                proposal.getId(),
+                proposal.getJobId(),
+                proposal.getFreelancerId(),
+                proposal.getStatus() != null ? proposal.getStatus().name() : null,
+                proposal.getBidAmount() != null ? BigDecimal.valueOf(proposal.getBidAmount()) : null,
+                proposal.getAcceptedAt());
     }
 
     public Proposal createProposal(CreateProposalDTO request) {
@@ -326,7 +340,8 @@ public class ProposalService {
     @Transactional
     public Proposal completeProposalContract(@NonNull Long proposalId) {
         Proposal proposal = proposalRepository.findById(proposalId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
 
         if (proposal.getStatus() != ProposalStatus.ACCEPTED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -335,58 +350,90 @@ public class ProposalService {
 
         // Feign pre-checks
         Long activeContractId = null;
+        java.math.BigDecimal agreedAmount = null;
+
         try {
             // Check job status is not CLOSED
             var job = jobServiceClient.getJob(proposal.getJobId());
-            if (job != null && "CLOSED".equals(job.getStatus())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Job is already closed");
+
+            if (job == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Job not found");
+            }
+
+            if ("CLOSED".equalsIgnoreCase(job.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Job is already closed");
             }
 
             // Check freelancer is ACTIVE
             var user = userServiceClient.getUser(proposal.getFreelancerId());
-            if (user == null || !"ACTIVE".equalsIgnoreCase(user.getStatus())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Freelancer is not active");
+
+            if (user == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Freelancer not found");
+            }
+
+            if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Freelancer is not active");
             }
 
             // Check active contract exists
             try {
                 var contract = contractServiceClient.getActiveContractForProposal(proposalId);
+
                 if (contract == null) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No active contract found for this proposal");
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "No active contract found for this proposal");
                 }
+
                 activeContractId = contract.getId();
+
+                agreedAmount = contract.getAgreedAmount() != null
+                        ? java.math.BigDecimal.valueOf(contract.getAgreedAmount())
+                        : java.math.BigDecimal.valueOf(proposal.getBidAmount());
+
             } catch (FeignException.NotFound e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No active contract found for this proposal");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "No active contract found for this proposal");
             }
+
         } catch (ResponseStatusException e) {
             throw e;
+
         } catch (Exception e) {
-            logger.warn("Failed to validate pre-conditions for proposalId={}", proposalId, e);
+            logger.warn("Failed to validate pre-conditions for proposalId={}",
+                    proposalId, e);
+
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Unable to validate pre-conditions");
         }
 
         MDC.put("proposalId", proposalId.toString());
+
         ProposalStatus oldStatus = proposal.getStatus();
-        
+
         // Set status to COMPLETING (saga trigger)
         proposal.setStatus(ProposalStatus.COMPLETING);
 
         Proposal saved = proposalRepository.save(proposal);
+
         cacheEvictionService.evictProposalCaches(saved.getId());
-        
-        logger.info("Proposal {} transitioning {} -> COMPLETING (saga trigger)", proposalId, oldStatus);
+
+        logger.info("Proposal {} transitioning {} -> COMPLETING (saga trigger)",
+                proposalId, oldStatus);
 
         // Publish proposal.completed event (saga trigger)
         proposalEventPublisher.publishProposalCompleted(
-            proposalId,
-            proposal.getJobId(),
-            proposal.getFreelancerId(),
-            activeContractId,
-            java.math.BigDecimal.valueOf(proposal.getBidAmount())
+                proposalId,
+                proposal.getJobId(),
+                proposal.getFreelancerId(),
+                activeContractId,
+                agreedAmount
         );
 
         MDC.remove("proposalId");
+
         return saved;
     }
 
@@ -407,14 +454,15 @@ public class ProposalService {
 
         Proposal saved = proposalRepository.save(proposal);
         cacheEvictionService.evictProposalCaches(saved.getId());
-        
+
         logger.info("Proposal {} transitioning {} -> WITHDRAWN", proposalId, oldStatus);
 
-        // Publish proposal.withdrawn event
+        int remaining = proposalRepository.countActiveProposals(proposal.getJobId());
         proposalEventPublisher.publishProposalWithdrawn(
             proposalId,
             proposal.getJobId(),
-            proposal.getFreelancerId()
+            proposal.getFreelancerId(),
+            remaining
         );
 
         MDC.remove("proposalId");
@@ -826,6 +874,14 @@ public class ProposalService {
         }
     }
 
+// ── M3: Bulk Reject for Job Closure ─────────────────────────────────────
+
+    @Transactional
+    public void rejectSubmittedProposalsForJob(Long jobId) {
+        proposalRepository.rejectActiveProposalsForJob(jobId);
+        cacheEvictionService.evictProposalCaches(null);
+    }
+
 // ── M3: Job Proposal Summary Endpoint Logic ─────────────────────────────
 
     public com.team26.freelance.contracts.dto.JobProposalSummaryDTO getJobProposalSummary(Long jobId, LocalDate startDate, LocalDate endDate) {
@@ -869,28 +925,27 @@ public class ProposalService {
         try {
             logger.info("Saga abandonment reaper: checking for abandoned payouts...");
             
-            String abandonAfterStr = System.getProperty("saga.payout.abandon-after", "PT72H");
-            Duration abandonAfter = Duration.parse(abandonAfterStr);
+            Duration abandonAfter = Duration.parse(payoutAbandonAfter);
             LocalDateTime abandonThreshold = LocalDateTime.now().minus(abandonAfter);
             
-            // Find all proposals in PAYMENT_PENDING status submitted before abandonThreshold
-            List<Proposal> abandonedProposals = proposalRepository.findAll().stream()
-                .filter(p -> p.getStatus() == ProposalStatus.PAYMENT_PENDING)
-                .filter(p -> p.getSubmittedAt() != null && p.getSubmittedAt().isBefore(abandonThreshold))
-                .toList();
+            // Find all proposals in PAYMENT_PENDING status before abandonThreshold
+            List<Proposal> abandonedProposals = proposalRepository
+                    .findByStatusAndPaymentPendingAtBefore(ProposalStatus.PAYMENT_PENDING, abandonThreshold)
+                    .stream()
+                    .toList();
             
             for (Proposal proposal : abandonedProposals) {
                 MDC.put("proposalId", proposal.getId().toString());
                 logger.warn("Proposal {} stuck in PAYMENT_PENDING since {} (threshold: {}). Publishing compensation event.",
-                    proposal.getId(), proposal.getSubmittedAt(), abandonThreshold);
+                    proposal.getId(), proposal.getPaymentPendingAt(), abandonThreshold);
                 
                 try {
                     // Publish payment.failed compensation event
-                    proposalEventPublisher.publishProposalCancelled(
-                        proposal.getId(),
-                        proposal.getJobId(),
-                        proposal.getFreelancerId(),
-                        "payout_abandoned"
+                    proposalEventPublisher.publishPaymentFailed(
+                            null,
+                            proposal.getId(),
+                            proposal.getContractId(),
+                            "payout_abandoned"
                     );
                 } catch (Exception e) {
                     logger.error("Failed to publish compensation event for abandoned proposal {}", proposal.getId(), e);

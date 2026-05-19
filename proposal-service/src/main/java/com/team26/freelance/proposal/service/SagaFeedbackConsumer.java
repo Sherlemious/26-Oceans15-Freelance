@@ -148,6 +148,7 @@ public class SagaFeedbackConsumer {
             
             ProposalStatus oldStatus = proposal.getStatus();
             proposal.setStatus(ProposalStatus.PAYMENT_PENDING);
+            proposal.setPaymentPendingAt(java.time.LocalDateTime.now());
             proposalRepository.save(proposal);
             cacheEvictionService.evictProposalCaches(proposalId);
             
@@ -182,6 +183,7 @@ public class SagaFeedbackConsumer {
             
             ProposalStatus oldStatus = proposal.getStatus();
             proposal.setStatus(ProposalStatus.PAID);
+            proposal.setPaymentPendingAt(null);
             proposalRepository.save(proposal);
             cacheEvictionService.evictProposalCaches(proposalId);
             
@@ -216,17 +218,19 @@ public class SagaFeedbackConsumer {
             
             ProposalStatus oldStatus = proposal.getStatus();
             proposal.setStatus(ProposalStatus.PAYMENT_FAILED);
+            proposal.setPaymentPendingAt(null);
             proposalRepository.save(proposal);
             cacheEvictionService.evictProposalCaches(proposalId);
             
             logger.info("Processed {} for proposalId={} correlationId={} routingKey={}: {} -> PAYMENT_FAILED (reason={})", routingKey, proposalId, correlationId, routingKey, oldStatus, reason);
             
             // Compensation path: publish proposal.cancelled
+            String cancellationReason = (reason == null || reason.isBlank()) ? "payment_failed" : reason;
             proposalEventPublisher.publishProposalCancelled(
-                proposalId,
-                proposal.getJobId(),
-                proposal.getFreelancerId(),
-                "payment_failed: " + reason
+                    proposalId,
+                    proposal.getJobId(),
+                    proposal.getFreelancerId(),
+                    cancellationReason
             );
         } catch (Exception e) {
             logger.error("Failed to process {} for proposalId={} correlationId={} routingKey={}", routingKey, (event != null ? event.proposalId() : "-"), correlationId, routingKey, e);
@@ -258,6 +262,7 @@ public class SagaFeedbackConsumer {
             
             ProposalStatus oldStatus = proposal.getStatus();
             proposal.setStatus(ProposalStatus.REFUNDED);
+            proposal.setPaymentPendingAt(null);
             proposalRepository.save(proposal);
             cacheEvictionService.evictProposalCaches(proposalId);
             

@@ -1,18 +1,15 @@
 package com.team26.freelance.proposal.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import jakarta.persistence.Column;
 
 /**
  * Local job snapshot used for proposal ownership checks and saga status updates.
+/**
+ * Deprecated placeholder retained for backward compatibility.
+ * Proposal now stores jobId as a plain Long to avoid cross-service JPA relations.
  */
-@Entity
-@Table(name = "jobs")
 public class JobReference {
 
-    @Id
     private Long id;
 
     @Column(name = "client_id")
