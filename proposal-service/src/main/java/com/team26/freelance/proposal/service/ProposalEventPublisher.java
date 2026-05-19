@@ -32,10 +32,10 @@ public class ProposalEventPublisher {
 
     /**
      * Publishes proposal.accepted event after proposal is accepted.
-     * Payload: {proposalId, jobId, freelancerId, bidAmount}
+     * Payload: {proposalId, jobId, clientId, freelancerId, bidAmount}
      */
-    public void publishProposalAccepted(Long proposalId, Long jobId, Long freelancerId, BigDecimal bidAmount) {
-        ProposalAcceptedEvent event = new ProposalAcceptedEvent(proposalId, jobId, freelancerId, bidAmount);
+    public void publishProposalAccepted(Long proposalId, Long jobId, Long clientId, Long freelancerId, BigDecimal bidAmount) {
+        ProposalAcceptedEvent event = new ProposalAcceptedEvent(proposalId, jobId, clientId, freelancerId, bidAmount);
         String correlationId = MDC.get("correlationId");
         
         logger.info("Publishing proposal.accepted event for proposalId={}", proposalId);

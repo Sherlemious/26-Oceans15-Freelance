@@ -12,7 +12,7 @@ public enum ContractStatus {
     private static final Map<ContractStatus, List<ContractStatus>> VALID_TRANSITIONS = Map.of(
             ACTIVE, List.of(ACTIVE, COMPLETED, TERMINATED, DISPUTED),
             DISPUTED, List.of(DISPUTED, ACTIVE, TERMINATED),
-            COMPLETED, List.of(COMPLETED),
+            COMPLETED, List.of(COMPLETED, TERMINATED),
             TERMINATED, List.of(TERMINATED)
     );
 

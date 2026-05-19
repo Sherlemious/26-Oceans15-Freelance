@@ -17,9 +17,11 @@ import com.team26.freelance.proposal.dto.ProposalAnalyticsDTO;
 import com.team26.freelance.proposal.dto.ProposalAnalyticsDashboardDTO;
 import com.team26.freelance.proposal.dto.JobRecommendationDTO;
 import com.team26.freelance.proposal.model.MilestoneStatus;
+import com.team26.freelance.proposal.model.JobReference;
 import com.team26.freelance.proposal.model.Proposal;
 import com.team26.freelance.proposal.model.ProposalMilestone;
 import com.team26.freelance.proposal.model.ProposalStatus;
+import com.team26.freelance.proposal.repository.JobReferenceRepository;
 import com.team26.freelance.proposal.repository.Neo4jInteractionRepository;
 import com.team26.freelance.proposal.repository.ProposalEventRepository;
 import com.team26.freelance.proposal.repository.ProposalMilestoneRepository;
@@ -68,6 +70,7 @@ public class ProposalService {
     private final Neo4jInteractionRepository neo4jInteractionRepository;
     private final ProposalEventSubject eventSubject;
     private final ProposalRepository proposalRepository;
+    private final JobReferenceRepository jobReferenceRepository;
     private final ProposalMilestoneRepository milestoneRepository;
     private final ProposalCacheEvictionService cacheEvictionService;
     private static final String VALID_KEY_REGEX = "^[a-zA-Z0-9_]+$";
@@ -86,6 +89,7 @@ public class ProposalService {
 
     // MERGED CONSTRUCTOR
     public ProposalService(ProposalRepository proposalRepository,
+            JobReferenceRepository jobReferenceRepository,
             ProposalMilestoneRepository milestoneRepository,
             ProposalCacheEvictionService cacheEvictionService,
             RedisTemplate<String, Object> redisTemplate,
@@ -100,6 +104,7 @@ public class ProposalService {
             JobServiceClient jobServiceClient,
             ContractServiceClient contractServiceClient) {
         this.proposalRepository = proposalRepository;
+        this.jobReferenceRepository = jobReferenceRepository;
         this.milestoneRepository = milestoneRepository;
         this.cacheEvictionService = cacheEvictionService;
         this.redisTemplate = redisTemplate;
@@ -121,15 +126,16 @@ public class ProposalService {
         return proposalRepository.findAll(); // Intentionally NOT cached per M2 Spec 4.4.2
     }
 
-    @Cacheable(value = "proposal-service::proposal", key = "#id")
     public Proposal getProposalById(@NonNull Long id) {
         return proposalRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Proposal not found"));
     }
 
     public Proposal createProposal(CreateProposalDTO request) {
+        JobReference jobReference = upsertJobReference(request.jobId());
+
         Proposal proposal = new Proposal();
-        proposal.setJobId(request.jobId());
+        proposal.setJob(jobReference);
         proposal.setFreelancerId(request.freelancerId());
         proposal.setCoverLetter(request.coverLetter());
         proposal.setBidAmount(request.bidAmount());
@@ -139,6 +145,29 @@ public class ProposalService {
         Proposal saved = proposalRepository.save(proposal);
         cacheEvictionService.evictProposalCaches(saved.getId());
         return saved;
+    }
+
+    private JobReference upsertJobReference(Long jobId) {
+        JobDTO job;
+        try {
+            job = jobServiceClient.getJob(jobId);
+        } catch (FeignException.NotFound nf) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid job ID");
+        } catch (Exception e) {
+            logger.warn("JobService unreachable while validating jobId={}", jobId, e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Job service unavailable");
+        }
+
+        if (job == null || job.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid job ID");
+        }
+
+        JobReference reference = jobReferenceRepository.findById(job.getId())
+                .orElseGet(() -> new JobReference(job.getId()));
+        reference.setClientId(job.getClientId());
+        reference.setTitle(job.getTitle());
+        reference.setStatus(job.getStatus());
+        return jobReferenceRepository.save(reference);
     }
 
     public Proposal updateProposal(@NonNull Long id, UpdateProposalDTO updated) {
@@ -240,25 +269,7 @@ public class ProposalService {
                     "Proposal must be SUBMITTED or SHORTLISTED to be accepted");
         }
 
-        // Feign validation: Ensure freelancer has FREELANCER role
-        try {
-            var user = userServiceClient.getUser(proposal.getFreelancerId());
-            if (user == null) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
-            }
-            if (user.getRole() == null || !"FREELANCER".equalsIgnoreCase(user.getRole())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "User is not a freelancer");
-            }
-        } catch (feign.FeignException.NotFound nf) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Freelancer not found");
-        } catch (ResponseStatusException e) {
-            throw e;
-        } catch (Exception e) {
-            logger.warn("Failed to validate freelancer role for freelancerId={}", proposal.getFreelancerId(), e);
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Unable to validate freelancer role");
-        }
+        Long clientId = resolveJobClientId(proposal.getJobId());
 
         MDC.put("proposalId", proposalId.toString());
         ProposalStatus oldStatus = proposal.getStatus();
@@ -275,12 +286,19 @@ public class ProposalService {
         proposalEventPublisher.publishProposalAccepted(
             proposalId,
             proposal.getJobId(),
+            clientId,
             proposal.getFreelancerId(),
             java.math.BigDecimal.valueOf(proposal.getBidAmount())
         );
 
         MDC.remove("proposalId");
         return saved;
+    }
+
+    private Long resolveJobClientId(Long jobId) {
+        return jobReferenceRepository.findById(jobId)
+                .map(JobReference::getClientId)
+                .orElseGet(() -> upsertJobReference(jobId).getClientId());
     }
 
     // MERGED FEE ESTIMATE (Keeps CC-3 Cache, Uses Main Builder)
@@ -331,11 +349,15 @@ public class ProposalService {
             }
 
             // Check active contract exists
-            var contract = contractServiceClient.getActiveContractForProposal(proposalId);
-            if (contract == null) {
+            try {
+                var contract = contractServiceClient.getActiveContractForProposal(proposalId);
+                if (contract == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No active contract found for this proposal");
+                }
+                activeContractId = contract.getId();
+            } catch (FeignException.NotFound e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No active contract found for this proposal");
             }
-            activeContractId = contract.getId();
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
