@@ -64,13 +64,18 @@
       },
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
       "id": 3,
-      "title": "Feign Failure Rate",
+      "title": "Feign Call Outcomes",
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"WARN\"} | json | line_format \"{{.message}}\" |= \"Feign\"[5m]))",
-          "legendFormat": "feign failures/5m",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\"} |= \"ServiceClient.\" |= \"returned successfully\" [5m]))",
+          "legendFormat": "feign successes/5m",
           "refId": "A"
+        },
+        {
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"WARN\"} |= \"ServiceClient.\" |~ \"failed|returned 404\" [5m]))",
+          "legendFormat": "feign failures/5m",
+          "refId": "B"
         }
       ]
     },

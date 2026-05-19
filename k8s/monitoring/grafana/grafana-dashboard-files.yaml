@@ -19,25 +19,25 @@ data:
     2,\r\n      \"title\": \"S4 Feign Call Outcomes\",\r\n      \"description\": \"Successful
     user/job Feign reads vs degradation warnings (§11.3 panel 4).\",\r\n      \"type\":
     \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
-    service=\\\"contract-service\\\"} | json | message |= \\\"UserServiceClient.getUser
-    returned successfully\\\"[5m]))\",\r\n          \"legendFormat\": \"user read
+    service=\\\"contract-service\\\"} |= \\\"UserServiceClient.getUser
+    returned successfully\\\" [5m]))\",\r\n          \"legendFormat\": \"user read
     ok\",\r\n          \"refId\": \"A\"\r\n        },\r\n        {\r\n          \"expr\":
     \"sum(count_over_time({app=\\\"freelance\\\", service=\\\"contract-service\\\"}
-    | json | message |= \\\"JobServiceClient.getJob returned successfully\\\"[5m]))\",\r\n
+    |= \\\"JobServiceClient.getJob returned successfully\\\" [5m]))\",\r\n
     \         \"legendFormat\": \"job read ok\",\r\n          \"refId\": \"B\"\r\n
     \       },\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
-    service=\\\"contract-service\\\", level=\\\"WARN\\\"} | json | message |= \\\"Feign
-    call to\\\"[5m]))\",\r\n          \"legendFormat\": \"feign failure\",\r\n          \"refId\":
+    service=\\\"contract-service\\\", level=\\\"WARN\\\"} |= \\\"Feign
+    call to\\\" [5m]))\",\r\n          \"legendFormat\": \"feign failure\",\r\n          \"refId\":
     \"C\"\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"datasource\": { \"type\":
     \"loki\", \"uid\": \"loki\" },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\":
     16, \"y\": 0 },\r\n      \"id\": 3,\r\n      \"title\": \"Contract Saga Event
     Audit\",\r\n      \"description\": \"RabbitMQ publish/consume audit for contract
     saga (§11.3 panel 3).\",\r\n      \"type\": \"timeseries\",\r\n      \"targets\":
     [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
-    service=\\\"contract-service\\\"} | json | message |= \\\"Publishing contract\\\"[5m]))\",\r\n
+    service=\\\"contract-service\\\"} |= \\\"Publishing contract\\\" [5m]))\",\r\n
     \         \"legendFormat\": \"published\",\r\n          \"refId\": \"A\"\r\n        },\r\n
     \       {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
-    service=\\\"contract-service\\\"} | json | message |= \\\"Received event on\\\"[5m]))\",\r\n
+    service=\\\"contract-service\\\"} |= \\\"Received event on\\\" [5m]))\",\r\n
     \         \"legendFormat\": \"consumed\",\r\n          \"refId\": \"B\"\r\n        },\r\n
     \       {\r\n          \"expr\": \"sum by (routingKey) (count_over_time({app=\\\"freelance\\\",
     service=\\\"contract-service\\\"} | json | routingKey != \\\"\\\" [5m]))\",\r\n
@@ -48,7 +48,7 @@ data:
     \"S4-F3 enrichment and other ops exceeding the slow threshold (§11.3 panel 6).\",\r\n
     \     \"type\": \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
     \"sum(count_over_time({app=\\\"freelance\\\", service=\\\"contract-service\\\",
-    level=\\\"WARN\\\"} | json | message |= \\\"Slow \\\"[5m]))\",\r\n          \"legendFormat\":
+    level=\\\"WARN\\\"} |= \\\"Slow \\\" [5m]))\",\r\n          \"legendFormat\":
     \"slow warnings\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n
     \   {\r\n      \"datasource\": { \"type\": \"loki\", \"uid\": \"loki\" },\r\n
     \     \"gridPos\": { \"h\": 8, \"w\": 16, \"x\": 8, \"y\": 8 },\r\n      \"id\":
@@ -69,8 +69,8 @@ data:
     false,\r\n        \"showCommonLabels\": false,\r\n        \"showLabels\": false,\r\n
     \       \"showTime\": true,\r\n        \"sortOrder\": \"Descending\",\r\n        \"wrapLogMessage\":
     true\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"{app=\\\"freelance\\\",
-    service=\\\"contract-service\\\"} | json | proposalId != \\\"\\\" | message |=
-    \\\"saved with status\\\"\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n
+    service=\\\"contract-service\\\"} |= \\\"saved with status\\\" | json | proposalId !=
+    \\\"\\\"\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n
     \   },\r\n    {\r\n      \"datasource\": { \"type\": \"prometheus\", \"uid\":
     \"prometheus\" },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"unit\":
     \"reqps\",\r\n          \"custom\": { \"drawStyle\": \"line\", \"fillOpacity\":
@@ -214,11 +214,10 @@ data:
     \       \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n      \"gridPos\":
     {\r\n        \"h\": 8,\r\n        \"w\": 12,\r\n        \"x\": 0,\r\n        \"y\":
     8\r\n      },\r\n      \"id\": 3,\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
-    \"sum(count_over_time({app=\\\"freelance\\\", service=\\\"job-service\\\"} | json
-    | line_format \\\"{{.message}}\\\" |= \\\"Feign call to\\\" |= \\\"failed\\\"
+    \"sum(count_over_time({app=\\\"freelance\\\", service=\\\"job-service\\\"} |= \\\"Feign call to\\\" |= \\\"failed\\\"
     [1m]))\",\r\n          \"legendFormat\": \"Feign Failures\",\r\n          \"refId\":
     \"A\"\r\n        },\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
-    service=\\\"job-service\\\"} | json | line_format \\\"{{.message}}\\\" |= \\\"returned
+    service=\\\"job-service\\\"} |= \\\"returned
     successfully\\\" [1m]))\",\r\n          \"legendFormat\": \"Feign Successes\",\r\n
     \         \"refId\": \"B\"\r\n        }\r\n      ],\r\n      \"title\": \"Feign
     Call Outcomes (Success vs Failures)\",\r\n      \"type\": \"timeseries\"\r\n    },\r\n
@@ -499,160 +498,418 @@ data:
     \"now-1h\", \"to\": \"now\" },\r\n  \"timepicker\": {},\r\n  \"timezone\": \"browser\",\r\n
     \ \"title\": \"Proposal Service\",\r\n  \"uid\": \"proposal-service\",\r\n  \"version\":
     2\r\n}"
-  user-dashboard.json: "{\r\n  \"__requires\": [\r\n    { \"type\": \"datasource\",
-    \"id\": \"loki\",       \"name\": \"Loki\",       \"version\": \"1.0.0\" },\r\n
-    \   { \"type\": \"datasource\", \"id\": \"prometheus\", \"name\": \"Prometheus\",
-    \"version\": \"1.0.0\" }\r\n  ],\r\n  \"annotations\": { \"list\": [] },\r\n  \"description\":
-    \"Final user-service dashboard assembly with Loki log correlation and Prometheus
-    service metrics.\",\r\n  \"editable\": true,\r\n  \"fiscalYearStartMonth\": 0,\r\n
-    \ \"graphTooltip\": 1,\r\n  \"id\": null,\r\n  \"links\": [],\r\n  \"liveNow\":
-    false,\r\n  \"panels\": [\r\n    {\r\n      \"datasource\": {\r\n        \"type\":
-    \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n      \"gridPos\": { \"h\":
-    8, \"w\": 8, \"x\": 0, \"y\": 0 },\r\n      \"id\": 1,\r\n      \"title\": \"User
-    Service Error Rate\",\r\n      \"type\": \"timeseries\",\r\n      \"targets\":
-    [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
-    service=\\\"user-service\\\", level=\\\"ERROR\\\"}[1m]))\",\r\n          \"legendFormat\":
-    \"errors/min\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n
-    \   {\r\n      \"datasource\": {\r\n        \"type\": \"loki\",\r\n        \"uid\":
-    \"loki\"\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 8, \"y\":
-    0 },\r\n      \"id\": 2,\r\n      \"title\": \"Correlation ID Trace\",\r\n      \"description\":
-    \"Filter all user-service logs by a specific X-Correlation-ID. Set var_correlationId
-    in the URL or use the variable below.\",\r\n      \"type\": \"logs\",\r\n      \"options\":
-    {\r\n        \"dedupStrategy\": \"none\",\r\n        \"enableLogDetails\": true,\r\n
-    \       \"prettifyLogMessage\": false,\r\n        \"showCommonLabels\": false,\r\n
-    \       \"showLabels\": false,\r\n        \"showTime\": true,\r\n        \"sortOrder\":
-    \"Descending\",\r\n        \"wrapLogMessage\": true\r\n      },\r\n      \"targets\":
-    [\r\n        {\r\n          \"expr\": \"{app=\\\"freelance\\\", service=\\\"user-service\\\"}
-    | json | correlationId=~\\\"${correlationId:pipe}\\\"\",\r\n          \"legendFormat\":
-    \"\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n    {\r\n
-    \     \"datasource\": {\r\n        \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n
-    \     },\r\n      \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 16, \"y\": 0 },\r\n
-    \     \"id\": 3,\r\n      \"title\": \"Feign Failure Rate\",\r\n      \"type\":
-    \"timeseries\",\r\n      \"targets\": [\r\n        {\r\n          \"expr\": \"sum(count_over_time({app=\\\"freelance\\\",
-    service=\\\"user-service\\\", level=\\\"WARN\\\"} | json | line_format \\\"{{.message}}\\\"
-    |= \\\"Feign\\\"[5m]))\",\r\n          \"legendFormat\": \"feign failures/5m\",\r\n
-    \         \"refId\": \"A\"\r\n        }\r\n      ]\r\n    },\r\n    {\r\n      \"datasource\":
-    {\r\n        \"type\": \"loki\",\r\n        \"uid\": \"loki\"\r\n      },\r\n
-    \     \"gridPos\": { \"h\": 8, \"w\": 8, \"x\": 0, \"y\": 8 },\r\n      \"id\":
-    4,\r\n      \"title\": \"User Operations by userId\",\r\n      \"description\":
-    \"Log volume per userId for user-scoped requests.\",\r\n      \"type\": \"timeseries\",\r\n
-    \     \"targets\": [\r\n        {\r\n          \"expr\": \"sum by (userId) (count_over_time({app=\\\"freelance\\\",
-    service=\\\"user-service\\\"} | json | userId != \\\"\\\" [5m]))\",\r\n          \"legendFormat\":
-    \"userId={{userId}}\",\r\n          \"refId\": \"A\"\r\n        }\r\n      ]\r\n
-    \   },\r\n    {\r\n      \"datasource\": {\r\n        \"type\": \"loki\",\r\n
-    \       \"uid\": \"loki\"\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\":
-    16, \"x\": 8, \"y\": 8 },\r\n      \"id\": 5,\r\n      \"title\": \"Auth Event
-    Audit Log\",\r\n      \"description\": \"All auth-related events: USER_CREATED,
-    USER_UPDATED, ROLE_CHANGED, USER_DELETED.\",\r\n      \"type\": \"logs\",\r\n
-    \     \"options\": {\r\n        \"dedupStrategy\": \"none\",\r\n        \"enableLogDetails\":
-    true,\r\n        \"prettifyLogMessage\": false,\r\n        \"showCommonLabels\":
-    false,\r\n        \"showLabels\": false,\r\n        \"showTime\": true,\r\n        \"sortOrder\":
-    \"Descending\",\r\n        \"wrapLogMessage\": true\r\n      },\r\n      \"targets\":
-    [\r\n        {\r\n          \"expr\": \"{app=\\\"freelance\\\", service=\\\"user-service\\\"}
-    | json | message =~ \\\"USER_CREATED|USER_UPDATED|ROLE_CHANGED|USER_DELETED|PREFERENCES_UPDATED|PRIMARY_SKILL_SET\\\"\",\r\n
-    \         \"legendFormat\": \"\",\r\n          \"refId\": \"A\"\r\n        }\r\n
-    \     ]\r\n    },\r\n    {\r\n      \"datasource\": {\r\n        \"type\": \"prometheus\",\r\n
-    \       \"uid\": \"prometheus\"\r\n      },\r\n      \"fieldConfig\": {\r\n        \"defaults\":
-    {\r\n          \"color\": {\r\n            \"mode\": \"palette-classic\"\r\n          },\r\n
-    \         \"custom\": {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
-    \"text\",\r\n            \"axisLabel\": \"Requests/sec\",\r\n            \"axisPlacement\":
-    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
-    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
-    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
-    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
-    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
-    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
-    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
-    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
-    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
-    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
-    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
-    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
-    \           ]\r\n          },\r\n          \"unit\": \"reqps\"\r\n        },\r\n
-    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\":
-    12, \"x\": 0, \"y\": 16 },\r\n      \"id\": 6,\r\n      \"targets\": [\r\n        {\r\n
-    \         \"expr\": \"sum by (uri, method, status) (rate(http_server_requests_seconds_count{job=\\\"user-service\\\"}[10m]))\",\r\n
-    \         \"legendFormat\": \"{{method}} {{uri}} {{status}}\",\r\n          \"refId\":
-    \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"HTTP Request Rate\",\r\n
-    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
-    \       \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n
-    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\": {\r\n
-    \           \"mode\": \"palette-classic\"\r\n          },\r\n          \"custom\":
-    {\r\n            \"axisCenteredZero\": false,\r\n            \"axisColorMode\":
-    \"text\",\r\n            \"axisLabel\": \"Milliseconds\",\r\n            \"axisPlacement\":
-    \"auto\",\r\n            \"barAlignment\": 0,\r\n            \"drawStyle\": \"line\",\r\n
-    \           \"fillOpacity\": 10,\r\n            \"gradientMode\": \"none\",\r\n
-    \           \"hideFrom\": {\r\n              \"tooltip\": false,\r\n              \"viz\":
-    false,\r\n              \"legend\": false\r\n            },\r\n            \"lineInterpolation\":
-    \"linear\",\r\n            \"lineWidth\": 1,\r\n            \"pointSize\": 5,\r\n
-    \           \"scaleDistribution\": {\r\n              \"type\": \"linear\"\r\n
-    \           },\r\n            \"showPoints\": \"auto\",\r\n            \"spanNulls\":
-    false,\r\n            \"stacking\": {\r\n              \"group\": \"A\",\r\n              \"mode\":
-    \"none\"\r\n            },\r\n            \"thresholdsStyle\": {\r\n              \"mode\":
-    \"off\"\r\n            }\r\n          },\r\n          \"mappings\": [],\r\n          \"thresholds\":
-    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
-    \               \"color\": \"green\",\r\n                \"value\": null\r\n              }\r\n
-    \           ]\r\n          },\r\n          \"unit\": \"ms\"\r\n        },\r\n
-    \       \"overrides\": []\r\n      },\r\n      \"gridPos\": { \"h\": 8, \"w\":
-    12, \"x\": 12, \"y\": 16 },\r\n      \"id\": 7,\r\n      \"targets\": [\r\n        {\r\n
-    \         \"expr\": \"histogram_quantile(0.50, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"user-service\\\"}[5m])))
-    * 1000\",\r\n          \"legendFormat\": \"p50 {{method}} {{uri}}\",\r\n          \"refId\":
-    \"A\"\r\n        },\r\n        {\r\n          \"expr\": \"histogram_quantile(0.95,
-    sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"user-service\\\"}[5m])))
-    * 1000\",\r\n          \"legendFormat\": \"p95 {{method}} {{uri}}\",\r\n          \"refId\":
-    \"B\"\r\n        },\r\n        {\r\n          \"expr\": \"histogram_quantile(0.99,
-    sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\\\"user-service\\\"}[5m])))
-    * 1000\",\r\n          \"legendFormat\": \"p99 {{method}} {{uri}}\",\r\n          \"refId\":
-    \"C\"\r\n        }\r\n      ],\r\n      \"title\": \"HTTP Latency Percentiles\",\r\n
-    \     \"type\": \"timeseries\"\r\n    },\r\n    {\r\n      \"datasource\": {\r\n
-    \       \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n      },\r\n
-    \     \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\": {\r\n
-    \           \"mode\": \"thresholds\"\r\n          },\r\n          \"mappings\":
-    [],\r\n          \"max\": 100,\r\n          \"min\": 0,\r\n          \"thresholds\":
-    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
-    \               \"color\": \"green\",\r\n                \"value\": null\r\n              },\r\n
-    \             {\r\n                \"color\": \"yellow\",\r\n                \"value\":
-    70\r\n              },\r\n              {\r\n                \"color\": \"red\",\r\n
-    \               \"value\": 90\r\n              }\r\n            ]\r\n          },\r\n
-    \         \"unit\": \"percent\"\r\n        },\r\n        \"overrides\": []\r\n
-    \     },\r\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 0, \"y\": 24 },\r\n
-    \     \"id\": 8,\r\n      \"options\": {\r\n        \"colorMode\": \"value\",\r\n
-    \       \"graphMode\": \"area\",\r\n        \"justifyMode\": \"auto\",\r\n        \"orientation\":
-    \"auto\",\r\n        \"reduceOptions\": {\r\n          \"calcs\": [\"lastNotNull\"],\r\n
-    \         \"fields\": \"\",\r\n          \"values\": false\r\n        },\r\n        \"textMode\":
-    \"auto\"\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
-    \"sum(jvm_memory_used_bytes{job=\\\"user-service\\\", area=\\\"heap\\\"}) / sum(jvm_memory_max_bytes{job=\\\"user-service\\\",
-    area=\\\"heap\\\"}) * 100\",\r\n          \"legendFormat\": \"Heap used\",\r\n
-    \         \"refId\": \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"JVM
-    Heap Usage\",\r\n      \"type\": \"stat\"\r\n    },\r\n    {\r\n      \"datasource\":
-    {\r\n        \"type\": \"prometheus\",\r\n        \"uid\": \"prometheus\"\r\n
-    \     },\r\n      \"fieldConfig\": {\r\n        \"defaults\": {\r\n          \"color\":
-    {\r\n            \"mode\": \"thresholds\"\r\n          },\r\n          \"mappings\":
-    [],\r\n          \"max\": 100,\r\n          \"min\": 0,\r\n          \"thresholds\":
-    {\r\n            \"mode\": \"absolute\",\r\n            \"steps\": [\r\n              {\r\n
-    \               \"color\": \"green\",\r\n                \"value\": null\r\n              },\r\n
-    \             {\r\n                \"color\": \"yellow\",\r\n                \"value\":
-    70\r\n              },\r\n              {\r\n                \"color\": \"red\",\r\n
-    \               \"value\": 90\r\n              }\r\n            ]\r\n          },\r\n
-    \         \"unit\": \"percent\"\r\n        },\r\n        \"overrides\": []\r\n
-    \     },\r\n      \"gridPos\": { \"h\": 8, \"w\": 12, \"x\": 12, \"y\": 24 },\r\n
-    \     \"id\": 9,\r\n      \"options\": {\r\n        \"colorMode\": \"value\",\r\n
-    \       \"graphMode\": \"area\",\r\n        \"justifyMode\": \"auto\",\r\n        \"orientation\":
-    \"auto\",\r\n        \"reduceOptions\": {\r\n          \"calcs\": [\"lastNotNull\"],\r\n
-    \         \"fields\": \"\",\r\n          \"values\": false\r\n        },\r\n        \"textMode\":
-    \"auto\"\r\n      },\r\n      \"targets\": [\r\n        {\r\n          \"expr\":
-    \"hikaricp_connections_active{job=\\\"user-service\\\"} / hikaricp_connections_max{job=\\\"user-service\\\"}
-    * 100\",\r\n          \"legendFormat\": \"{{pool}}\",\r\n          \"refId\":
-    \"A\"\r\n        }\r\n      ],\r\n      \"title\": \"Hikari Connection Pool Usage\",\r\n
-    \     \"type\": \"stat\"\r\n    }\r\n  ],\r\n  \"refresh\": \"30s\",\r\n  \"schemaVersion\":
-    39,\r\n  \"tags\": [\"user-service\", \"freelance\", \"m3\", \"observability\"],\r\n
-    \ \"templating\": {\r\n    \"list\": [\r\n      {\r\n        \"name\": \"correlationId\",\r\n
-    \       \"label\": \"Correlation ID\",\r\n        \"type\": \"textbox\",\r\n        \"current\":
-    { \"value\": \".*\" },\r\n        \"hide\": 0,\r\n        \"options\": [],\r\n
-    \       \"query\": \".*\"\r\n      }\r\n    ]\r\n  },\r\n  \"time\": { \"from\":
-    \"now-1h\", \"to\": \"now\" },\r\n  \"timepicker\": {},\r\n  \"timezone\": \"browser\",\r\n
-    \ \"title\": \"User Service\",\r\n  \"uid\": \"user-service\",\r\n  \"version\":
-    4,\r\n  \"weekStart\": \"\"\r\n}\r\n"
+  user-dashboard.json: |
+    {
+      "__requires": [
+        { "type": "datasource", "id": "loki",       "name": "Loki",       "version": "1.0.0" },
+        { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+      ],
+      "annotations": { "list": [] },
+      "description": "Final user-service dashboard assembly with Loki log correlation and Prometheus service metrics.",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "id": 1,
+          "title": "User Service Error Rate",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"ERROR\"}[1m]))",
+              "legendFormat": "errors/min",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+          "id": 2,
+          "title": "Correlation ID Trace",
+          "description": "Filter all user-service logs by a specific X-Correlation-ID. Set var_correlationId in the URL or use the variable below.",
+          "type": "logs",
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "expr": "{app=\"freelance\", service=\"user-service\"} | json | correlationId=~\"${correlationId:pipe}\"",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+          "id": 3,
+          "title": "Feign Call Outcomes",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\"} |= \"ServiceClient.\" |= \"returned successfully\" [5m]))",
+              "legendFormat": "feign successes/5m",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(count_over_time({app=\"freelance\", service=\"user-service\", level=\"WARN\"} |= \"ServiceClient.\" |~ \"failed|returned 404\" [5m]))",
+              "legendFormat": "feign failures/5m",
+              "refId": "B"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+          "id": 4,
+          "title": "User Operations by userId",
+          "description": "Log volume per userId for user-scoped requests.",
+          "type": "timeseries",
+          "targets": [
+            {
+              "expr": "sum by (userId) (count_over_time({app=\"freelance\", service=\"user-service\"} | json | userId != \"\" [5m]))",
+              "legendFormat": "userId={{userId}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+          "id": 5,
+          "title": "Auth Event Audit Log",
+          "description": "All auth-related events: USER_CREATED, USER_UPDATED, ROLE_CHANGED, USER_DELETED.",
+          "type": "logs",
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": true
+          },
+          "targets": [
+            {
+              "expr": "{app=\"freelance\", service=\"user-service\"} | json | message =~ \"USER_CREATED|USER_UPDATED|ROLE_CHANGED|USER_DELETED|PREFERENCES_UPDATED|PRIMARY_SKILL_SET\"",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Requests/sec",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "id": 6,
+          "targets": [
+            {
+              "expr": "sum by (uri, method, status) (rate(http_server_requests_seconds_count{job=\"user-service\"}[10m]))",
+              "legendFormat": "{{method}} {{uri}} {{status}}",
+              "refId": "A"
+            }
+          ],
+          "title": "HTTP Request Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "Milliseconds",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "ms"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "id": 7,
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"user-service\"}[5m]))) * 1000",
+              "legendFormat": "p50 {{method}} {{uri}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"user-service\"}[5m]))) * 1000",
+              "legendFormat": "p95 {{method}} {{uri}}",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum by (le, uri, method) (rate(http_server_requests_seconds_bucket{job=\"user-service\"}[5m]))) * 1000",
+              "legendFormat": "p99 {{method}} {{uri}}",
+              "refId": "C"
+            }
+          ],
+          "title": "HTTP Latency Percentiles",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+          "id": 8,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "expr": "sum(jvm_memory_used_bytes{job=\"user-service\", area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"user-service\", area=\"heap\"}) * 100",
+              "legendFormat": "Heap used",
+              "refId": "A"
+            }
+          ],
+          "title": "JVM Heap Usage",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "max": 100,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 70
+                  },
+                  {
+                    "color": "red",
+                    "value": 90
+                  }
+                ]
+              },
+              "unit": "percent"
+            },
+            "overrides": []
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+          "id": 9,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            },
+            "textMode": "auto"
+          },
+          "targets": [
+            {
+              "expr": "hikaricp_connections_active{job=\"user-service\"} / hikaricp_connections_max{job=\"user-service\"} * 100",
+              "legendFormat": "{{pool}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Hikari Connection Pool Usage",
+          "type": "stat"
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["user-service", "freelance", "m3", "observability"],
+      "templating": {
+        "list": [
+          {
+            "name": "correlationId",
+            "label": "Correlation ID",
+            "type": "textbox",
+            "current": { "value": ".*" },
+            "hide": 0,
+            "options": [],
+            "query": ".*"
+          }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "User Service",
+      "uid": "user-service",
+      "version": 4,
+      "weekStart": ""
+    }
+
   wallet-dashboard.json: "{\r\n  \"annotations\": {\r\n    \"list\": []\r\n  },\r\n
     \ \"editable\": true,\r\n  \"fiscalYearStartMonth\": 0,\r\n  \"graphTooltip\":
     0,\r\n  \"id\": null,\r\n  \"links\": [],\r\n  \"liveNow\": false,\r\n  \"panels\":
