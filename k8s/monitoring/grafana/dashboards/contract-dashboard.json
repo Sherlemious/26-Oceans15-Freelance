@@ -36,17 +36,17 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} | json | message |= \"UserServiceClient.getUser returned successfully\"[5m]))",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} |= \"UserServiceClient.getUser returned successfully\" [5m]))",
           "legendFormat": "user read ok",
           "refId": "A"
         },
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} | json | message |= \"JobServiceClient.getJob returned successfully\"[5m]))",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} |= \"JobServiceClient.getJob returned successfully\" [5m]))",
           "legendFormat": "job read ok",
           "refId": "B"
         },
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\", level=\"WARN\"} | json | message |= \"Feign call to\"[5m]))",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\", level=\"WARN\"} |= \"Feign call to\" [5m]))",
           "legendFormat": "feign failure",
           "refId": "C"
         }
@@ -61,12 +61,12 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} | json | message |= \"Publishing contract\"[5m]))",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} |= \"Publishing contract\" [5m]))",
           "legendFormat": "published",
           "refId": "A"
         },
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} | json | message |= \"Received event on\"[5m]))",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\"} |= \"Received event on\" [5m]))",
           "legendFormat": "consumed",
           "refId": "B"
         },
@@ -86,7 +86,7 @@
       "type": "timeseries",
       "targets": [
         {
-          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\", level=\"WARN\"} | json | message |= \"Slow \"[5m]))",
+          "expr": "sum(count_over_time({app=\"freelance\", service=\"contract-service\", level=\"WARN\"} |= \"Slow \" [5m]))",
           "legendFormat": "slow warnings",
           "refId": "A"
         }
@@ -135,7 +135,7 @@
       },
       "targets": [
         {
-          "expr": "{app=\"freelance\", service=\"contract-service\"} | json | proposalId != \"\" | message |= \"saved with status\"",
+          "expr": "{app=\"freelance\", service=\"contract-service\"} |= \"saved with status\" | json | proposalId != \"\"",
           "refId": "A"
         }
       ]
