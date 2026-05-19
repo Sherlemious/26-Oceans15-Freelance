@@ -1,6 +1,5 @@
 package com.team26.freelance.proposal.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -20,10 +19,8 @@ public class Proposal {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @JsonIgnore
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "job_id", nullable = false, foreignKey = @ForeignKey(name = "fk_proposals_job_id"))
-    private JobReference job;
+    @Column(name = "job_id", nullable = false)
+    private Long jobId;
 
     @Column(nullable = false)
     private Long freelancerId;
@@ -55,6 +52,9 @@ public class Proposal {
     @Column
     private LocalDateTime acceptedAt;
 
+    @Column
+    private LocalDateTime paymentPendingAt;
+
     @JsonManagedReference
     @OneToMany(mappedBy = "proposal", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProposalMilestone> proposalMilestones = new ArrayList<>();
@@ -77,11 +77,11 @@ public class Proposal {
     }
 
     public Long getJobId() {
-        return job != null ? job.getId() : null;
+        return jobId;
     }
 
     public void setJobId(Long jobId) {
-        this.job = jobId != null ? new JobReference(jobId) : null;
+        this.jobId = jobId;
     }
 
     public Long getFreelancerId() {
@@ -154,6 +154,14 @@ public class Proposal {
 
     public void setContractId(Long contractId) {
         this.contractId = contractId;
+    }
+
+    public LocalDateTime getPaymentPendingAt() {
+        return paymentPendingAt;
+    }
+
+    public void setPaymentPendingAt(LocalDateTime paymentPendingAt) {
+        this.paymentPendingAt = paymentPendingAt;
     }
 
     public List<ProposalMilestone> getProposalMilestones() {

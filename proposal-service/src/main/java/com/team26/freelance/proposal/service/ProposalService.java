@@ -44,7 +44,6 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +75,8 @@ public class ProposalService {
     private static final String DASHBOARD_CACHE_KEY = "proposal-service::S3-F10";
     @Value("${cache.ttl.analytics:600}")
     private long cacheTtlSeconds;
+    @Value("${saga.payout.abandon-after:PT72H}")
+    private String payoutAbandonAfter;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ProposalEventRepository proposalEventRepository;
     private final MongoDocumentAdapter mongoDocumentAdapter;
@@ -330,16 +331,23 @@ public class ProposalService {
 
         // Feign pre-checks
         Long activeContractId = null;
+        java.math.BigDecimal agreedAmount = null;
         try {
             // Check job status is not CLOSED
             var job = jobServiceClient.getJob(proposal.getJobId());
-            if (job != null && "CLOSED".equals(job.getStatus())) {
+            if (job == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Job not found");
+            }
+            if ("CLOSED".equalsIgnoreCase(job.getStatus())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Job is already closed");
             }
 
             // Check freelancer is ACTIVE
             var user = userServiceClient.getUser(proposal.getFreelancerId());
-            if (user == null || !"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+            if (user == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Freelancer not found");
+            }
+            if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Freelancer is not active");
             }
 
@@ -349,6 +357,11 @@ public class ProposalService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No active contract found for this proposal");
             }
             activeContractId = contract.getId();
+            agreedAmount = contract.getAgreedAmount() != null
+                    ? java.math.BigDecimal.valueOf(contract.getAgreedAmount())
+                    : java.math.BigDecimal.valueOf(proposal.getBidAmount());
+        } catch (FeignException.NotFound nf) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Required resource not found for this proposal");
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
@@ -374,7 +387,7 @@ public class ProposalService {
             proposal.getJobId(),
             proposal.getFreelancerId(),
             activeContractId,
-            java.math.BigDecimal.valueOf(proposal.getBidAmount())
+            agreedAmount
         );
 
         MDC.remove("proposalId");
@@ -860,28 +873,27 @@ public class ProposalService {
         try {
             logger.info("Saga abandonment reaper: checking for abandoned payouts...");
             
-            String abandonAfterStr = System.getProperty("saga.payout.abandon-after", "PT72H");
-            Duration abandonAfter = Duration.parse(abandonAfterStr);
+            Duration abandonAfter = Duration.parse(payoutAbandonAfter);
             LocalDateTime abandonThreshold = LocalDateTime.now().minus(abandonAfter);
             
-            // Find all proposals in PAYMENT_PENDING status submitted before abandonThreshold
-            List<Proposal> abandonedProposals = proposalRepository.findAll().stream()
-                .filter(p -> p.getStatus() == ProposalStatus.PAYMENT_PENDING)
-                .filter(p -> p.getSubmittedAt() != null && p.getSubmittedAt().isBefore(abandonThreshold))
-                .toList();
+            // Find all proposals in PAYMENT_PENDING status before abandonThreshold
+            List<Proposal> abandonedProposals = proposalRepository
+                    .findByStatusAndPaymentPendingAtBefore(ProposalStatus.PAYMENT_PENDING, abandonThreshold)
+                    .stream()
+                    .toList();
             
             for (Proposal proposal : abandonedProposals) {
                 MDC.put("proposalId", proposal.getId().toString());
                 logger.warn("Proposal {} stuck in PAYMENT_PENDING since {} (threshold: {}). Publishing compensation event.",
-                    proposal.getId(), proposal.getSubmittedAt(), abandonThreshold);
+                    proposal.getId(), proposal.getPaymentPendingAt(), abandonThreshold);
                 
                 try {
                     // Publish payment.failed compensation event
-                    proposalEventPublisher.publishProposalCancelled(
-                        proposal.getId(),
-                        proposal.getJobId(),
-                        proposal.getFreelancerId(),
-                        "payout_abandoned"
+                    proposalEventPublisher.publishPaymentFailed(
+                            null,
+                            proposal.getId(),
+                            proposal.getContractId(),
+                            "payout_abandoned"
                     );
                 } catch (Exception e) {
                     logger.error("Failed to publish compensation event for abandoned proposal {}", proposal.getId(), e);

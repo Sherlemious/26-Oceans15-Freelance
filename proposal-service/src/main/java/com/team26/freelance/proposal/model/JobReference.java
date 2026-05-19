@@ -1,17 +1,11 @@
 package com.team26.freelance.proposal.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 /**
- * Read-only reference to the shared jobs catalog table for FK constraint on proposals.job_id.
+ * Deprecated placeholder retained for backward compatibility.
+ * Proposal now stores jobId as a plain Long to avoid cross-service JPA relations.
  */
-@Entity
-@Table(name = "jobs")
 public class JobReference {
 
-    @Id
     private Long id;
 
     public JobReference() {

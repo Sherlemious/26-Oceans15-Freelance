@@ -5,6 +5,7 @@ import com.team26.freelance.contracts.events.ProposalAcceptedEvent;
 import com.team26.freelance.contracts.events.ProposalCompletedEvent;
 import com.team26.freelance.contracts.events.ProposalCancelledEvent;
 import com.team26.freelance.contracts.events.ProposalWithdrawnEvent;
+import com.team26.freelance.contracts.events.PaymentFailedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -37,19 +38,24 @@ public class ProposalEventPublisher {
     public void publishProposalAccepted(Long proposalId, Long jobId, Long freelancerId, BigDecimal bidAmount) {
         ProposalAcceptedEvent event = new ProposalAcceptedEvent(proposalId, jobId, freelancerId, bidAmount);
         String correlationId = MDC.get("correlationId");
-        
-        logger.info("Publishing proposal.accepted event for proposalId={}", proposalId);
-        rabbitTemplate.convertAndSend(
-            SagaTopics.PROPOSAL_EVENTS_EXCHANGE,
-            SagaTopics.PROPOSAL_ACCEPTED,
-            event,
-            message -> {
-                if (correlationId != null) {
-                    message.getMessageProperties().setHeader("correlationId", correlationId);
+
+        try {
+            MDC.put("routingKey", SagaTopics.PROPOSAL_ACCEPTED);
+            logger.info("Publishing proposal.accepted event for proposalId={}", proposalId);
+            rabbitTemplate.convertAndSend(
+                SagaTopics.PROPOSAL_EVENTS_EXCHANGE,
+                SagaTopics.PROPOSAL_ACCEPTED,
+                event,
+                message -> {
+                    if (correlationId != null) {
+                        message.getMessageProperties().setHeader("correlationId", correlationId);
+                    }
+                    return message;
                 }
-                return message;
-            }
-        );
+            );
+        } finally {
+            MDC.remove("routingKey");
+        }
     }
 
     /**
@@ -59,19 +65,24 @@ public class ProposalEventPublisher {
     public void publishProposalCompleted(Long proposalId, Long jobId, Long freelancerId, Long contractId, BigDecimal agreedAmount) {
         ProposalCompletedEvent event = new ProposalCompletedEvent(proposalId, jobId, freelancerId, contractId, agreedAmount);
         String correlationId = MDC.get("correlationId");
-        
-        logger.info("Publishing proposal.completed event for proposalId={}", proposalId);
-        rabbitTemplate.convertAndSend(
-            SagaTopics.PROPOSAL_EVENTS_EXCHANGE,
-            SagaTopics.PROPOSAL_COMPLETED,
-            event,
-            message -> {
-                if (correlationId != null) {
-                    message.getMessageProperties().setHeader("correlationId", correlationId);
+
+        try {
+            MDC.put("routingKey", SagaTopics.PROPOSAL_COMPLETED);
+            logger.info("Publishing proposal.completed event for proposalId={}", proposalId);
+            rabbitTemplate.convertAndSend(
+                SagaTopics.PROPOSAL_EVENTS_EXCHANGE,
+                SagaTopics.PROPOSAL_COMPLETED,
+                event,
+                message -> {
+                    if (correlationId != null) {
+                        message.getMessageProperties().setHeader("correlationId", correlationId);
+                    }
+                    return message;
                 }
-                return message;
-            }
-        );
+            );
+        } finally {
+            MDC.remove("routingKey");
+        }
     }
 
     /**
@@ -81,19 +92,24 @@ public class ProposalEventPublisher {
     public void publishProposalCancelled(Long proposalId, Long jobId, Long freelancerId, String reason) {
         ProposalCancelledEvent event = new ProposalCancelledEvent(proposalId, jobId, freelancerId, reason);
         String correlationId = MDC.get("correlationId");
-        
-        logger.info("Publishing proposal.cancelled event for proposalId={} with reason={}", proposalId, reason);
-        rabbitTemplate.convertAndSend(
-            SagaTopics.PROPOSAL_EVENTS_EXCHANGE,
-            SagaTopics.PROPOSAL_CANCELLED,
-            event,
-            message -> {
-                if (correlationId != null) {
-                    message.getMessageProperties().setHeader("correlationId", correlationId);
+
+        try {
+            MDC.put("routingKey", SagaTopics.PROPOSAL_CANCELLED);
+            logger.info("Publishing proposal.cancelled event for proposalId={} with reason={}", proposalId, reason);
+            rabbitTemplate.convertAndSend(
+                SagaTopics.PROPOSAL_EVENTS_EXCHANGE,
+                SagaTopics.PROPOSAL_CANCELLED,
+                event,
+                message -> {
+                    if (correlationId != null) {
+                        message.getMessageProperties().setHeader("correlationId", correlationId);
+                    }
+                    return message;
                 }
-                return message;
-            }
-        );
+            );
+        } finally {
+            MDC.remove("routingKey");
+        }
     }
 
     /**
@@ -103,18 +119,50 @@ public class ProposalEventPublisher {
     public void publishProposalWithdrawn(Long proposalId, Long jobId, Long freelancerId) {
         ProposalWithdrawnEvent event = new ProposalWithdrawnEvent(proposalId, jobId, freelancerId);
         String correlationId = MDC.get("correlationId");
-        
-        logger.info("Publishing proposal.withdrawn event for proposalId={}", proposalId);
-        rabbitTemplate.convertAndSend(
-            SagaTopics.PROPOSAL_EVENTS_EXCHANGE,
-            SagaTopics.PROPOSAL_WITHDRAWN,
-            event,
-            message -> {
-                if (correlationId != null) {
-                    message.getMessageProperties().setHeader("correlationId", correlationId);
+
+        try {
+            MDC.put("routingKey", SagaTopics.PROPOSAL_WITHDRAWN);
+            logger.info("Publishing proposal.withdrawn event for proposalId={}", proposalId);
+            rabbitTemplate.convertAndSend(
+                SagaTopics.PROPOSAL_EVENTS_EXCHANGE,
+                SagaTopics.PROPOSAL_WITHDRAWN,
+                event,
+                message -> {
+                    if (correlationId != null) {
+                        message.getMessageProperties().setHeader("correlationId", correlationId);
+                    }
+                    return message;
                 }
-                return message;
-            }
-        );
+            );
+        } finally {
+            MDC.remove("routingKey");
+        }
+    }
+
+    /**
+     * Publishes payment.failed event as saga abandonment compensation trigger.
+     * Payload: {payoutId, proposalId, contractId, reason}
+     */
+    public void publishPaymentFailed(Long payoutId, Long proposalId, Long contractId, String reason) {
+        PaymentFailedEvent event = new PaymentFailedEvent(payoutId, proposalId, contractId, reason);
+        String correlationId = MDC.get("correlationId");
+
+        try {
+            MDC.put("routingKey", SagaTopics.PAYMENT_FAILED);
+            logger.info("Publishing payment.failed event for proposalId={} contractId={}", proposalId, contractId);
+            rabbitTemplate.convertAndSend(
+                    SagaTopics.PAYMENT_EVENTS_EXCHANGE,
+                    SagaTopics.PAYMENT_FAILED,
+                    event,
+                    message -> {
+                        if (correlationId != null) {
+                            message.getMessageProperties().setHeader("correlationId", correlationId);
+                        }
+                        return message;
+                    }
+            );
+        } finally {
+            MDC.remove("routingKey");
+        }
     }
 }

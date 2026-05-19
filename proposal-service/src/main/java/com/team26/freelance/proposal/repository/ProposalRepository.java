@@ -2,11 +2,9 @@ package com.team26.freelance.proposal.repository;
 
 import com.team26.freelance.proposal.model.Proposal;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,44 +34,11 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
 
         // User and Job enrichment are performed via Feign clients (no direct cross-service SQL queries)
 
-        // ── Authorization helpers (Postgres is shared across services) ─────
+        // ── Authorization helpers (local data only) ───────────────────────
 
         @Query(value = "SELECT COUNT(*) > 0 FROM proposals WHERE id = :proposalId AND freelancer_id = :freelancerId", nativeQuery = true)
         boolean isProposalOwnedByFreelancer(@Param("proposalId") Long proposalId,
                         @Param("freelancerId") Long freelancerId);
-
-        @Query(value = """
-                        SELECT COUNT(*) > 0
-                        FROM proposals p
-                        JOIN jobs j ON j.id = p.job_id
-                        WHERE p.id = :proposalId
-                                AND j.client_id = :clientId
-                        """, nativeQuery = true)
-        boolean isProposalOwnedByClient(@Param("proposalId") Long proposalId, @Param("clientId") Long clientId);
-
-        @Modifying
-        @Transactional
-        @Query(value = "UPDATE jobs SET status = 'IN_PROGRESS' WHERE id = :jobId", nativeQuery = true)
-        void updateJobStatusToInProgress(@Param("jobId") Long jobId);
-
-        @Modifying
-        @Transactional
-        @Query(value = """
-                        INSERT INTO contracts (job_id, freelancer_id, client_id, proposal_id,
-                                               agreed_amount, status, start_date, created_at)
-                        SELECT p.job_id,
-                               p.freelancer_id,
-                               j.client_id,
-                               p.id,
-                               p.bid_amount,
-                               'ACTIVE',
-                               NOW(),
-                               NOW()
-                        FROM proposals p
-                        JOIN jobs j ON j.id = p.job_id
-                        WHERE p.id = :proposalId
-                        """, nativeQuery = true)
-        void insertContractFromProposal(@Param("proposalId") Long proposalId);
 
         @Query(value = """
                         SELECT COUNT(*) FROM proposals
@@ -84,37 +49,9 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         @Param("lowerBound") double lowerBound,
                         @Param("upperBound") double upperBound);
 
-        @Query(value = "SELECT id FROM contracts WHERE proposal_id = :proposalId AND status = 'ACTIVE' LIMIT 1", nativeQuery = true)
-        Long findActiveContractIdByProposalId(@Param("proposalId") Long proposalId);
-
-        @Modifying
-        @Transactional
-        @Query(value = "UPDATE contracts SET status = 'COMPLETED', end_date = NOW() WHERE id = :contractId", nativeQuery = true)
-        void markContractAsCompleted(@Param("contractId") Long contractId);
-
-        @Modifying
-        @Transactional
-        @Query(value = "UPDATE jobs SET status = 'CLOSED' WHERE id = :jobId", nativeQuery = true)
-        void updateJobStatusToClosed(@Param("jobId") Long jobId);
-
-        @Modifying
-        @Transactional
-        @Query(value = """
-                        INSERT INTO payouts (contract_id, freelancer_id, amount, method, status, created_at)
-                        VALUES (:contractId, :freelancerId, :amount, 'BANK_TRANSFER', 'PENDING', NOW())
-                        """, nativeQuery = true)
-        void insertPendingPayout(
-                        @Param("contractId") Long contractId,
-                        @Param("freelancerId") Long freelancerId,
-                        @Param("amount") Double amount);
-
-        @Query(value = "SELECT COUNT(*) FROM proposals WHERE job_id = :jobId AND status IN ('SUBMITTED', 'SHORTLISTED')", nativeQuery = true)
-        int countActiveProposals(@Param("jobId") Long jobId);
-
-        @Modifying
-        @Transactional
-        @Query(value = "UPDATE jobs SET status = 'OPEN' WHERE id = :jobId AND status = 'IN_PROGRESS'", nativeQuery = true)
-        void reopenJob(@Param("jobId") Long jobId);
+        List<Proposal> findByStatusAndPaymentPendingAtBefore(
+                        com.team26.freelance.proposal.model.ProposalStatus status,
+                        LocalDateTime paymentPendingAt);
 
         @Query(value = """
                         SELECT *
@@ -159,7 +96,6 @@ public interface ProposalRepository extends JpaRepository<Proposal, Long> {
                         @Param("startDate") LocalDateTime startDate,
                         @Param("endDate") LocalDateTime endDate);
 
-        // Removed native SQL methods that queried other services' Postgres schemas.
         // Enrichment and existence checks must go through Feign clients to respect service boundaries.
 
         @Query(value = """
