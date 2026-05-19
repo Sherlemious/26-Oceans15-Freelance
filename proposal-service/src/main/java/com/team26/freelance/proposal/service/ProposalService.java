@@ -411,14 +411,15 @@ public class ProposalService {
 
         Proposal saved = proposalRepository.save(proposal);
         cacheEvictionService.evictProposalCaches(saved.getId());
-        
+
         logger.info("Proposal {} transitioning {} -> WITHDRAWN", proposalId, oldStatus);
 
-        // Publish proposal.withdrawn event
+        int remaining = proposalRepository.countActiveProposals(proposal.getJobId());
         proposalEventPublisher.publishProposalWithdrawn(
             proposalId,
             proposal.getJobId(),
-            proposal.getFreelancerId()
+            proposal.getFreelancerId(),
+            remaining
         );
 
         MDC.remove("proposalId");
@@ -828,6 +829,14 @@ public class ProposalService {
             System.err.println("WARN: Failed to fetch active contract for proposal " + proposalId + " via Feign: " + e.getMessage());
             return null;
         }
+    }
+
+// ── M3: Bulk Reject for Job Closure ─────────────────────────────────────
+
+    @Transactional
+    public void rejectSubmittedProposalsForJob(Long jobId) {
+        proposalRepository.rejectActiveProposalsForJob(jobId);
+        cacheEvictionService.evictProposalCaches(null);
     }
 
 // ── M3: Job Proposal Summary Endpoint Logic ─────────────────────────────

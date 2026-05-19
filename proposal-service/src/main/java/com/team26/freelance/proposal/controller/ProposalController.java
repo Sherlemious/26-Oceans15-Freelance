@@ -189,6 +189,15 @@ public class ProposalController {
         proposalService.recordInteraction(proposalId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
+    // ── M3: Internal endpoints called by job-service via Feign ──────────────
+
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    @PutMapping("/job/{jobId}/reject-submitted")
+    public ResponseEntity<Void> rejectSubmittedProposalsForJob(@PathVariable Long jobId) {
+        proposalService.rejectSubmittedProposalsForJob(jobId);
+        return ResponseEntity.noContent().build();
+    }
+
     // ── M3: Job Summary Read Endpoint ───────────────────────────────────────
 
     @PreAuthorize("hasAnyRole('FREELANCER', 'CLIENT', 'ADMIN')")
