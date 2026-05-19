@@ -1,4 +1,4 @@
-package com.team26.freelance.user.logging;
+package com.team26.freelance.job.logging;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.classic.spi.IThrowableProxy;
@@ -6,14 +6,15 @@ import ch.qos.logback.classic.spi.StackTraceElementProxy;
 import ch.qos.logback.core.LayoutBase;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class UserServiceJsonLogLayout extends LayoutBase<ILoggingEvent> {
+public class JobServiceJsonLogLayout extends LayoutBase<ILoggingEvent> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String SERVICE_NAME = "user-service";
+    private static final String SERVICE_NAME = "job-service";
 
     @Override
     public String doLayout(ILoggingEvent event) {
@@ -24,7 +25,9 @@ public class UserServiceJsonLogLayout extends LayoutBase<ILoggingEvent> {
         payload.put("thread", event.getThreadName());
         payload.put("logger", event.getLoggerName());
         payload.put("correlationId", mdc(event, "correlationId"));
-        payload.put("userId", mdc(event, "userId"));
+        payload.put("jobId", mdc(event, "jobId"));
+        payload.put("proposalId", mdc(event, "proposalId"));
+        payload.put("routingKey", mdc(event, "routingKey"));
         payload.put("message", event.getFormattedMessage());
 
         IThrowableProxy throwable = event.getThrowableProxy();
@@ -37,7 +40,7 @@ public class UserServiceJsonLogLayout extends LayoutBase<ILoggingEvent> {
         try {
             return OBJECT_MAPPER.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
-            return "{\"service\":\"user-service\",\"level\":\"ERROR\",\"message\":\"failed to encode log event\"}";
+            return "{\"service\":\"job-service\",\"level\":\"ERROR\",\"message\":\"failed to encode log event\"}";
         }
     }
 
